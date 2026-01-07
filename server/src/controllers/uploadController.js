@@ -86,8 +86,14 @@ const uploadMembers = async (req, res) => {
           member: newMember,
         });
 
-        // TODO: Add email to queue for PIN notification
-        // await emailQueue.add('sendPin', { memberId: newMember.id });
+        // Send PIN email to new member
+        try {
+          const emailService = require('../services/emailService');
+          await emailService.sendPin(newMember);
+        } catch (emailError) {
+          console.error(`Failed to send PIN email to ${newMember.email}:`, emailError);
+          // Continue with import even if email fails
+        }
 
       } catch (error) {
         console.error(`Error creating member (row ${memberData.rowNumber}):`, error);

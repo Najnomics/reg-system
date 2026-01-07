@@ -192,9 +192,18 @@ const createMember = async (req, res) => {
       },
     });
 
+    // Send PIN email to new member
+    try {
+      const emailService = require('../services/emailService');
+      await emailService.sendPin(member);
+    } catch (emailError) {
+      console.error('Failed to send PIN email to new member:', emailError);
+      // Continue with success response even if email fails
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Member created successfully',
+      message: 'Member created successfully and PIN email sent',
       data: { member },
     });
 
@@ -446,20 +455,14 @@ const resendPin = async (req, res) => {
       });
     }
 
-    // TODO: Implement email service to send PIN
-    // For now, we'll just return success
-    // const emailService = require('../services/emailService');
-    // await emailService.sendPin(member);
-
-    // Log the email attempt
-    await prisma.emailLog.create({
-      data: {
-        memberId: member.id,
-        type: 'pin',
-        subject: 'Your Church Attendance PIN',
-        status: 'sent', // Would be 'sent' or 'failed' based on actual email result
-      },
-    });
+    // Send PIN email
+    try {
+      const emailService = require('../services/emailService');
+      await emailService.sendPin(member);
+    } catch (emailError) {
+      console.error('Failed to send PIN email:', emailError);
+      // Continue with success response even if email fails
+    }
 
     res.status(200).json({
       success: true,
