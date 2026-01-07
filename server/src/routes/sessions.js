@@ -1,25 +1,59 @@
 const express = require('express');
+const { authenticateAdmin } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
+const sessionController = require('../controllers/sessionController');
+
 const router = express.Router();
 
-// Placeholder routes - will be implemented later
-router.get('/', (req, res) => {
-  res.status(501).json({ message: 'Get sessions endpoint not yet implemented' });
-});
+// All session routes require admin authentication
+router.use(authenticateAdmin);
 
-router.post('/', (req, res) => {
-  res.status(501).json({ message: 'Create session endpoint not yet implemented' });
-});
+// Get all sessions with filtering and pagination
+router.get('/', 
+  validate(schemas.reportQuery, 'query'), // Reuse report query schema for filtering
+  sessionController.getSessions
+);
 
-router.get('/:id', (req, res) => {
-  res.status(501).json({ message: 'Get session endpoint not yet implemented' });
-});
+// Get session statistics
+router.get('/stats',
+  sessionController.getSessionStats
+);
 
-router.patch('/:id', (req, res) => {
-  res.status(501).json({ message: 'Update session endpoint not yet implemented' });
-});
+// Create new session
+router.post('/',
+  validate(schemas.sessionCreate),
+  sessionController.createSession
+);
 
-router.delete('/:id', (req, res) => {
-  res.status(501).json({ message: 'Delete session endpoint not yet implemented' });
-});
+// Get single session by ID
+router.get('/:id',
+  validate(schemas.idParam, 'params'),
+  sessionController.getSession
+);
+
+// Update session
+router.patch('/:id',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionUpdate),
+  sessionController.updateSession
+);
+
+// Delete session
+router.delete('/:id',
+  validate(schemas.idParam, 'params'),
+  sessionController.deleteSession
+);
+
+// Download QR code for session
+router.get('/:id/qr-code',
+  validate(schemas.idParam, 'params'),
+  sessionController.downloadQRCode
+);
+
+// Get printable QR code page
+router.get('/:id/print',
+  validate(schemas.idParam, 'params'),
+  sessionController.getPrintableQR
+);
 
 module.exports = router;
