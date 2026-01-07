@@ -1,17 +1,42 @@
 const express = require('express');
+const { authenticateAdmin } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
+const reportsController = require('../controllers/reportsController');
+
 const router = express.Router();
 
-// Placeholder routes - will be implemented later
-router.get('/session/:sessionId', (req, res) => {
-  res.status(501).json({ message: 'Session report endpoint not yet implemented' });
-});
+// All report routes require admin authentication
+router.use(authenticateAdmin);
 
-router.get('/export', (req, res) => {
-  res.status(501).json({ message: 'Export report endpoint not yet implemented' });
-});
+// Get analytics dashboard data
+router.get('/analytics',
+  validate(schemas.reportQuery, 'query'),
+  reportsController.getAnalytics
+);
 
-router.get('/analytics', (req, res) => {
-  res.status(501).json({ message: 'Analytics endpoint not yet implemented' });
-});
+// Get session-specific attendance report
+router.get('/session/:sessionId',
+  validate(schemas.sessionIdParam, 'params'),
+  reportsController.getSessionReport
+);
+
+// Get member attendance history
+router.get('/member/:memberId',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.reportQuery, 'query'),
+  reportsController.getMemberAttendance
+);
+
+// Get attendance trends and patterns
+router.get('/trends',
+  validate(schemas.reportQuery, 'query'),
+  reportsController.getAttendanceTrends
+);
+
+// Export attendance data to Excel/CSV
+router.get('/export',
+  validate(schemas.reportQuery, 'query'),
+  reportsController.exportAttendance
+);
 
 module.exports = router;
