@@ -26,13 +26,21 @@ router.post('/',
   memberController.createMember
 );
 
-// Upload members (placeholder - will be implemented in next task)
-router.post('/upload', (req, res) => {
-  res.status(501).json({ 
-    error: 'Not implemented',
-    message: 'Bulk upload endpoint will be implemented next' 
-  });
-});
+// Upload members via Excel/CSV file
+router.post('/upload',
+  require('../middleware/upload').uploadMiddleware,
+  require('../controllers/uploadController').uploadMembers
+);
+
+// Download Excel template
+router.get('/template',
+  require('../controllers/uploadController').downloadTemplate
+);
+
+// Get upload history
+router.get('/upload-history',
+  require('../controllers/uploadController').getUploadHistory
+);
 
 // Get single member by ID
 router.get('/:id',
