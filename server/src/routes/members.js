@@ -1,37 +1,62 @@
 const express = require('express');
+const { authenticateAdmin } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
+const memberController = require('../controllers/memberController');
+
 const router = express.Router();
 
-// Placeholder routes - will be implemented later
-router.get('/', (req, res) => {
-  res.status(501).json({ message: 'Get members endpoint not yet implemented' });
-});
+// All member routes require admin authentication
+router.use(authenticateAdmin);
 
-router.post('/', (req, res) => {
-  res.status(501).json({ message: 'Create member endpoint not yet implemented' });
-});
+// Get all members with pagination and search
+router.get('/', 
+  validate(schemas.searchQuery, 'query'),
+  memberController.getMembers
+);
 
+// Search members with advanced filters
+router.get('/search',
+  validate(schemas.searchQuery, 'query'),
+  memberController.searchMembers
+);
+
+// Create new member
+router.post('/',
+  validate(schemas.memberCreate),
+  memberController.createMember
+);
+
+// Upload members (placeholder - will be implemented in next task)
 router.post('/upload', (req, res) => {
-  res.status(501).json({ message: 'Upload members endpoint not yet implemented' });
+  res.status(501).json({ 
+    error: 'Not implemented',
+    message: 'Bulk upload endpoint will be implemented next' 
+  });
 });
 
-router.get('/search', (req, res) => {
-  res.status(501).json({ message: 'Search members endpoint not yet implemented' });
-});
+// Get single member by ID
+router.get('/:id',
+  validate(schemas.idParam, 'params'),
+  memberController.getMember
+);
 
-router.get('/:id', (req, res) => {
-  res.status(501).json({ message: 'Get member endpoint not yet implemented' });
-});
+// Update member
+router.patch('/:id',
+  validate(schemas.idParam, 'params'),
+  validate(schemas.memberUpdate),
+  memberController.updateMember
+);
 
-router.patch('/:id', (req, res) => {
-  res.status(501).json({ message: 'Update member endpoint not yet implemented' });
-});
+// Delete/deactivate member
+router.delete('/:id',
+  validate(schemas.idParam, 'params'),
+  memberController.deleteMember
+);
 
-router.delete('/:id', (req, res) => {
-  res.status(501).json({ message: 'Delete member endpoint not yet implemented' });
-});
-
-router.post('/:id/resend-pin', (req, res) => {
-  res.status(501).json({ message: 'Resend PIN endpoint not yet implemented' });
-});
+// Resend PIN email to member
+router.post('/:id/resend-pin',
+  validate(schemas.idParam, 'params'),
+  memberController.resendPin
+);
 
 module.exports = router;
