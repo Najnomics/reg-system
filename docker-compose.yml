@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: church_attendance
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - church-network
+
+  # Redis Cache (optional)
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - church-network
+
+  # Backend API
+  backend:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://admin:securepassword@db:5432/church_attendance
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-jwt-secret-change-this
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - church-network
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://backend:5000/api
+      VITE_APP_NAME: Church Attendance System
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - church-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  church-network:
+    driver: bridge

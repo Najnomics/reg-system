@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@map("admins")
+}
+
+model Member {
+  id         Int          @id @default(autoincrement())
+  name       String
+  email      String       @unique
+  phone      String?
+  pin        String       @unique @db.VarChar(5)
+  pinHash    String       @map("pin_hash")
+  isActive   Boolean      @default(true) @map("is_active")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  attendance Attendance[]
+
+  @@index([email])
+  @@index([pin])
+  @@index([phone])
+  @@index([name])
+  @@map("members")
+}
+
+model Session {
+  id             Int          @id @default(autoincrement())
+  theme          String
+  startTime      DateTime     @map("start_time")
+  endTime        DateTime     @map("end_time")
+  secretQuestion String       @map("secret_question")
+  secretAnswer   String       @map("secret_answer") // hashed
+  qrCodeData     String?      @map("qr_code_data")
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  attendance     Attendance[]
+
+  @@index([isActive, startTime, endTime])
+  @@index([startTime, endTime])
+  @@map("sessions")
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  sessionId   Int      @map("session_id")
+  memberId    Int      @map("member_id")
+  checkedInAt DateTime @default(now()) @map("checked_in_at")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, memberId])
+  @@index([sessionId])
+  @@index([memberId])
+  @@index([checkedInAt])
+  @@map("attendance")
+}
+
+model EmailLog {
+  id        Int      @id @default(autoincrement())
+  memberId  Int      @map("member_id")
+  type      String // 'pin', 'reminder', 'notification'
+  subject   String
+  status    String // 'sent', 'failed', 'pending'
+  sentAt    DateTime @default(now()) @map("sent_at")
+  errorMsg  String?  @map("error_msg")
+
+  @@index([memberId])
+  @@index([type])
+  @@index([status])
+  @@map("email_logs")
+}
+
+model SystemSettings {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+
+  @@map("system_settings")
+}

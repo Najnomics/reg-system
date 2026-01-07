@@ -1,0 +1,40 @@
+{
+  "name": "church-attendance-system",
+  "version": "1.0.0",
+  "description": "A comprehensive web-based attendance tracking system for churches",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm run dev",
+    "build": "cd server && npm run build && cd ../client && npm run build",
+    "start": "cd server && npm start",
+    "test": "npm run server:test && npm run client:test",
+    "server:test": "cd server && npm test",
+    "client:test": "cd client && npm test",
+    "postinstall": "cd server && npm install && cd ../client && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourchurch/attendance-system.git"
+  },
+  "keywords": [
+    "church",
+    "attendance",
+    "management",
+    "tracking",
+    "qr-code",
+    "react",
+    "nodejs",
+    "postgresql"
+  ],
+  "author": "Church Development Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourchurch/attendance-system/issues"
+  },
+  "homepage": "https://github.com/yourchurch/attendance-system#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
