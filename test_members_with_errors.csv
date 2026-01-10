@@ -1,0 +1,11 @@
+firstName,lastName,email,phone,dateOfBirth
+John,Doe,john.doe@example.com,(555) 123-4567,1985-06-15
+Jane,Smith,jane.smith@example.com,(555) 234-5678,1992-03-22
+Robert,Johnson,invalid-email,(555) 345-6789,1978-11-08
+Mary,,mary.williams@example.com,(555) 456-7890,1989-09-12
+David,Brown,john.doe@example.com,(555) 567-8901,1995-04-30
+Sarah,Davis,john.doe@church.com,(555) 678-9012,1987-12-03
+Michael,Wilson,not-an-email,(555) 789-0123,1983-07-18
+,Miller,lisa.miller@example.com,(555) 890-1234,1991-02-25
+James,Taylor,jane.smith@example.com,(555) 901-2345,1979-08-14
+Valid,User,validuser@example.com,(555) 012-3456,1986-05-27

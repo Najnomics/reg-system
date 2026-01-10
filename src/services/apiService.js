@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 class ApiService {
   async request(endpoint, options = {}) {
@@ -11,7 +11,7 @@ class ApiService {
     };
 
     // Add auth token if available
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -94,16 +94,35 @@ class ApiService {
   }
 
   async createSession(sessionData) {
+    // Transform frontend sessionPassword to backend secretQuestion/secretAnswer format
+    const backendData = {
+      ...sessionData,
+      secretQuestion: 'What is the session password?',
+      secretAnswer: sessionData.sessionPassword,
+    };
+    
+    // Remove the frontend-specific field
+    delete backendData.sessionPassword;
+    
     return this.request('/sessions', {
       method: 'POST',
-      body: JSON.stringify(sessionData),
+      body: JSON.stringify(backendData),
     });
   }
 
   async updateSession(id, sessionData) {
+    // Transform frontend sessionPassword to backend secretQuestion/secretAnswer format
+    const backendData = { ...sessionData };
+    
+    if (sessionData.sessionPassword !== undefined) {
+      backendData.secretQuestion = 'What is the session password?';
+      backendData.secretAnswer = sessionData.sessionPassword;
+      delete backendData.sessionPassword;
+    }
+    
     return this.request(`/sessions/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(sessionData),
+      body: JSON.stringify(backendData),
     });
   }
 

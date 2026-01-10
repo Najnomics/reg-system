@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
+import { apiService } from '../services/apiService'
 
 const AuthContext = createContext()
 
@@ -85,23 +86,27 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = async () => {
     try {
       const token = localStorage.getItem('token')
-      const user = localStorage.getItem('user')
       
-      if (!token || !user) {
+      if (!token) {
         dispatch({ type: AuthActionTypes.SET_LOADING, payload: false })
         return
       }
 
-      dispatch({
-        type: AuthActionTypes.LOGIN_SUCCESS,
-        payload: {
-          user: JSON.parse(user),
-          token: token,
-        },
-      })
+      const user = await apiService.verifyToken()
+      if (user) {
+        dispatch({
+          type: AuthActionTypes.LOGIN_SUCCESS,
+          payload: {
+            user,
+            token,
+          },
+        })
+      } else {
+        localStorage.removeItem('token')
+        dispatch({ type: AuthActionTypes.SET_LOADING, payload: false })
+      }
     } catch (error) {
       localStorage.removeItem('token')
-      localStorage.removeItem('user')
       dispatch({ type: AuthActionTypes.SET_LOADING, payload: false })
     }
   }
@@ -110,38 +115,21 @@ export const AuthProvider = ({ children }) => {
     try {
       dispatch({ type: AuthActionTypes.LOGIN_START })
       
-      // Debug logging
-      console.log('Login attempt with:', credentials)
-      console.log('Checking against email:', 'smartdude873@gmail.com')
-      console.log('Checking against password:', 'power873')
+      const response = await apiService.login(credentials)
+      
+      localStorage.setItem('token', response.token)
 
-      // Mock login - accepts any email/password for demo
-      if (credentials.email && credentials.password) {
-        const user = {
-          id: 1,
-          name: 'Admin User',
-          email: credentials.email,
-          role: 'admin'
-        }
-        const token = 'mock-jwt-token'
+      dispatch({
+        type: AuthActionTypes.LOGIN_SUCCESS,
+        payload: {
+          user: response.user,
+          token: response.token,
+        },
+      })
 
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-
-        dispatch({
-          type: AuthActionTypes.LOGIN_SUCCESS,
-          payload: { user, token },
-        })
-
-        console.log('Login successful!')
-        return { success: true }
-      } else {
-        console.log('Invalid credentials - email or password mismatch')
-        throw new Error('Invalid email or password. Please check your credentials.')
-      }
+      return { success: true }
     } catch (error) {
       const errorMessage = error.message || 'Login failed'
-      console.error('Login error:', errorMessage)
       dispatch({
         type: AuthActionTypes.LOGIN_FAILURE,
         payload: errorMessage,
@@ -152,7 +140,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token')
-    localStorage.removeItem('user')
     dispatch({ type: AuthActionTypes.LOGOUT })
   }
 

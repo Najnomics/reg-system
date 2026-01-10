@@ -242,7 +242,6 @@ const createSession = async (req, res) => {
     });
 
     // Add QR code images and status
-    const now = new Date();
     const sessionResponse = {
       ...updatedSession,
       status: getSessionStatus(updatedSession, now),
