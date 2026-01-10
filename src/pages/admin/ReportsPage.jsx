@@ -8,7 +8,7 @@ import {
   PresentationChartLineIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '../../components/admin/AdminLayout';
 
 const ReportsPage = () => {
   const { sessions, members, loading } = useApp();

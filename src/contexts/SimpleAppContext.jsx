@@ -48,7 +48,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Doe', 
           email: 'john.doe@church.com',
           phone: '(555) 123-4567',
-          pin: '12345',
+          memberCode: '1234',
           dateOfBirth: '1985-06-15',
           createdAt: '2024-01-15T10:30:00Z',
           isActive: true
@@ -59,7 +59,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Smith', 
           email: 'jane.smith@church.com',
           phone: '(555) 234-5678',
-          pin: '23456',
+          memberCode: '2345',
           dateOfBirth: '1992-03-22',
           createdAt: '2024-01-16T14:20:00Z',
           isActive: true
@@ -70,7 +70,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Johnson', 
           email: 'robert.johnson@church.com',
           phone: '(555) 345-6789',
-          pin: '34567',
+          memberCode: '3456',
           dateOfBirth: '1978-11-08',
           createdAt: '2024-01-17T09:15:00Z',
           isActive: true
@@ -81,7 +81,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Williams', 
           email: 'mary.williams@church.com',
           phone: '(555) 456-7890',
-          pin: '45678',
+          memberCode: '4567',
           dateOfBirth: '1989-09-12',
           createdAt: '2024-01-18T11:45:00Z',
           isActive: true
@@ -92,7 +92,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Brown', 
           email: 'david.brown@church.com',
           phone: '(555) 567-8901',
-          pin: '56789',
+          memberCode: '5678',
           dateOfBirth: '1995-04-30',
           createdAt: '2024-01-19T16:30:00Z',
           isActive: false
@@ -103,7 +103,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Davis', 
           email: 'sarah.davis@church.com',
           phone: '(555) 678-9012',
-          pin: '67890',
+          memberCode: '6789',
           dateOfBirth: '1987-12-03',
           createdAt: '2024-01-20T08:20:00Z',
           isActive: true
@@ -114,7 +114,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Wilson', 
           email: 'michael.wilson@church.com',
           phone: '(555) 789-0123',
-          pin: '78901',
+          memberCode: '7890',
           dateOfBirth: '1983-07-18',
           createdAt: '2024-01-21T13:10:00Z',
           isActive: true
@@ -125,7 +125,7 @@ export const AppProvider = ({ children }) => {
           lastName: 'Miller', 
           email: 'lisa.miller@church.com',
           phone: '(555) 890-1234',
-          pin: '89012',
+          memberCode: '8901',
           dateOfBirth: '1991-02-25',
           createdAt: '2024-01-22T15:50:00Z',
           isActive: true
@@ -149,6 +149,7 @@ export const AppProvider = ({ children }) => {
           endTime: new Date(today.getTime() + 12 * 60 * 60 * 1000).toISOString(), // 12 PM today
           location: 'Main Sanctuary',
           description: 'Weekly Sunday morning worship service',
+          sessionPassword: '123',
           checkedInCount: 87
         },
         { 
@@ -158,6 +159,7 @@ export const AppProvider = ({ children }) => {
           endTime: new Date(today.getTime() + 24 * 60 * 60 * 1000 + 20.5 * 60 * 60 * 1000).toISOString(), // 8:30 PM tomorrow
           location: 'Youth Room',
           description: 'Weekly Bible study for teenagers',
+          sessionPassword: '456',
           checkedInCount: 0
         },
         { 
@@ -167,6 +169,7 @@ export const AppProvider = ({ children }) => {
           endTime: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000 + 21 * 60 * 60 * 1000).toISOString(), // 9 PM Wednesday
           location: 'Prayer Chapel',
           description: 'Mid-week prayer and fellowship',
+          sessionPassword: '789',
           checkedInCount: 0
         },
         { 
@@ -176,6 +179,7 @@ export const AppProvider = ({ children }) => {
           endTime: new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000 + 20.5 * 60 * 60 * 1000).toISOString(), // 8:30 PM two days ago
           location: 'Main Sanctuary',
           description: 'Special Christmas Eve worship service',
+          sessionPassword: '321',
           checkedInCount: 156
         },
         { 
@@ -185,6 +189,7 @@ export const AppProvider = ({ children }) => {
           endTime: new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000 + 10 * 60 * 60 * 1000).toISOString(), // 10 AM next Saturday
           location: 'Fellowship Hall',
           description: 'Monthly men\'s fellowship breakfast and study',
+          sessionPassword: '654',
           checkedInCount: 0
         }
       ]);

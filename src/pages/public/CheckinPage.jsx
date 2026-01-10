@@ -18,8 +18,10 @@ const CheckInPage = () => {
   const [checking, setChecking] = useState(false);
   const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [checkedInMember, setCheckedInMember] = useState(null);
+  const [step, setStep] = useState(1); // 1: Session password, 2: Member code
   const [formData, setFormData] = useState({
-    pin: '',
+    sessionPassword: '',
+    memberCode: '',
     firstName: '',
     lastName: '',
   });
@@ -40,16 +42,14 @@ const CheckInPage = () => {
     });
   };
 
-  const handlePinSubmit = async (e) => {
+  const handleSessionPasswordSubmit = async (e) => {
     e.preventDefault();
     setChecking(true);
 
     try {
-      // Validate PIN
-      const member = members.find(m => m.pin === formData.pin);
-      
-      if (!member) {
-        showError('Invalid PIN. Please check your PIN and try again.');
+      // Validate session password
+      if (formData.sessionPassword !== session.sessionPassword) {
+        showError('Invalid session password. Please check with an administrator.');
         setChecking(false);
         return;
       }
@@ -71,6 +71,29 @@ const CheckInPage = () => {
         return;
       }
 
+      // Move to step 2
+      setStep(2);
+    } catch (error) {
+      showError('Failed to validate session password.');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleMemberCodeSubmit = async (e) => {
+    e.preventDefault();
+    setChecking(true);
+
+    try {
+      // Validate member code
+      const member = members.find(m => m.memberCode === formData.memberCode);
+      
+      if (!member) {
+        showError('Invalid member code. Please check your 4-digit code.');
+        setChecking(false);
+        return;
+      }
+
       // Mock API call for check-in
       await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -84,7 +107,7 @@ const CheckInPage = () => {
     }
   };
 
-  const handleManualSubmit = async (e) => {
+  const handleGuestSubmit = async (e) => {
     e.preventDefault();
     setChecking(true);
 
@@ -223,87 +246,140 @@ const CheckInPage = () => {
             )}
           </div>
 
-          {/* Check-in Methods */}
-          <div className="space-y-6">
-            {/* PIN Check-in */}
+          {/* Step 1: Session Password */}
+          {step === 1 && (
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Members: Check In with PIN
+                Step 1: Enter Session Password
               </h3>
-              <form onSubmit={handlePinSubmit} className="space-y-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Please enter the 3-digit session password provided by the administrator.
+              </p>
+              <form onSubmit={handleSessionPasswordSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="pin" className="block text-sm font-medium text-gray-700 mb-2">
-                    Enter your 5-digit PIN
+                  <label htmlFor="sessionPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    Session Password
                   </label>
                   <input
                     type="text"
-                    name="pin"
-                    id="pin"
-                    maxLength="5"
-                    pattern="[0-9]{5}"
-                    value={formData.pin}
+                    name="sessionPassword"
+                    id="sessionPassword"
+                    maxLength="3"
+                    pattern="[0-9]{3}"
+                    value={formData.sessionPassword}
                     onChange={handleChange}
                     className="w-full text-center text-2xl font-mono border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="12345"
+                    placeholder="123"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  disabled={checking || formData.pin.length !== 5}
+                  disabled={checking || formData.sessionPassword.length !== 3}
                   className="w-full px-4 py-3 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
-                  {checking ? 'Checking In...' : 'Check In'}
+                  {checking ? 'Verifying...' : 'Continue'}
                 </button>
               </form>
             </div>
+          )}
 
-            {/* Guest Check-in */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Guests: Check In Manually
-              </h3>
-              <form onSubmit={handleManualSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+          {/* Step 2: Member Check-in */}
+          {step === 2 && (
+            <div className="space-y-6">
+              {/* Member Code Check-in */}
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Step 2: Enter Your Member Code
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Please enter the 4-digit member code that was sent to your email.
+                </p>
+                <form onSubmit={handleMemberCodeSubmit} className="space-y-4">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                      First Name
+                    <label htmlFor="memberCode" className="block text-sm font-medium text-gray-700 mb-2">
+                      Member Code
                     </label>
                     <input
                       type="text"
-                      name="firstName"
-                      id="firstName"
-                      value={formData.firstName}
+                      name="memberCode"
+                      id="memberCode"
+                      maxLength="4"
+                      pattern="[0-9]{4}"
+                      value={formData.memberCode}
                       onChange={handleChange}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full text-center text-2xl font-mono border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="1234"
                       required
                     />
                   </div>
-                  <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      id="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      required
-                    />
+                  <button
+                    type="submit"
+                    disabled={checking || formData.memberCode.length !== 4}
+                    className="w-full px-4 py-3 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    {checking ? 'Checking In...' : 'Check In'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Guest Check-in */}
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Don't have a member code? Check in as Guest
+                </h3>
+                <form onSubmit={handleGuestSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
+                  <button
+                    type="submit"
+                    disabled={checking || !formData.firstName.trim() || !formData.lastName.trim()}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    {checking ? 'Checking In...' : 'Check In as Guest'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Back Button */}
+              <div className="text-center">
                 <button
-                  type="submit"
-                  disabled={checking || !formData.firstName.trim() || !formData.lastName.trim()}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  onClick={() => setStep(1)}
+                  className="text-sm text-indigo-600 hover:text-indigo-500"
                 >
-                  {checking ? 'Checking In...' : 'Check In as Guest'}
+                  ← Back to Session Password
                 </button>
-              </form>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Instructions */}
           <div className="mt-8 text-center">

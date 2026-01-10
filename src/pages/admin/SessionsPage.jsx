@@ -14,7 +14,7 @@ import {
   PauseIcon,
   StopIcon,
 } from '@heroicons/react/24/outline';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '../../components/admin/AdminLayout';
 import SessionForm from '../../components/sessions/SessionForm';
 import QRCodeModal from '../../components/sessions/QRCodeModal';
 

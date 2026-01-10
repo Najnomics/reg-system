@@ -11,6 +11,7 @@ const SessionForm = ({ session, onClose, onSuccess }) => {
     endTime: session?.endTime ? new Date(session.endTime).toISOString().slice(0, 16) : '',
     location: session?.location || '',
     description: session?.description || '',
+    sessionPassword: session?.sessionPassword || '',
   });
 
   const handleChange = (e) => {
@@ -41,6 +42,12 @@ const SessionForm = ({ session, onClose, onSuccess }) => {
       // Validate end time is after start time
       if (formData.endTime && new Date(formData.endTime) <= new Date(formData.startTime)) {
         showError('End time must be after start time');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.sessionPassword.trim() || formData.sessionPassword.length !== 3) {
+        showError('Session password must be exactly 3 digits');
         setLoading(false);
         return;
       }
@@ -133,6 +140,27 @@ const SessionForm = ({ session, onClose, onSuccess }) => {
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="e.g., Main Sanctuary"
             />
+          </div>
+
+          <div>
+            <label htmlFor="sessionPassword" className="block text-sm font-medium text-gray-700">
+              Session Password *
+            </label>
+            <input
+              type="text"
+              name="sessionPassword"
+              id="sessionPassword"
+              required
+              maxLength="3"
+              pattern="[0-9]{3}"
+              value={formData.sessionPassword}
+              onChange={handleChange}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="e.g., 123"
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              3-digit password that members need to access check-in
+            </p>
           </div>
 
           <div>
