@@ -101,6 +101,18 @@ class ApiService {
     });
   }
 
+  async toggleMemberStatus(id) {
+    return this.request(`/members/${id}/toggle-status`, {
+      method: 'PATCH',
+    });
+  }
+
+  async resendMemberPin(id) {
+    return this.request(`/members/${id}/resend-pin`, {
+      method: 'POST',
+    });
+  }
+
   async bulkUploadMembers(csvData) {
     return this.request('/members/bulk-upload', {
       method: 'POST',

@@ -423,6 +423,59 @@ const searchMembers = async (req, res) => {
 };
 
 /**
+ * Toggle member status (active/inactive)
+ */
+const toggleMemberStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if member exists
+    const existingMember = await prisma.member.findUnique({
+      where: { id: parseInt(id) },
+      select: { id: true, isActive: true, name: true },
+    });
+
+    if (!existingMember) {
+      return res.status(404).json({
+        error: 'Member not found',
+        message: 'Member with the specified ID does not exist',
+      });
+    }
+
+    // Toggle status
+    const member = await prisma.member.update({
+      where: { id: parseInt(id) },
+      data: { isActive: !existingMember.isActive },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        pin: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const action = member.isActive ? 'activated' : 'deactivated';
+
+    res.status(200).json({
+      success: true,
+      message: `Member ${action} successfully`,
+      data: { member },
+    });
+
+  } catch (error) {
+    console.error('Toggle member status error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to toggle member status',
+    });
+  }
+};
+
+/**
  * Resend PIN email to member
  */
 const resendPin = async (req, res) => {
@@ -488,6 +541,7 @@ module.exports = {
   createMember,
   updateMember,
   deleteMember,
+  toggleMemberStatus,
   searchMembers,
   resendPin,
 };

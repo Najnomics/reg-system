@@ -7,7 +7,7 @@ import {
   CheckCircleIcon,
   XCircleIcon 
 } from '@heroicons/react/24/outline';
-import { memberService } from '../../services/memberService';
+import { apiService } from '../../services/apiService';
 
 const MemberList = ({ members, onEdit, loading }) => {
   const [deletingId, setDeletingId] = useState(null);
@@ -15,10 +15,10 @@ const MemberList = ({ members, onEdit, loading }) => {
   const [sendingEmailId, setSendingEmailId] = useState(null);
 
   const handleDelete = async (member) => {
-    if (window.confirm(`Are you sure you want to delete ${member.firstName} ${member.lastName}?`)) {
+    if (window.confirm(`Are you sure you want to delete ${member.name}?`)) {
       setDeletingId(member.id);
       try {
-        await memberService.deleteMember(member.id);
+        await apiService.deleteMember(member.id);
         window.location.reload();
       } catch (error) {
         alert(error.message);
@@ -30,10 +30,10 @@ const MemberList = ({ members, onEdit, loading }) => {
 
   const handleToggleStatus = async (member) => {
     const action = member.isActive ? 'deactivate' : 'activate';
-    if (window.confirm(`Are you sure you want to ${action} ${member.firstName} ${member.lastName}?`)) {
+    if (window.confirm(`Are you sure you want to ${action} ${member.name}?`)) {
       setTogglingId(member.id);
       try {
-        await memberService.toggleStatus(member.id);
+        await apiService.toggleMemberStatus(member.id);
         window.location.reload();
       } catch (error) {
         alert(error.message);
@@ -44,10 +44,10 @@ const MemberList = ({ members, onEdit, loading }) => {
   };
 
   const handleResendPin = async (member) => {
-    if (window.confirm(`Resend PIN to ${member.firstName} ${member.lastName}?`)) {
+    if (window.confirm(`Resend PIN to ${member.name}?`)) {
       setSendingEmailId(member.id);
       try {
-        await memberService.resendPin(member.id);
+        await apiService.resendMemberPin(member.id);
         alert('PIN sent successfully!');
       } catch (error) {
         alert(error.message);
@@ -102,19 +102,14 @@ const MemberList = ({ members, onEdit, loading }) => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div>
                   <div className="text-sm font-medium text-gray-900">
-                    {member.firstName} {member.lastName}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {member.dateOfBirth && (
-                      <>DOB: {new Date(member.dateOfBirth).toLocaleDateString()}</>
-                    )}
+                    {member.name}
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div>
                   <div className="text-sm text-gray-900">{member.email}</div>
-                  <div className="text-sm text-gray-500">{member.phoneNumber}</div>
+                  <div className="text-sm text-gray-500">{member.phone}</div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">

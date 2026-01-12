@@ -61,6 +61,12 @@ router.delete('/:id',
   memberController.deleteMember
 );
 
+// Toggle member status (active/inactive)
+router.patch('/:id/toggle-status',
+  validate(schemas.idParam, 'params'),
+  memberController.toggleMemberStatus
+);
+
 // Resend PIN email to member
 router.post('/:id/resend-pin',
   validate(schemas.idParam, 'params'),
