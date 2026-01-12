@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
+import apiService from '../../services/apiService';
 import {
   QrCodeIcon,
   CalendarIcon,
@@ -12,7 +13,7 @@ import {
 
 const CheckInPage = () => {
   const { sessionId } = useParams();
-  const { sessions, members, showError, showSuccess } = useApp();
+  const { members, showError, showSuccess } = useApp();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
@@ -27,13 +28,35 @@ const CheckInPage = () => {
   });
 
   useEffect(() => {
-    // Find session by ID
-    const foundSession = sessions.find(s => s.id === parseInt(sessionId));
-    if (foundSession) {
-      setSession(foundSession);
-    }
-    setLoading(false);
-  }, [sessionId, sessions]);
+    const fetchSessionData = async () => {
+      if (!sessionId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await apiService.getSessionInfo(sessionId);
+        console.log('Session info response:', response);
+        
+        // Handle the response structure
+        const sessionData = response?.data?.session || response?.session || response;
+        if (sessionData) {
+          setSession(sessionData);
+        } else {
+          console.log('No session data found in response:', response);
+          setSession(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch session info:', error);
+        setSession(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSessionData();
+  }, [sessionId]);
 
   const handleChange = (e) => {
     setFormData({

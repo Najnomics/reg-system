@@ -5,11 +5,13 @@ import WorkingLoginPage from './pages/admin/WorkingLoginPage';
 import SimpleDashboard from './pages/admin/SimpleDashboard';
 import CompleteMembersPage from './pages/admin/CompleteMembersPage';
 import SessionsPage from './pages/admin/SessionsPage';
+import CreateSessionPage from './pages/admin/CreateSessionPage';
 import ReportsPage from './pages/admin/ReportsPage';
 import CheckInPage from './pages/public/CheckInPage';
 import SimpleProtectedRoute from './components/common/SimpleProtectedRoute';
 import SimpleNotificationContainer from './components/common/SimpleNotificationContainer';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import AdminLayout from './components/admin/AdminLayout';
 import './index.css';
 
 function App() {
@@ -26,33 +28,16 @@ function App() {
               {/* Protected Admin Routes */}
               <Route path="/admin" element={
                 <SimpleProtectedRoute>
-                  <SimpleDashboard />
+                  <AdminLayout />
                 </SimpleProtectedRoute>
-              } />
-              
-              <Route path="/admin/dashboard" element={
-                <SimpleProtectedRoute>
-                  <SimpleDashboard />
-                </SimpleProtectedRoute>
-              } />
-              
-              <Route path="/admin/members" element={
-                <SimpleProtectedRoute>
-                  <CompleteMembersPage />
-                </SimpleProtectedRoute>
-              } />
-              
-              <Route path="/admin/sessions" element={
-                <SimpleProtectedRoute>
-                  <SessionsPage />
-                </SimpleProtectedRoute>
-              } />
-              
-              <Route path="/admin/reports" element={
-                <SimpleProtectedRoute>
-                  <ReportsPage />
-                </SimpleProtectedRoute>
-              } />
+              }>
+                <Route index element={<SimpleDashboard />} />
+                <Route path="dashboard" element={<SimpleDashboard />} />
+                <Route path="members" element={<CompleteMembersPage />} />
+                <Route path="sessions" element={<SessionsPage />} />
+                <Route path="sessions/new" element={<CreateSessionPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+              </Route>
               
               {/* Default Redirects */}
               <Route path="/" element={<Navigate to="/admin" replace />} />

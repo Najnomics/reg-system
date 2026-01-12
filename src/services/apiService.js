@@ -39,6 +39,10 @@ class ApiService {
     });
   }
 
+  async verifyToken() {
+    return this.request('/auth/verify');
+  }
+
   async refreshToken() {
     return this.request('/auth/refresh', {
       method: 'POST',
@@ -47,7 +51,16 @@ class ApiService {
 
   // Members methods
   async getMembers() {
-    return this.request('/members');
+    const response = await this.request('/members');
+    // Transform backend 'pin' field to frontend 'memberCode' field
+    if (response && response.data && response.data.members) {
+      response.data.members = response.data.members.map(member => ({
+        ...member,
+        memberCode: member.pin,
+        // Keep pin for backward compatibility but prefer memberCode
+      }));
+    }
+    return response;
   }
 
   async getMember(id) {
@@ -55,16 +68,30 @@ class ApiService {
   }
 
   async createMember(memberData) {
+    // Transform frontend memberCode to backend pin field
+    const backendData = { ...memberData };
+    if (backendData.memberCode !== undefined) {
+      backendData.pin = backendData.memberCode;
+      delete backendData.memberCode;
+    }
+    
     return this.request('/members', {
       method: 'POST',
-      body: JSON.stringify(memberData),
+      body: JSON.stringify(backendData),
     });
   }
 
   async updateMember(id, memberData) {
+    // Transform frontend memberCode to backend pin field
+    const backendData = { ...memberData };
+    if (backendData.memberCode !== undefined) {
+      backendData.pin = backendData.memberCode;
+      delete backendData.memberCode;
+    }
+    
     return this.request(`/members/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(memberData),
+      body: JSON.stringify(backendData),
     });
   }
 
@@ -121,7 +148,7 @@ class ApiService {
     }
     
     return this.request(`/sessions/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(backendData),
     });
   }
@@ -137,10 +164,14 @@ class ApiService {
   }
 
   // Check-in methods
+  async getSessionInfo(sessionId) {
+    return this.request(`/checkin/${sessionId}/info`);
+  }
+
   async checkInWithPin(sessionId, pin) {
-    return this.request('/checkin/pin', {
+    return this.request(`/checkin/${sessionId}/submit`, {
       method: 'POST',
-      body: JSON.stringify({ sessionId, pin }),
+      body: JSON.stringify({ pin }),
     });
   }
 

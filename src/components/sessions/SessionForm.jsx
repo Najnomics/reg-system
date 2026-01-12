@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { apiService } from '../../services/apiService';
 
 const SessionForm = ({ session, onClose, onSuccess }) => {
   const { showError, showSuccess } = useApp();
@@ -24,6 +25,7 @@ const SessionForm = ({ session, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    console.log('SessionForm: Form submitted!', formData);
 
     try {
       // Validate required fields
@@ -52,13 +54,34 @@ const SessionForm = ({ session, onClose, onSuccess }) => {
         return;
       }
 
-      // Mock API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare session data for API
+      const sessionData = {
+        theme: formData.theme.trim(),
+        startTime: new Date(formData.startTime).toISOString(),
+        endTime: formData.endTime ? new Date(formData.endTime).toISOString() : null,
+        sessionPassword: formData.sessionPassword
+      };
 
-      showSuccess(session ? 'Session updated successfully' : 'Session created successfully');
+      console.log('SessionForm: Submitting session data:', sessionData);
+
+      if (session) {
+        // Update existing session
+        console.log('SessionForm: Updating session', session.id);
+        const result = await apiService.updateSession(session.id, sessionData);
+        console.log('SessionForm: Update result:', result);
+        showSuccess('Session updated successfully');
+      } else {
+        // Create new session
+        console.log('SessionForm: Creating new session');
+        const result = await apiService.createSession(sessionData);
+        console.log('SessionForm: Create result:', result);
+        showSuccess('Session created successfully');
+      }
+      
       onSuccess();
     } catch (error) {
-      showError('Failed to save session');
+      console.error('Session save error:', error);
+      showError(error.message || 'Failed to save session');
     } finally {
       setLoading(false);
     }

@@ -7,6 +7,8 @@ const validate = (schema, source = 'body') => {
   return (req, res, next) => {
     const data = req[source];
     
+    console.log('Validation - Source:', source, 'Data:', data);
+    
     const { error, value } = schema.validate(data, {
       abortEarly: false,
       allowUnknown: false,
@@ -14,6 +16,7 @@ const validate = (schema, source = 'body') => {
     });
 
     if (error) {
+      console.log('Validation error:', error.details);
       const details = error.details.map(detail => ({
         field: detail.path.join('.'),
         message: detail.message,
@@ -86,8 +89,7 @@ const schemas = {
       'string.max': 'Theme must not exceed 200 characters',
       'any.required': 'Theme is required',
     }),
-    startTime: Joi.date().iso().min('now').required().messages({
-      'date.min': 'Start time must be in the future',
+    startTime: Joi.date().iso().required().messages({
       'any.required': 'Start time is required',
     }),
     endTime: Joi.date().iso().min(Joi.ref('startTime')).required().messages({

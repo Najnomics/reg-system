@@ -5,7 +5,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
-import { useApp } from '../../contexts/AppContext'
+import { useApp } from '../../contexts/SimpleAppContext'
 
 const schema = yup.object({
   email: yup

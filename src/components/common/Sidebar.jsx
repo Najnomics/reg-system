@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../contexts/SimpleAppContext';
 import {
   HomeIcon,
   UsersIcon,

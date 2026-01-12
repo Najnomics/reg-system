@@ -14,6 +14,10 @@ export const AppProvider = ({ children }) => {
     setSidebarOpen(open);
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => !prev);
+  };
+
   const showNotification = (message, type = 'info') => {
     const id = Date.now();
     const notification = { id, message, type };
@@ -37,12 +41,19 @@ export const AppProvider = ({ children }) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
+
   // Real API functions
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getMembers();
-      setMembers(data);
+      const response = await apiService.getMembers();
+      console.log('fetchMembers response:', response);
+      // Extract members array from API response
+      const membersData = response?.data?.members || response?.members || [];
+      setMembers(Array.isArray(membersData) ? membersData : []);
     } catch (error) {
       console.error('Failed to fetch members:', error);
       showError('Failed to load members');
@@ -55,8 +66,11 @@ export const AppProvider = ({ children }) => {
   const fetchSessions = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getSessions();
-      setSessions(data);
+      const response = await apiService.getSessions();
+      console.log('fetchSessions response:', response);
+      // Extract sessions array from API response
+      const sessionsData = response?.data?.sessions || response?.sessions || [];
+      setSessions(Array.isArray(sessionsData) ? sessionsData : []);
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
       showError('Failed to load sessions');
@@ -186,11 +200,13 @@ export const AppProvider = ({ children }) => {
   const value = {
     sidebarOpen,
     setSidebar,
+    toggleSidebar,
     notifications,
     showNotification,
     showError,
     showSuccess,
     removeNotification,
+    clearNotifications,
     members,
     sessions,
     loading,

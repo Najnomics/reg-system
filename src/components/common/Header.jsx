@@ -8,7 +8,7 @@ import {
   ArrowRightOnRectangleIcon 
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
-import { useApp } from '../../contexts/AppContext'
+import { useApp } from '../../contexts/SimpleAppContext'
 
 const Header = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)

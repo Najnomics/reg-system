@@ -17,7 +17,7 @@ const getSessions = async (req, res) => {
 
     if (status) {
       if (status === 'active') {
-        const now = new Date();
+        const currentTime = new Date();
         where.AND = [
           { isActive: true },
           { startTime: { lte: now } },
@@ -68,10 +68,10 @@ const getSessions = async (req, res) => {
     ]);
 
     // Add status to each session
-    const now = new Date();
+    const currentTime = new Date();
     const sessionsWithStatus = sessions.map(session => ({
       ...session,
-      status: getSessionStatus(session, now),
+      status: getSessionStatus(session, currentTime),
       attendanceCount: session._count.attendance,
     }));
 
@@ -149,10 +149,10 @@ const getSession = async (req, res) => {
     }
 
     // Add session status
-    const now = new Date();
+    const currentTime = new Date();
     const sessionWithStatus = {
       ...session,
-      status: getSessionStatus(session, now),
+      status: getSessionStatus(session, currentTime),
       attendanceCount: session._count.attendance,
     };
 
@@ -175,12 +175,28 @@ const getSession = async (req, res) => {
  */
 const createSession = async (req, res) => {
   try {
+    console.log('Create session request body:', req.body);
     const { theme, startTime, endTime, secretQuestion, secretAnswer } = req.body;
+
+    // Validate required fields
+    if (!theme || !startTime || !endTime || !secretQuestion || !secretAnswer) {
+      console.log('Missing required fields:', {
+        theme: !!theme,
+        startTime: !!startTime,
+        endTime: !!endTime,
+        secretQuestion: !!secretQuestion,
+        secretAnswer: !!secretAnswer
+      });
+      return res.status(400).json({
+        error: 'Invalid input data',
+        message: 'All fields are required: theme, startTime, endTime, secretQuestion, secretAnswer',
+      });
+    }
 
     // Validate time window
     const start = new Date(startTime);
     const end = new Date(endTime);
-    const now = new Date();
+    const currentTime = new Date();
 
     if (start >= end) {
       return res.status(400).json({
@@ -189,12 +205,6 @@ const createSession = async (req, res) => {
       });
     }
 
-    if (end <= now) {
-      return res.status(400).json({
-        error: 'Invalid time range',
-        message: 'End time must be in the future',
-      });
-    }
 
     // Hash the secret answer
     const hashedAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 12);
@@ -244,7 +254,7 @@ const createSession = async (req, res) => {
     // Add QR code images and status
     const sessionResponse = {
       ...updatedSession,
-      status: getSessionStatus(updatedSession, now),
+      status: getSessionStatus(updatedSession, currentTime),
       qrCode: qrData.dataUrl,
       qrCodeSvg: qrData.svg,
       attendanceCount: 0,
@@ -296,7 +306,7 @@ const updateSession = async (req, res) => {
     if (startTime !== undefined || endTime !== undefined) {
       const newStartTime = startTime ? new Date(startTime) : existingSession.startTime;
       const newEndTime = endTime ? new Date(endTime) : existingSession.endTime;
-      const now = new Date();
+      const currentTime = new Date();
 
       if (newStartTime >= newEndTime) {
         return res.status(400).json({
@@ -354,10 +364,10 @@ const updateSession = async (req, res) => {
     }
 
     // Add status and QR code images
-    const now = new Date();
+    const currentTime = new Date();
     const sessionResponse = {
       ...session,
-      status: getSessionStatus(session, now),
+      status: getSessionStatus(session, currentTime),
       attendanceCount: session._count.attendance,
       ...(qrData && {
         qrCode: qrData.dataUrl,
@@ -539,7 +549,7 @@ const getPrintableQR = async (req, res) => {
  */
 const getSessionStats = async (req, res) => {
   try {
-    const now = new Date();
+    const currentTime = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const stats = await Promise.all([

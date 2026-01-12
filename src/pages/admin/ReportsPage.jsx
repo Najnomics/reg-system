@@ -8,7 +8,6 @@ import {
   PresentationChartLineIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import AdminLayout from '../../components/admin/AdminLayout';
 
 const ReportsPage = () => {
   const { sessions, members, loading } = useApp();
@@ -78,16 +77,14 @@ const ReportsPage = () => {
 
   if (loading) {
     return (
-      <AdminLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      </AdminLayout>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
     );
   }
 
   return (
-    <AdminLayout>
+    <div className="space-y-6">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -340,7 +337,7 @@ const ReportsPage = () => {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 

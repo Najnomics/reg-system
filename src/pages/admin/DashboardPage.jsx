@@ -6,7 +6,7 @@ import {
   ChartBarIcon 
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
-import { useApp } from '../../contexts/AppContext'
+import { useApp } from '../../contexts/SimpleAppContext'
 import DashboardStats from '../../components/admin/DashboardStats'
 import RecentActivity from '../../components/admin/RecentActivity'
 import QuickActions from '../../components/admin/QuickActions'
@@ -51,28 +51,28 @@ const DashboardPage = () => {
 
   const quickActions = [
     {
-      title: 'Add New Member',
-      description: 'Register a new member to the system',
+      title: 'Manage Members',
+      description: 'View and manage church members',
       icon: UsersIcon,
-      href: '/admin/members/new',
+      href: '/admin/members',
       color: 'primary',
     },
     {
-      title: 'Create Session',
+      title: 'Create New Session',
       description: 'Set up a new attendance session',
       icon: CalendarIcon,
       href: '/admin/sessions/new',
       color: 'success',
     },
     {
-      title: 'View Attendance',
-      description: 'Check today\'s attendance records',
+      title: 'Session Management',
+      description: 'Manage all church sessions',
       icon: ClipboardDocumentCheckIcon,
-      href: '/admin/attendance',
+      href: '/admin/sessions',
       color: 'warning',
     },
     {
-      title: 'Generate Reports',
+      title: 'Generate Report',
       description: 'Create attendance reports',
       icon: ChartBarIcon,
       href: '/admin/reports',

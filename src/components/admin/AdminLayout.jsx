@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { useApp } from '../../contexts/AppContext'
+import { useApp } from '../../contexts/SimpleAppContext'
 import Sidebar from '../common/Sidebar'
 import Header from '../common/Header'
 import NotificationContainer from '../common/NotificationContainer'

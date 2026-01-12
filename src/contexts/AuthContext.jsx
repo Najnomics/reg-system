@@ -92,12 +92,12 @@ export const AuthProvider = ({ children }) => {
         return
       }
 
-      const user = await apiService.verifyToken()
-      if (user) {
+      const response = await apiService.verifyToken()
+      if (response && response.valid && response.admin) {
         dispatch({
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: {
-            user,
+            user: response.admin,
             token,
           },
         })
