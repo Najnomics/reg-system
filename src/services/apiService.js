@@ -121,35 +121,16 @@ class ApiService {
   }
 
   async createSession(sessionData) {
-    // Transform frontend sessionPassword to backend secretQuestion/secretAnswer format
-    const backendData = {
-      ...sessionData,
-      secretQuestion: 'What is the session password?',
-      secretAnswer: sessionData.sessionPassword,
-    };
-    
-    // Remove the frontend-specific field
-    delete backendData.sessionPassword;
-    
     return this.request('/sessions', {
       method: 'POST',
-      body: JSON.stringify(backendData),
+      body: JSON.stringify(sessionData),
     });
   }
 
   async updateSession(id, sessionData) {
-    // Transform frontend sessionPassword to backend secretQuestion/secretAnswer format
-    const backendData = { ...sessionData };
-    
-    if (sessionData.sessionPassword !== undefined) {
-      backendData.secretQuestion = 'What is the session password?';
-      backendData.secretAnswer = sessionData.sessionPassword;
-      delete backendData.sessionPassword;
-    }
-    
     return this.request(`/sessions/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(backendData),
+      body: JSON.stringify(sessionData),
     });
   }
 
@@ -166,6 +147,13 @@ class ApiService {
   // Check-in methods
   async getSessionInfo(sessionId) {
     return this.request(`/checkin/${sessionId}/info`);
+  }
+
+  async verifySecretAnswer(sessionId, answer) {
+    return this.request(`/checkin/${sessionId}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ answer }),
+    });
   }
 
   async checkInWithPin(sessionId, pin) {

@@ -18,9 +18,8 @@ const CreateSessionPage = () => {
     theme: '',
     startTime: '',
     endTime: '',
-    location: '',
-    description: '',
-    sessionPassword: '',
+    secretQuestion: '',
+    secretAnswer: '',
   });
 
   useEffect(() => {
@@ -29,9 +28,8 @@ const CreateSessionPage = () => {
         theme: editingSession.theme || '',
         startTime: editingSession.startTime ? new Date(editingSession.startTime).toISOString().slice(0, 16) : '',
         endTime: editingSession.endTime ? new Date(editingSession.endTime).toISOString().slice(0, 16) : '',
-        location: editingSession.location || '',
-        description: editingSession.description || '',
-        sessionPassword: editingSession.sessionPassword || '',
+        secretQuestion: editingSession.secretQuestion || '',
+        secretAnswer: '', // Don't populate for security
       });
     }
   }, [editingSession]);
@@ -67,10 +65,14 @@ const CreateSessionPage = () => {
         return;
       }
 
-      console.log('CreateSessionPage: sessionPassword value:', formData.sessionPassword, 'length:', formData.sessionPassword?.length);
-      
-      if (!formData.sessionPassword.trim() || formData.sessionPassword.length !== 3) {
-        showError('Session password must be exactly 3 digits');
+      if (!formData.secretQuestion.trim()) {
+        showError('Security question is required');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.secretAnswer.trim()) {
+        showError('Security answer is required');
         setLoading(false);
         return;
       }
@@ -79,7 +81,8 @@ const CreateSessionPage = () => {
         theme: formData.theme.trim(),
         startTime: new Date(formData.startTime).toISOString(),
         endTime: formData.endTime ? new Date(formData.endTime).toISOString() : null,
-        sessionPassword: formData.sessionPassword
+        secretQuestion: formData.secretQuestion.trim(),
+        secretAnswer: formData.secretAnswer.trim()
       };
 
       console.log('CreateSessionPage: sessionData being sent:', sessionData);
@@ -182,55 +185,43 @@ const CreateSessionPage = () => {
               </div>
 
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                  Location
+                <label htmlFor="secretQuestion" className="block text-sm font-medium text-gray-700">
+                  Security Question *
                 </label>
                 <input
                   type="text"
-                  name="location"
-                  id="location"
-                  value={formData.location}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="e.g., Main Sanctuary"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="sessionPassword" className="block text-sm font-medium text-gray-700">
-                  Session Password *
-                </label>
-                <input
-                  type="text"
-                  name="sessionPassword"
-                  id="sessionPassword"
+                  name="secretQuestion"
+                  id="secretQuestion"
                   required
-                  maxLength="3"
-                  pattern="[0-9]{3}"
-                  value={formData.sessionPassword}
+                  value={formData.secretQuestion}
                   onChange={handleChange}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="e.g., 123"
+                  placeholder="e.g., What is today's date?"
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  3-digit password that members need to access check-in
+                  Question that members need to answer to check in
                 </p>
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description
+                <label htmlFor="secretAnswer" className="block text-sm font-medium text-gray-700">
+                  Security Answer *
                 </label>
-                <textarea
-                  name="description"
-                  id="description"
-                  rows={3}
-                  value={formData.description}
+                <input
+                  type="text"
+                  name="secretAnswer"
+                  id="secretAnswer"
+                  required
+                  value={formData.secretAnswer}
                   onChange={handleChange}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="Optional description of the session"
+                  placeholder="Answer to the security question"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  Answer that members need to provide to check in
+                </p>
               </div>
+
 
               <div className="flex justify-end space-x-3 pt-4">
                 <button

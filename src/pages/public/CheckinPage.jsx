@@ -19,9 +19,9 @@ const CheckInPage = () => {
   const [checking, setChecking] = useState(false);
   const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [checkedInMember, setCheckedInMember] = useState(null);
-  const [step, setStep] = useState(1); // 1: Session password, 2: Member code
+  const [step, setStep] = useState(1); // 1: Secret answer, 2: Member code
   const [formData, setFormData] = useState({
-    sessionPassword: '',
+    secretAnswer: '',
     memberCode: '',
     firstName: '',
     lastName: '',
@@ -65,39 +65,22 @@ const CheckInPage = () => {
     });
   };
 
-  const handleSessionPasswordSubmit = async (e) => {
+  const handleSecretAnswerSubmit = async (e) => {
     e.preventDefault();
     setChecking(true);
 
     try {
-      // Validate session password
-      if (formData.sessionPassword !== session.sessionPassword) {
-        showError('Invalid session password. Please check with an administrator.');
-        setChecking(false);
-        return;
+      const response = await apiService.verifySecretAnswer(sessionId, formData.secretAnswer);
+      
+      if (response.correct) {
+        setStep(2);
+        showSuccess('Answer verified! Please enter your member PIN.');
+      } else {
+        showError(response.message || 'Incorrect answer. Please try again.');
       }
-
-      // Check if session is active
-      const now = new Date();
-      const startTime = new Date(session.startTime);
-      const endTime = session.endTime ? new Date(session.endTime) : null;
-
-      if (now < startTime) {
-        showError('This session has not started yet.');
-        setChecking(false);
-        return;
-      }
-
-      if (endTime && now > endTime) {
-        showError('This session has already ended.');
-        setChecking(false);
-        return;
-      }
-
-      // Move to step 2
-      setStep(2);
     } catch (error) {
-      showError('Failed to validate session password.');
+      console.error('Secret answer verification error:', error);
+      showError(error.message || 'Failed to verify answer. Please try again.');
     } finally {
       setChecking(false);
     }
@@ -269,36 +252,39 @@ const CheckInPage = () => {
             )}
           </div>
 
-          {/* Step 1: Session Password */}
+          {/* Step 1: Security Question */}
           {step === 1 && (
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Step 1: Enter Session Password
+                Step 1: Answer Security Question
               </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Please enter the 3-digit session password provided by the administrator.
-              </p>
-              <form onSubmit={handleSessionPasswordSubmit} className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-md mb-4">
+                <p className="text-sm font-medium text-blue-900 mb-2">
+                  Security Question:
+                </p>
+                <p className="text-blue-800">
+                  {session.secretQuestion}
+                </p>
+              </div>
+              <form onSubmit={handleSecretAnswerSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="sessionPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                    Session Password
+                  <label htmlFor="secretAnswer" className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Answer
                   </label>
                   <input
                     type="text"
-                    name="sessionPassword"
-                    id="sessionPassword"
-                    maxLength="3"
-                    pattern="[0-9]{3}"
-                    value={formData.sessionPassword}
+                    name="secretAnswer"
+                    id="secretAnswer"
+                    value={formData.secretAnswer}
                     onChange={handleChange}
-                    className="w-full text-center text-2xl font-mono border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="123"
+                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter your answer"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  disabled={checking || formData.sessionPassword.length !== 3}
+                  disabled={checking || !formData.secretAnswer.trim()}
                   className="w-full px-4 py-3 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {checking ? 'Verifying...' : 'Continue'}
