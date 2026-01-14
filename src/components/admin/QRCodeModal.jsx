@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { XMarkIcon, PrinterIcon, ShareIcon } from '@heroicons/react/24/outline';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas as QRCode } from 'qrcode.react';
 import { sessionService } from '../../services/sessionService';
 import { format } from 'date-fns';
 
@@ -8,7 +8,6 @@ const QRCodeModal = ({ session, onClose }) => {
   const [qrSize, setQrSize] = useState(256);
   const [downloading, setDownloading] = useState(false);
   const [qrLoaded, setQrLoaded] = useState(false);
-  const qrRef = useRef(null);
 
   useEffect(() => {
     // Small delay to show loading state briefly, then mark as loaded
@@ -132,7 +131,6 @@ const QRCodeModal = ({ session, onClose }) => {
                       size={qrSize}
                       level="M"
                       includeMargin={true}
-                      ref={qrRef}
                     />
                   ) : (
                     <div 
