@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { XMarkIcon, PrinterIcon, ShareIcon } from '@heroicons/react/24/outline';
 import QRCode from 'qrcode.react';
 import { sessionService } from '../../services/sessionService';
@@ -7,7 +7,14 @@ import { format } from 'date-fns';
 const QRCodeModal = ({ session, onClose }) => {
   const [qrSize, setQrSize] = useState(256);
   const [downloading, setDownloading] = useState(false);
+  const [qrLoaded, setQrLoaded] = useState(false);
   const qrRef = useRef(null);
+
+  useEffect(() => {
+    // Small delay to show loading state briefly, then mark as loaded
+    const timer = setTimeout(() => setQrLoaded(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const checkinUrl = `${window.location.origin}/checkin/${session.id}`;
 
@@ -119,13 +126,27 @@ const QRCodeModal = ({ session, onClose }) => {
               {/* QR Code */}
               <div className="flex justify-center mb-6">
                 <div className="bg-white p-4 rounded-lg shadow-sm border-2 border-gray-200">
-                  <QRCode
-                    value={checkinUrl}
-                    size={qrSize}
-                    level="M"
-                    includeMargin={true}
-                    ref={qrRef}
-                  />
+                  {qrLoaded ? (
+                    <QRCode
+                      value={checkinUrl}
+                      size={qrSize}
+                      level="M"
+                      includeMargin={true}
+                      ref={qrRef}
+                    />
+                  ) : (
+                    <div 
+                      className="bg-gray-100 animate-pulse rounded flex items-center justify-center"
+                      style={{ width: qrSize, height: qrSize }}
+                    >
+                      <div className="text-gray-400 text-center">
+                        <svg className="mx-auto h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                        <span className="text-xs">Generating QR Code...</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -157,7 +178,11 @@ const QRCodeModal = ({ session, onClose }) => {
               <select
                 id="qr-size"
                 value={qrSize}
-                onChange={(e) => setQrSize(parseInt(e.target.value))}
+                onChange={(e) => {
+                  setQrLoaded(false);
+                  setQrSize(parseInt(e.target.value));
+                  setTimeout(() => setQrLoaded(true), 50);
+                }}
                 className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
                 <option value={128}>Small (128x128)</option>

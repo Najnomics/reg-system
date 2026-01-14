@@ -12,7 +12,7 @@ import {
   PlayIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import QRCodeModal from '../../components/sessions/QRCodeModal';
+import QRCodeModal from '../../components/admin/QRCodeModal';
 
 const SessionsPage = () => {
   const navigate = useNavigate();
