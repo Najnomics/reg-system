@@ -10,6 +10,15 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
+.env.development
+server/.env
+server/.env.local
+server/.env.development.local
+server/.env.test.local
+server/.env.production.local
+server/.env.production
+server/.env.development
 
 # Build outputs
 build/
@@ -61,3 +70,15 @@ docker-compose.override.yml
 
 # Prisma
 prisma/migrations/
+
+# Security and secrets
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+server/secrets/
+
+# Test files
+server/test-*.js

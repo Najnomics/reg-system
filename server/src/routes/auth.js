@@ -6,17 +6,17 @@ const authController = require('../controllers/authController');
 
 const router = express.Router();
 
-// Rate limiting for authentication endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
-  message: {
-    error: 'Too many authentication attempts',
-    message: 'Please try again later',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Rate limiting for authentication endpoints - DISABLED
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 5, // limit each IP to 5 requests per windowMs
+//   message: {
+//     error: 'Too many authentication attempts',
+//     message: 'Please try again later',
+//   },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
 
 // Validation schemas for password change
 const changePasswordSchema = {
@@ -27,7 +27,6 @@ const changePasswordSchema = {
 
 // Authentication routes
 router.post('/login', 
-  authLimiter,
   validate(schemas.adminLogin),
   authController.login
 );

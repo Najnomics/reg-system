@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import apiService from '../../services/apiService';
@@ -26,6 +26,10 @@ const CheckInPage = () => {
     firstName: '',
     lastName: '',
   });
+
+  // Ref to prevent duplicate API calls in React Strict Mode
+  const sessionFetchedRef = useRef(false);
+  const sessionFetchInProgressRef = useRef(false);
 
   // Helper function to check if device is already authenticated for this session
   const isDeviceAuthenticated = (sessionId) => {
@@ -81,6 +85,13 @@ const CheckInPage = () => {
         return;
       }
 
+      // Prevent duplicate API calls in React Strict Mode
+      if (sessionFetchedRef.current || sessionFetchInProgressRef.current) {
+        return;
+      }
+
+      sessionFetchInProgressRef.current = true;
+
       try {
         setLoading(true);
         const response = await apiService.getSessionInfo(sessionId);
@@ -90,6 +101,7 @@ const CheckInPage = () => {
         const sessionData = response?.data?.session || response?.session || response;
         if (sessionData) {
           setSession(sessionData);
+          sessionFetchedRef.current = true;
           
           // Check if device is already authenticated for this session
           if (isDeviceAuthenticated(sessionId)) {
@@ -106,6 +118,7 @@ const CheckInPage = () => {
         setSession(null);
       } finally {
         setLoading(false);
+        sessionFetchInProgressRef.current = false;
       }
     };
 
