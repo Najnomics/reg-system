@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiService } from '../../services/apiService';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -12,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const CompleteMembersPage = () => {
-  const { members, fetchMembers, loading, showSuccess, showError } = useApp();
+  const { members, setMembers, fetchMembers, loading, showSuccess, showError } = useApp();
   const { logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -29,7 +30,7 @@ const CompleteMembersPage = () => {
       setFilteredMembers(members);
     } else {
       const filtered = members.filter(member =>
-        `${member.firstName} ${member.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (member.name && member.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (member.phone && member.phone.includes(searchTerm)) ||
         (member.pin && member.pin.includes(searchTerm))
@@ -38,19 +39,29 @@ const CompleteMembersPage = () => {
     }
   }, [searchTerm, members]);
 
-  const handleAddMember = (memberData) => {
-    // Mock implementation - will connect to API
-    const newMember = {
-      id: Date.now(),
-      ...memberData,
-      pin: Math.floor(10000 + Math.random() * 90000).toString(),
-      createdAt: new Date().toISOString(),
-      isActive: true
-    };
-    
-    showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully!`);
-    setShowAddModal(false);
-    // fetchMembers(); // Refresh the list
+  const handleAddMember = async (memberData) => {
+    try {
+      // Transform frontend data format to match backend API
+      const apiData = {
+        name: `${memberData.firstName} ${memberData.lastName}`,
+        email: memberData.email,
+        phone: memberData.phone || null
+      };
+      
+      const response = await apiService.createMember(apiData);
+      const newMember = response?.data?.member || response?.member || response;
+      
+      // Update local state
+      setMembers(prev => [...prev, newMember]);
+      
+      showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully!`);
+      setShowAddModal(false);
+      setSelectedMember(null);
+      fetchMembers(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to create member:', error);
+      showError('Failed to create member. Please try again.');
+    }
   };
 
   const handleEditMember = (member) => {
@@ -58,10 +69,22 @@ const CompleteMembersPage = () => {
     setShowAddModal(true);
   };
 
-  const handleDeleteMember = (memberId) => {
+  const handleDeleteMember = async (memberId) => {
     if (confirm('Are you sure you want to delete this member?')) {
-      // Mock implementation
-      showSuccess('Member deleted successfully!');
+      try {
+        console.log('Deleting member with ID:', memberId);
+        await apiService.deleteMember(memberId);
+        
+        // Update local state by removing the member immediately
+        setMembers(prev => prev.filter(m => m.id !== memberId));
+        
+        showSuccess('Member deleted successfully!');
+        // Refresh the list to ensure consistency
+        fetchMembers(); 
+      } catch (error) {
+        console.error('Failed to delete member:', error);
+        showError('Failed to delete member. Please try again.');
+      }
     }
   };
 
@@ -289,13 +312,13 @@ const CompleteMembersPage = () => {
                               <div className="flex-shrink-0 h-10 w-10">
                                 <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
                                   <span className="text-sm font-medium text-indigo-600">
-                                    {member.firstName?.[0]}{member.lastName?.[0]}
+                                    {member.name?.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                   </span>
                                 </div>
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">
-                                  {member.firstName} {member.lastName}
+                                  {member.name}
                                 </div>
                                 <div className="text-sm text-gray-500">
                                   ID: {member.id}

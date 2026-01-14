@@ -1,12 +1,12 @@
 const express = require('express');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const reportsController = require('../controllers/reportsController');
 
 const router = express.Router();
 
-// All report routes require admin authentication
-router.use(authenticateAdmin);
+// All report routes accessible by admin and reg-rep
+router.use(authenticateUser);
 
 // Get analytics dashboard data
 router.get('/analytics',

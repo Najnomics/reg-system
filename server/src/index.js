@@ -23,7 +23,12 @@ app.use(helmet({
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:5173', 
+    'http://localhost:5174',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -72,6 +77,8 @@ app.use('/api/members', require('./routes/members'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/checkin', require('./routes/checkin'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/reg-reps', require('./routes/regReps'));
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -12,7 +12,7 @@ import { useApp } from '../../contexts/SimpleAppContext'
 
 const Header = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, userType, logout } = useAuth()
   const { toggleSidebar, notifications, clearNotifications } = useApp()
 
   const handleLogout = () => {
@@ -62,10 +62,10 @@ const Header = () => {
               <UserCircleIcon className="h-8 w-8 text-gray-600" />
               <div className="hidden sm:block text-left">
                 <div className="text-sm font-medium text-gray-900">
-                  {user?.name || 'Admin User'}
+                  {user?.name || 'User'}
                 </div>
                 <div className="text-xs text-gray-600">
-                  {user?.email || 'admin@church.com'}
+                  {userType === 'admin' ? 'Administrator' : 'Registration Rep'}
                 </div>
               </div>
             </button>
@@ -80,10 +80,13 @@ const Header = () => {
                   <div className="py-2">
                     <div className="px-4 py-3 border-b border-gray-200">
                       <div className="text-sm font-medium text-gray-900">
-                        {user?.name || 'Admin User'}
+                        {user?.name || 'User'}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {user?.email || 'admin@church.com'}
+                        {user?.email}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {userType === 'admin' ? 'Administrator' : 'Registration Representative'}
                       </div>
                     </div>
                     

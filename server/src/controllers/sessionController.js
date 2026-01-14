@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const qrCodeService = require('../services/qrCodeService');
+const PDFDocument = require('pdfkit');
+const { Parser } = require('json2csv');
 
 /**
  * Get all sessions with pagination and filtering
@@ -616,6 +618,373 @@ const getSessionStats = async (req, res) => {
 };
 
 /**
+ * Get detailed attendance for a session
+ */
+const getSessionAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get session details
+    const session = await prisma.session.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        theme: true,
+        startTime: true,
+        endTime: true,
+        isActive: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Session not found',
+        message: 'Session with the specified ID does not exist',
+      });
+    }
+
+    // Get all members who checked in for this session
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { sessionId: parseInt(id) },
+      include: {
+        member: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            pin: true,
+          },
+        },
+      },
+      orderBy: { checkedInAt: 'desc' },
+    });
+
+    // Get all active members
+    const allMembers = await prisma.member.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Create list of members who attended
+    const attendedMembers = attendanceRecords.map(record => ({
+      id: record.member.id,
+      name: record.member.name,
+      email: record.member.email,
+      pin: record.member.pin,
+      checkedInAt: record.checkedInAt,
+      status: 'present',
+    }));
+
+    // Create list of members who didn't attend
+    const attendedMemberIds = new Set(attendedMembers.map(m => m.id));
+    const absentMembers = allMembers
+      .filter(member => !attendedMemberIds.has(member.id))
+      .map(member => ({
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        pin: member.pin,
+        checkedInAt: null,
+        status: 'absent',
+      }));
+
+    // Add session status
+    const currentTime = new Date();
+    const sessionWithStatus = {
+      ...session,
+      status: getSessionStatus(session, currentTime),
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        session: sessionWithStatus,
+        attendance: {
+          present: attendedMembers,
+          absent: absentMembers,
+          summary: {
+            totalMembers: allMembers.length,
+            present: attendedMembers.length,
+            absent: absentMembers.length,
+            attendanceRate: allMembers.length > 0 
+              ? Math.round((attendedMembers.length / allMembers.length) * 100) 
+              : 0,
+          },
+        },
+      },
+    });
+
+  } catch (error) {
+    console.error('Get session attendance error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to retrieve session attendance',
+    });
+  }
+};
+
+/**
+ * Export session attendance as CSV
+ */
+const exportSessionAttendanceCSV = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get session and attendance data
+    const session = await prisma.session.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        theme: true,
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Session not found',
+        message: 'Session with the specified ID does not exist',
+      });
+    }
+
+    // Get attendance records
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { sessionId: parseInt(id) },
+      include: {
+        member: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            pin: true,
+          },
+        },
+      },
+      orderBy: { checkedInAt: 'asc' },
+    });
+
+    // Get all members for absent list
+    const allMembers = await prisma.member.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Create CSV data
+    const attendedMemberIds = new Set(attendanceRecords.map(record => record.member.id));
+    
+    // Present members
+    const presentData = attendanceRecords.map(record => ({
+      name: record.member.name,
+      email: record.member.email,
+      pin: record.member.pin,
+      status: 'Present',
+      checkedInAt: new Date(record.checkedInAt).toLocaleString(),
+    }));
+
+    // Absent members
+    const absentData = allMembers
+      .filter(member => !attendedMemberIds.has(member.id))
+      .map(member => ({
+        name: member.name,
+        email: member.email,
+        pin: member.pin,
+        status: 'Absent',
+        checkedInAt: 'N/A',
+      }));
+
+    // Combine all data
+    const csvData = [...presentData, ...absentData];
+
+    // Define CSV fields
+    const fields = [
+      { label: 'Name', value: 'name' },
+      { label: 'Email', value: 'email' },
+      { label: 'PIN', value: 'pin' },
+      { label: 'Status', value: 'status' },
+      { label: 'Check-in Time', value: 'checkedInAt' },
+    ];
+
+    // Generate CSV
+    const parser = new Parser({ fields });
+    const csv = parser.parse(csvData);
+
+    // Set response headers
+    const filename = `${session.theme.replace(/[^a-zA-Z0-9]/g, '_')}_attendance.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    res.send(csv);
+
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export attendance as CSV',
+    });
+  }
+};
+
+/**
+ * Export session attendance as PDF
+ */
+const exportSessionAttendancePDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get session and attendance data (same as CSV)
+    const session = await prisma.session.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        theme: true,
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Session not found',
+        message: 'Session with the specified ID does not exist',
+      });
+    }
+
+    // Get attendance records
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { sessionId: parseInt(id) },
+      include: {
+        member: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            pin: true,
+          },
+        },
+      },
+      orderBy: { checkedInAt: 'asc' },
+    });
+
+    // Get all members for absent list
+    const allMembers = await prisma.member.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const attendedMemberIds = new Set(attendanceRecords.map(record => record.member.id));
+    const absentMembers = allMembers.filter(member => !attendedMemberIds.has(member.id));
+
+    // Create PDF
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = `${session.theme.replace(/[^a-zA-Z0-9]/g, '_')}_attendance.pdf`;
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Pipe PDF to response
+    doc.pipe(res);
+
+    // Add title and session info
+    doc.fontSize(20).text('Session Attendance Report', { align: 'center' });
+    doc.moveDown();
+    
+    doc.fontSize(14).text(`Session: ${session.theme}`, { align: 'left' });
+    doc.text(`Start Time: ${new Date(session.startTime).toLocaleString()}`);
+    doc.text(`End Time: ${new Date(session.endTime).toLocaleString()}`);
+    doc.text(`Total Members: ${allMembers.length}`);
+    doc.text(`Present: ${attendanceRecords.length}`);
+    doc.text(`Absent: ${absentMembers.length}`);
+    doc.text(`Attendance Rate: ${Math.round((attendanceRecords.length / allMembers.length) * 100)}%`);
+    doc.moveDown();
+
+    // Present members section
+    doc.fontSize(16).text('Members Present:', { underline: true });
+    doc.moveDown(0.5);
+    
+    if (attendanceRecords.length > 0) {
+      doc.fontSize(10);
+      attendanceRecords.forEach((record, index) => {
+        const y = doc.y;
+        if (y > 700) { // Add new page if needed
+          doc.addPage();
+          doc.fontSize(16).text('Members Present (continued):', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(10);
+        }
+        
+        doc.text(`${index + 1}. ${record.member.name}`);
+        doc.text(`   Email: ${record.member.email}`, { indent: 20 });
+        doc.text(`   PIN: ${record.member.pin}`, { indent: 20 });
+        doc.text(`   Check-in Time: ${new Date(record.checkedInAt).toLocaleString()}`, { indent: 20 });
+        doc.moveDown(0.3);
+      });
+    } else {
+      doc.fontSize(12).text('No members present.');
+    }
+
+    doc.moveDown();
+
+    // Absent members section
+    doc.fontSize(16).text('Members Absent:', { underline: true });
+    doc.moveDown(0.5);
+    
+    if (absentMembers.length > 0) {
+      doc.fontSize(10);
+      absentMembers.forEach((member, index) => {
+        const y = doc.y;
+        if (y > 700) { // Add new page if needed
+          doc.addPage();
+          doc.fontSize(16).text('Members Absent (continued):', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(10);
+        }
+        
+        doc.text(`${index + 1}. ${member.name}`);
+        doc.text(`   Email: ${member.email}`, { indent: 20 });
+        doc.text(`   PIN: ${member.pin}`, { indent: 20 });
+        doc.moveDown(0.3);
+      });
+    } else {
+      doc.fontSize(12).text('All members present!');
+    }
+
+    // Add generation timestamp
+    doc.moveDown();
+    doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' });
+
+    // Finalize PDF
+    doc.end();
+
+  } catch (error) {
+    console.error('Export PDF error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export attendance as PDF',
+    });
+  }
+};
+
+/**
  * Helper function to determine session status
  */
 const getSessionStatus = (session, now) => {
@@ -628,6 +997,9 @@ const getSessionStatus = (session, now) => {
 module.exports = {
   getSessions,
   getSession,
+  getSessionAttendance,
+  exportSessionAttendanceCSV,
+  exportSessionAttendancePDF,
   createSession,
   updateSession,
   deleteSession,

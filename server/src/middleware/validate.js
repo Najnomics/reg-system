@@ -136,8 +136,8 @@ const schemas = {
   }),
 
   checkinSubmit: Joi.object({
-    pin: Joi.string().pattern(/^\d{5}$/).required().messages({
-      'string.pattern.base': 'PIN must be exactly 5 digits',
+    pin: Joi.string().pattern(/^\d{4}$/).required().messages({
+      'string.pattern.base': 'PIN must be exactly 4 digits',
       'any.required': 'PIN is required',
     }),
   }),
@@ -148,7 +148,7 @@ const schemas = {
     name: Joi.string().trim().min(1).max(100).optional().allow(''),
     email: Joi.string().email().optional().allow(''),
     phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).optional().allow(''),
-    pin: Joi.string().pattern(/^\d{5}$/).optional().allow(''),
+    pin: Joi.string().pattern(/^\d{4}$/).optional().allow(''),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
     sortBy: Joi.string().valid('name', 'email', 'createdAt').default('name'),
@@ -180,6 +180,44 @@ const schemas = {
       'number.integer': 'Session ID must be an integer',
       'number.positive': 'Session ID must be positive',
       'any.required': 'Session ID is required',
+    }),
+  }),
+
+  // Reg-rep creation/update
+  regRepCreate: Joi.object({
+    name: Joi.string().trim().min(2).max(100).required().messages({
+      'string.min': 'Name must be at least 2 characters long',
+      'string.max': 'Name must not exceed 100 characters',
+      'any.required': 'Name is required',
+    }),
+    email: Joi.string().email().required().messages({
+      'string.email': 'Email must be a valid email address',
+      'any.required': 'Email is required',
+    }),
+    password: Joi.string().min(6).max(50).required().messages({
+      'string.min': 'Password must be at least 6 characters long',
+      'string.max': 'Password must not exceed 50 characters',
+      'any.required': 'Password is required',
+    }),
+  }),
+
+  regRepUpdate: Joi.object({
+    name: Joi.string().trim().min(2).max(100).optional().messages({
+      'string.min': 'Name must be at least 2 characters long',
+      'string.max': 'Name must not exceed 100 characters',
+    }),
+    email: Joi.string().email().optional().messages({
+      'string.email': 'Email must be a valid email address',
+    }),
+    isActive: Joi.boolean().optional(),
+  }),
+
+  // Password reset
+  passwordReset: Joi.object({
+    newPassword: Joi.string().min(6).max(50).required().messages({
+      'string.min': 'Password must be at least 6 characters long',
+      'string.max': 'Password must not exceed 50 characters',
+      'any.required': 'New password is required',
     }),
   }),
 };

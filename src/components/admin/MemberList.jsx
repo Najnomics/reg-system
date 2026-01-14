@@ -7,9 +7,11 @@ import {
   CheckCircleIcon,
   XCircleIcon 
 } from '@heroicons/react/24/outline';
+import { useApp } from '../../contexts/SimpleAppContext';
 import { apiService } from '../../services/apiService';
 
 const MemberList = ({ members, onEdit, loading }) => {
+  const { deleteMember } = useApp();
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
   const [sendingEmailId, setSendingEmailId] = useState(null);
@@ -18,10 +20,9 @@ const MemberList = ({ members, onEdit, loading }) => {
     if (window.confirm(`Are you sure you want to delete ${member.name}?`)) {
       setDeletingId(member.id);
       try {
-        await apiService.deleteMember(member.id);
-        window.location.reload();
+        await deleteMember(member.id);
       } catch (error) {
-        alert(error.message);
+        console.error('Delete error:', error);
       } finally {
         setDeletingId(null);
       }

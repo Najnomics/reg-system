@@ -60,7 +60,11 @@ const parseExcelFile = async (fileBuffer, filename) => {
       } catch (error) {
         errors.push({
           row: rowNumber,
+          name: row[columnMapping.name]?.toString().trim() || 'Unknown',
+          email: row[columnMapping.email]?.toString().trim() || 'Missing',
+          phone: columnMapping.phone ? row[columnMapping.phone]?.toString().trim() : '',
           error: error.message,
+          type: error.message.includes('Invalid email') ? 'invalid_email' : 'validation_error',
           data: row,
         });
       }
@@ -122,10 +126,9 @@ const processRow = async (row, columnMapping, rowNumber) => {
     throw new Error('Email is required');
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    throw new Error('Invalid email format');
+  // Enhanced email validation with detailed error reporting
+  if (!validateEmailDetailed(email)) {
+    throw new Error(`Invalid email format: '${email}'. Please provide a valid email address (e.g., user@domain.com)`);
   }
 
   // Validate name length
@@ -191,6 +194,54 @@ const generateTemplate = () => {
 
   // Generate buffer
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+};
+
+/**
+ * Enhanced email validation with detailed error messages
+ */
+const validateEmailDetailed = (email) => {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  
+  // Check basic format
+  const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!basicEmailRegex.test(email)) {
+    return false;
+  }
+  
+  // Additional checks for common issues
+  const parts = email.split('@');
+  if (parts.length !== 2) {
+    return false;
+  }
+  
+  const [localPart, domain] = parts;
+  
+  // Check local part (before @)
+  if (localPart.length === 0 || localPart.length > 64) {
+    return false;
+  }
+  
+  // Check domain part (after @)
+  if (domain.length === 0 || domain.length > 253) {
+    return false;
+  }
+  
+  // Check for valid domain format
+  const domainParts = domain.split('.');
+  if (domainParts.length < 2) {
+    return false;
+  }
+  
+  // Check each domain part
+  for (const part of domainParts) {
+    if (part.length === 0 || !/^[a-zA-Z0-9-]+$/.test(part)) {
+      return false;
+    }
+  }
+  
+  return true;
 };
 
 /**

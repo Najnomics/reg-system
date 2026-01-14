@@ -34,29 +34,83 @@ const uploadMembers = async (req, res) => {
       return res.status(400).json({
         error: 'All rows failed validation',
         message: 'No valid member data found in the file',
-        details: parseResult.errors.slice(0, 10), // Show first 10 errors
+        details: parseResult.errors.slice(0, 10),
         totalErrors: parseResult.errors.length,
       });
     }
 
+    // Pre-check for duplicates in existing database
+    const emailsToCheck = parseResult.data.map(member => member.email);
+    const existingMembers = await prisma.member.findMany({
+      where: {
+        email: {
+          in: emailsToCheck
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true
+      }
+    });
+
+    // Create lookup map for existing emails
+    const existingEmailMap = new Map();
+    existingMembers.forEach(member => {
+      existingEmailMap.set(member.email, member);
+    });
+
+    // Check for duplicates within the uploaded file
+    const uploadedEmails = new Map();
+    const fileDuplicates = [];
+    
+    parseResult.data.forEach(member => {
+      if (uploadedEmails.has(member.email)) {
+        fileDuplicates.push({
+          row: member.rowNumber,
+          email: member.email,
+          name: member.name,
+          error: 'Duplicate email in upload file',
+          type: 'file_duplicate',
+          firstFoundAtRow: uploadedEmails.get(member.email).rowNumber
+        });
+      } else {
+        uploadedEmails.set(member.email, member);
+      }
+    });
+
     // Process valid members
     const successfulImports = [];
     const importErrors = [];
+    const duplicateErrors = [];
+    const emailFailures = [];
     
     for (const memberData of parseResult.data) {
       try {
-        // Check if email already exists
-        const existingMember = await prisma.member.findUnique({
-          where: { email: memberData.email },
-          select: { id: true, name: true },
-        });
+        // Skip if this is a duplicate within the file
+        const isDuplicateInFile = fileDuplicates.some(dup => 
+          dup.row === memberData.rowNumber && dup.email === memberData.email
+        );
+        
+        if (isDuplicateInFile) {
+          continue; // Skip this row, already recorded in fileDuplicates
+        }
 
+        // Check if email already exists in database
+        const existingMember = existingEmailMap.get(memberData.email);
         if (existingMember) {
-          importErrors.push({
+          duplicateErrors.push({
             row: memberData.rowNumber,
             email: memberData.email,
-            error: `Member with email ${memberData.email} already exists`,
-            existingMember: existingMember.name,
+            name: memberData.name,
+            error: `Email already exists in database`,
+            type: 'database_duplicate',
+            existingMember: {
+              id: existingMember.id,
+              name: existingMember.name,
+              createdAt: existingMember.createdAt
+            }
           });
           continue;
         }
@@ -92,7 +146,14 @@ const uploadMembers = async (req, res) => {
           await emailService.sendPin(newMember);
         } catch (emailError) {
           console.error(`Failed to send PIN email to ${newMember.email}:`, emailError);
-          // Continue with import even if email fails
+          emailFailures.push({
+            row: memberData.rowNumber,
+            email: memberData.email,
+            name: memberData.name,
+            error: 'Member created successfully but PIN email failed to send',
+            type: 'email_failure',
+            details: emailError.message
+          });
         }
 
       } catch (error) {
@@ -101,15 +162,32 @@ const uploadMembers = async (req, res) => {
         importErrors.push({
           row: memberData.rowNumber,
           email: memberData.email,
+          name: memberData.name || 'Unknown',
           error: error.message,
+          type: 'creation_error'
         });
       }
     }
 
-    // Combine parsing errors and import errors
-    const allErrors = [...parseResult.errors, ...importErrors];
+    // Combine all types of errors
+    const allErrors = [
+      ...parseResult.errors.map(err => ({...err, type: 'validation_error'})),
+      ...duplicateErrors,
+      ...fileDuplicates,
+      ...importErrors
+    ];
 
-    // Prepare response
+    // Categorize errors for detailed reporting
+    const errorSummary = {
+      validationErrors: parseResult.errors.length,
+      invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')).length,
+      duplicateInFile: fileDuplicates.length,
+      duplicateInDatabase: duplicateErrors.length,
+      creationErrors: importErrors.length,
+      emailFailures: emailFailures.length
+    };
+
+    // Prepare detailed response
     const response = {
       success: true,
       message: `Import completed. ${successfulImports.length} members imported successfully.`,
@@ -118,12 +196,21 @@ const uploadMembers = async (req, res) => {
         parsed: parseResult.validRows,
         imported: successfulImports.length,
         failed: allErrors.length,
-        parseErrors: parseResult.errors.length,
-        importErrors: importErrors.length,
+        errorBreakdown: errorSummary
       },
       data: {
         importedMembers: successfulImports.map(item => item.member),
-        errors: allErrors.slice(0, 20), // Limit errors in response
+        errors: {
+          all: allErrors.slice(0, 50), // Show more errors for detailed feedback
+          duplicateInFile: fileDuplicates,
+          duplicateInDatabase: duplicateErrors,
+          invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')),
+          validationErrors: parseResult.errors.filter(err => !err.error.includes('Invalid email')),
+          creationErrors: importErrors
+        },
+        warnings: {
+          emailFailures: emailFailures
+        }
       },
     };
 
@@ -134,6 +221,9 @@ const uploadMembers = async (req, res) => {
       return res.status(400).json(response);
     } else if (allErrors.length > 0) {
       response.message += ` ${allErrors.length} rows had errors.`;
+      if (emailFailures.length > 0) {
+        response.message += ` ${emailFailures.length} PIN emails failed to send.`;
+      }
       return res.status(207).json(response); // 207 Multi-Status
     }
 

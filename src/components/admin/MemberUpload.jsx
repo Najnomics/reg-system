@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { XMarkIcon, CloudArrowUpIcon, DocumentIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CloudArrowUpIcon, DocumentIcon, ExclamationTriangleIcon, CheckCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { useApp } from '../../contexts/SimpleAppContext';
-import { emailService } from '../../services/emailService';
+import { apiService } from '../../services/apiService';
 
 const MemberUpload = ({ onClose, onSuccess }) => {
   const { showError, showSuccess, members } = useApp();
@@ -49,106 +49,7 @@ const MemberUpload = ({ onClose, onSuccess }) => {
     event.preventDefault();
   };
 
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
-  const generateMemberCode = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
-  };
-
-  const parseCSVContent = (content) => {
-    const lines = content.split('\n').filter(line => line.trim());
-    if (lines.length === 0) return [];
-    
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const rows = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      const row = {};
-      
-      headers.forEach((header, index) => {
-        row[header] = values[index] || '';
-      });
-      
-      rows.push(row);
-    }
-    
-    return rows;
-  };
-
-  const validateCSVData = (data) => {
-    const results = {
-      validMembers: [],
-      duplicateEmails: [],
-      invalidEmails: [],
-      missingFields: [],
-      totalProcessed: data.length
-    };
-    
-    const existingEmails = new Set(members.map(m => m.email.toLowerCase()));
-    const newEmails = new Set();
-    
-    data.forEach((row, index) => {
-      const lineNumber = index + 2; // +2 because CSV has header and is 1-indexed
-      
-      // Check required fields
-      if (!row.firstname || !row.lastname || !row.email) {
-        results.missingFields.push({
-          line: lineNumber,
-          data: row,
-          missing: [
-            !row.firstname && 'firstName',
-            !row.lastname && 'lastName', 
-            !row.email && 'email'
-          ].filter(Boolean)
-        });
-        return;
-      }
-      
-      const email = row.email.toLowerCase();
-      
-      // Check for invalid email
-      if (!validateEmail(email)) {
-        results.invalidEmails.push({
-          line: lineNumber,
-          email: row.email,
-          data: row
-        });
-        return;
-      }
-      
-      // Check for duplicate email (existing or in current batch)
-      if (existingEmails.has(email) || newEmails.has(email)) {
-        results.duplicateEmails.push({
-          line: lineNumber,
-          email: row.email,
-          data: row,
-          type: existingEmails.has(email) ? 'existing' : 'duplicate_in_batch'
-        });
-        return;
-      }
-      
-      newEmails.add(email);
-      
-      // Valid member
-      const memberCode = generateMemberCode();
-      results.validMembers.push({
-        firstName: row.firstname,
-        lastName: row.lastname,
-        email: row.email,
-        phone: row.phone || '',
-        dateOfBirth: row.dateofbirth || '',
-        memberCode: memberCode,
-        createdAt: new Date().toISOString(),
-        isActive: true
-      });
-    });
-    
-    return results;
-  };
+  // Validation and processing now handled by the backend API
 
   const handleUpload = async () => {
     if (!file) {
@@ -162,28 +63,55 @@ const MemberUpload = ({ onClose, onSuccess }) => {
     setValidationResults(null);
 
     try {
-      // Read file content
-      const fileContent = await file.text();
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      
       setUploadProgress(25);
-      
-      // Parse CSV
-      const csvData = parseCSVContent(fileContent);
-      setUploadProgress(50);
-      
-      // Validate data
-      const validation = validateCSVData(csvData);
+
+      // Upload to real API endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/members/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
       setUploadProgress(75);
-      
-      setValidationResults(validation);
+
+      const result = await response.json();
       setUploadProgress(100);
       
-      if (validation.validMembers.length > 0) {
-        showSuccess(`Successfully validated ${validation.validMembers.length} members`);
+      // Transform API response to match component structure
+      const transformedResults = {
+        totalProcessed: result.summary?.totalRows || 0,
+        validMembers: result.data?.importedMembers || [],
+        duplicateEmails: [
+          ...(result.data?.errors?.duplicateInDatabase || []),
+          ...(result.data?.errors?.duplicateInFile || [])
+        ],
+        invalidEmails: result.data?.errors?.invalidEmails || [],
+        validationErrors: result.data?.errors?.validationErrors || [],
+        creationErrors: result.data?.errors?.creationErrors || [],
+        emailFailures: result.data?.warnings?.emailFailures || [],
+        summary: result.summary
+      };
+
+      setValidationResults(transformedResults);
+      
+      if (transformedResults.validMembers.length > 0) {
+        showSuccess(`Successfully imported ${transformedResults.validMembers.length} members`);
+        // Refresh members list
+        if (onSuccess) {
+          onSuccess(transformedResults);
+        }
       } else {
         showError('No valid members found in the file');
       }
       
     } catch (err) {
+      console.error('Upload error:', err);
       setError(err.message || 'Upload failed');
     } finally {
       setUploading(false);
@@ -191,34 +119,34 @@ const MemberUpload = ({ onClose, onSuccess }) => {
     }
   };
 
-  const handleConfirmUpload = async () => {
-    if (!validationResults || validationResults.validMembers.length === 0) {
-      return;
-    }
-    
+  const downloadTemplate = async () => {
     try {
-      // Mock API call to save members
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/members/template`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       
-      showSuccess(`Successfully imported ${validationResults.validMembers.length} members`);
-      onSuccess(validationResults);
+      if (!response.ok) {
+        throw new Error('Failed to download template');
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'members_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (err) {
-      showError('Failed to save members');
+      console.error('Template download error:', err);
+      showError('Failed to download template');
     }
   };
 
-  const downloadTemplate = () => {
-    const csvContent = 'firstName,lastName,email,phone,dateOfBirth\nJohn,Doe,john.doe@example.com,(555) 123-4567,1985-06-15\nJane,Smith,jane.smith@example.com,(555) 234-5678,1992-03-22';
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'member_upload_template.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  // Remove old downloadTemplate function - replaced above
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
@@ -331,19 +259,28 @@ const MemberUpload = ({ onClose, onSuccess }) => {
           {/* Validation Results */}
           {validationResults && (
             <div className="space-y-4">
-              {/* Summary */}
+              {/* Enhanced Summary */}
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">Validation Summary</h4>
+                <h4 className="text-sm font-medium text-blue-800 mb-2">Upload Summary</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>Total Processed: {validationResults.totalProcessed}</div>
-                  <div className="text-green-700">Valid Members: {validationResults.validMembers.length}</div>
+                  <div>Total Rows: {validationResults.totalProcessed}</div>
+                  <div className="text-green-700 font-medium">Successfully Imported: {validationResults.validMembers.length}</div>
                   <div className="text-red-700">Duplicate Emails: {validationResults.duplicateEmails.length}</div>
                   <div className="text-red-700">Invalid Emails: {validationResults.invalidEmails.length}</div>
-                  <div className="text-yellow-700">Missing Fields: {validationResults.missingFields.length}</div>
+                  <div className="text-yellow-700">Validation Errors: {validationResults.validationErrors.length}</div>
+                  <div className="text-orange-700">Creation Errors: {validationResults.creationErrors.length}</div>
                 </div>
+                {validationResults.emailFailures?.length > 0 && (
+                  <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded">
+                    <div className="flex items-center text-yellow-800 text-sm">
+                      <InformationCircleIcon className="h-4 w-4 mr-1" />
+                      {validationResults.emailFailures.length} members imported but PIN emails failed to send
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Duplicate Emails */}
+              {/* Duplicate Emails - Enhanced */}
               {validationResults.duplicateEmails.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                   <div className="flex items-center mb-2">
@@ -352,64 +289,123 @@ const MemberUpload = ({ onClose, onSuccess }) => {
                   </div>
                   <div className="max-h-32 overflow-y-auto">
                     {validationResults.duplicateEmails.map((item, index) => (
-                      <div key={index} className="text-sm text-red-700 py-1">
-                        Line {item.line}: {item.email} {item.type === 'existing' ? '(already exists)' : '(duplicate in file)'}
+                      <div key={index} className="text-sm text-red-700 py-1 border-b border-red-100 last:border-b-0">
+                        <div className="font-medium">Row {item.row}: {item.name} ({item.email})</div>
+                        <div className="text-xs text-red-600 ml-2">
+                          {item.type === 'database_duplicate' && 'Email already exists in database'}
+                          {item.type === 'file_duplicate' && `Duplicate in upload file (first found at row ${item.firstFoundAtRow})`}
+                          {item.existingMember && (
+                            <span> - Existing member: {item.existingMember.name}</span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Invalid Emails */}
+              {/* Invalid Emails - Enhanced */}
               {validationResults.invalidEmails.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                   <div className="flex items-center mb-2">
                     <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
-                    <h4 className="text-sm font-medium text-red-800">Invalid Emails ({validationResults.invalidEmails.length})</h4>
+                    <h4 className="text-sm font-medium text-red-800">Invalid Email Addresses ({validationResults.invalidEmails.length})</h4>
                   </div>
                   <div className="max-h-32 overflow-y-auto">
                     {validationResults.invalidEmails.map((item, index) => (
-                      <div key={index} className="text-sm text-red-700 py-1">
-                        Line {item.line}: {item.email}
+                      <div key={index} className="text-sm text-red-700 py-1 border-b border-red-100 last:border-b-0">
+                        <div className="font-medium">Row {item.row}: {item.name || 'Unknown Name'}</div>
+                        <div className="text-xs text-red-600 ml-2">
+                          Invalid email: '{item.email}' - {item.error || 'Please provide a valid email address'}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Missing Fields */}
-              {validationResults.missingFields.length > 0 && (
+              {/* Validation Errors */}
+              {validationResults.validationErrors.length > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                   <div className="flex items-center mb-2">
                     <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-2" />
-                    <h4 className="text-sm font-medium text-yellow-800">Missing Required Fields ({validationResults.missingFields.length})</h4>
+                    <h4 className="text-sm font-medium text-yellow-800">Validation Errors ({validationResults.validationErrors.length})</h4>
                   </div>
                   <div className="max-h-32 overflow-y-auto">
-                    {validationResults.missingFields.map((item, index) => (
-                      <div key={index} className="text-sm text-yellow-700 py-1">
-                        Line {item.line}: Missing {item.missing.join(', ')}
+                    {validationResults.validationErrors.map((item, index) => (
+                      <div key={index} className="text-sm text-yellow-700 py-1 border-b border-yellow-100 last:border-b-0">
+                        <div className="font-medium">Row {item.row}: {item.name || 'Unknown Name'}</div>
+                        <div className="text-xs text-yellow-600 ml-2">
+                          {item.error}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Valid Members Preview */}
+              {/* Creation Errors */}
+              {validationResults.creationErrors.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-md p-4">
+                  <div className="flex items-center mb-2">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-orange-500 mr-2" />
+                    <h4 className="text-sm font-medium text-orange-800">Creation Errors ({validationResults.creationErrors.length})</h4>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto">
+                    {validationResults.creationErrors.map((item, index) => (
+                      <div key={index} className="text-sm text-orange-700 py-1 border-b border-orange-100 last:border-b-0">
+                        <div className="font-medium">Row {item.row}: {item.name || 'Unknown Name'} ({item.email})</div>
+                        <div className="text-xs text-orange-600 ml-2">
+                          {item.error}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Email Failures Warning */}
+              {validationResults.emailFailures?.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <div className="flex items-center mb-2">
+                    <InformationCircleIcon className="h-5 w-5 text-blue-500 mr-2" />
+                    <h4 className="text-sm font-medium text-blue-800">PIN Email Delivery Issues ({validationResults.emailFailures.length})</h4>
+                  </div>
+                  <div className="text-sm text-blue-700 mb-2">
+                    These members were successfully created but their PIN emails failed to send. You can resend PINs manually from the member list.
+                  </div>
+                  <div className="max-h-24 overflow-y-auto">
+                    {validationResults.emailFailures.map((item, index) => (
+                      <div key={index} className="text-sm text-blue-600 py-1">
+                        Row {item.row}: {item.name} ({item.email})
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Successfully Imported Members */}
               {validationResults.validMembers.length > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-md p-4">
                   <div className="flex items-center mb-2">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
-                    <h4 className="text-sm font-medium text-green-800">Valid Members Ready for Import ({validationResults.validMembers.length})</h4>
+                    <h4 className="text-sm font-medium text-green-800">Successfully Imported Members ({validationResults.validMembers.length})</h4>
+                  </div>
+                  <div className="text-sm text-green-700 mb-2">
+                    These members have been successfully added to the system and PIN emails have been sent.
                   </div>
                   <div className="max-h-32 overflow-y-auto">
                     {validationResults.validMembers.slice(0, 5).map((member, index) => (
-                      <div key={index} className="text-sm text-green-700 py-1">
-                        {member.firstName} {member.lastName} - {member.email} (Code: {member.memberCode})
+                      <div key={index} className="text-sm text-green-700 py-1 border-b border-green-100 last:border-b-0">
+                        <div className="font-medium">{member.name} - {member.email}</div>
+                        <div className="text-xs text-green-600 ml-2">
+                          PIN: {member.pin} | Phone: {member.phone || 'Not provided'}
+                        </div>
                       </div>
                     ))}
                     {validationResults.validMembers.length > 5 && (
-                      <div className="text-sm text-green-600 italic">
-                        ...and {validationResults.validMembers.length - 5} more
+                      <div className="text-sm text-green-600 italic mt-2">
+                        ...and {validationResults.validMembers.length - 5} more members
                       </div>
                     )}
                   </div>
@@ -424,7 +420,7 @@ const MemberUpload = ({ onClose, onSuccess }) => {
             onClick={onClose}
             className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            Cancel
+            {validationResults ? 'Close' : 'Cancel'}
           </button>
           {!validationResults ? (
             <button
@@ -432,31 +428,21 @@ const MemberUpload = ({ onClose, onSuccess }) => {
               disabled={!file || uploading}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? 'Validating...' : 'Validate'}
+              {uploading ? 'Processing...' : 'Upload & Process'}
             </button>
           ) : (
-            <div className="flex space-x-3">
-              <button
-                onClick={() => {
-                  setValidationResults(null);
-                  setFile(null);
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                  }
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Upload New File
-              </button>
-              {validationResults.validMembers.length > 0 && (
-                <button
-                  onClick={handleConfirmUpload}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  Import {validationResults.validMembers.length} Valid Members
-                </button>
-              )}
-            </div>
+            <button
+              onClick={() => {
+                setValidationResults(null);
+                setFile(null);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Upload Another File
+            </button>
           )}
         </div>
       </div>

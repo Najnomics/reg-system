@@ -1,23 +1,42 @@
 import { NavLink } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   HomeIcon,
   UsersIcon,
   CalendarDaysIcon,
   DocumentChartBarIcon,
+  UserGroupIcon,
   Cog6ToothIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
-const navigation = [
-  { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
-  { name: 'Members', href: '/admin/members', icon: UsersIcon },
-  { name: 'Sessions', href: '/admin/sessions', icon: CalendarDaysIcon },
-  { name: 'Reports', href: '/admin/reports', icon: DocumentChartBarIcon },
-];
+const getNavigationItems = (userType) => {
+  const baseNavigation = [
+    { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
+    { name: 'Members', href: '/admin/members', icon: UsersIcon, roles: ['admin', 'reg-rep'] },
+    { name: 'Sessions', href: '/admin/sessions', icon: CalendarDaysIcon, roles: ['admin', 'reg-rep'] },
+    { name: 'Reports', href: '/admin/reports', icon: DocumentChartBarIcon, roles: ['admin', 'reg-rep'] },
+  ];
+
+  // Add admin-only items
+  if (userType === 'admin') {
+    baseNavigation.splice(4, 0, {
+      name: 'Reg-Reps',
+      href: '/admin/reg-reps',
+      icon: UserGroupIcon,
+      roles: ['admin']
+    });
+  }
+
+  return baseNavigation.filter(item => !item.roles || item.roles.includes(userType));
+};
 
 const Sidebar = () => {
   const { sidebarOpen, setSidebar } = useApp();
+  const { userType } = useAuth();
+  
+  const navigation = getNavigationItems(userType);
 
   return (
     <>
@@ -46,8 +65,11 @@ const Sidebar = () => {
               </div>
               <div className="ml-3">
                 <h1 className="text-white text-lg font-semibold">
-                  Church Admin
+                  {userType === 'admin' ? 'Church Admin' : 'Church Portal'}
                 </h1>
+                {userType === 'reg-rep' && (
+                  <p className="text-xs text-gray-400">Registration Rep</p>
+                )}
               </div>
             </div>
             

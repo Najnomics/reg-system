@@ -10,6 +10,7 @@ import {
   PencilIcon,
   UsersIcon,
   PlayIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import QRCodeModal from '../../components/sessions/QRCodeModal';
 
@@ -34,6 +35,10 @@ const SessionsPage = () => {
   const handleShowQRCode = (session) => {
     setSelectedSession(session);
     setShowQRModal(true);
+  };
+
+  const handleViewAttendance = (session) => {
+    navigate(`/admin/sessions/${session.id}/attendance`);
   };
 
   const getSessionStatus = (session) => {
@@ -177,7 +182,7 @@ const SessionsPage = () => {
                     Total Check-ins
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {sessions.reduce((total, session) => total + (session.checkedInCount || 0), 0)}
+                    {sessions.reduce((total, session) => total + (session.attendanceCount || 0), 0)}
                   </dd>
                 </dl>
               </div>
@@ -238,11 +243,18 @@ const SessionsPage = () => {
                           )}
                           <div className="flex items-center">
                             <UsersIcon className="h-4 w-4 mr-1" />
-                            {session.checkedInCount || 0} checked in
+                            {session.attendanceCount || 0} checked in
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewAttendance(session)}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          <EyeIcon className="h-4 w-4 mr-1" />
+                          View Attendance
+                        </button>
                         <button
                           onClick={() => handleShowQRCode(session)}
                           className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"

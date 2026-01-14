@@ -1,6 +1,6 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const authController = require('../controllers/authController');
 
@@ -37,17 +37,17 @@ router.post('/logout',
 );
 
 router.get('/verify', 
-  authenticateAdmin,
+  authenticateUser,
   authController.verify
 );
 
 router.post('/refresh', 
-  authenticateAdmin,
+  authenticateUser,
   authController.refresh
 );
 
 router.post('/change-password',
-  authenticateAdmin,
+  authenticateUser,
   validate(require('joi').object(changePasswordSchema)),
   authController.changePassword
 );

@@ -13,7 +13,7 @@ import {
 
 const CheckInPage = () => {
   const { sessionId } = useParams();
-  const { members, showError, showSuccess } = useApp();
+  const { showError, showSuccess } = useApp();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
@@ -91,23 +91,25 @@ const CheckInPage = () => {
     setChecking(true);
 
     try {
-      // Validate member code
-      const member = members.find(m => m.memberCode === formData.memberCode);
+      // Call the real API to submit attendance
+      const response = await apiService.checkInWithPin(sessionId, formData.memberCode);
       
-      if (!member) {
-        showError('Invalid member code. Please check your 4-digit code.');
-        setChecking(false);
-        return;
+      if (response.success) {
+        const memberData = response.data?.member;
+        setCheckedInMember({
+          firstName: memberData?.name?.split(' ')[0] || 'Member',
+          lastName: memberData?.name?.split(' ').slice(1).join(' ') || '',
+          isGuest: false
+        });
+        setCheckInSuccess(true);
+        showSuccess(response.message || 'Welcome! You have been checked in successfully.');
+      } else {
+        showError(response.message || 'Invalid member code. Please check your 4-digit code.');
       }
-
-      // Mock API call for check-in
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      setCheckedInMember(member);
-      setCheckInSuccess(true);
-      showSuccess(`Welcome, ${member.firstName}! You have been checked in successfully.`);
     } catch (error) {
-      showError('Failed to check in. Please try again.');
+      console.error('Check-in error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to check in. Please try again.';
+      showError(errorMessage);
     } finally {
       setChecking(false);
     }

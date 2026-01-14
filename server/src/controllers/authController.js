@@ -3,33 +3,49 @@ const prisma = require('../config/database');
 const { generateToken, verifyToken } = require('../middleware/auth');
 
 /**
- * Admin login controller
+ * Universal login controller for admin and reg-rep
  */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find admin by email
-    const admin = await prisma.admin.findUnique({
-      where: { email: email.toLowerCase() },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        name: true,
-        isActive: true,
-      },
-    });
+    // Check both admin and reg-rep tables
+    const [admin, regRep] = await Promise.all([
+      prisma.admin.findUnique({
+        where: { email: email.toLowerCase() },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          name: true,
+          isActive: true,
+        },
+      }),
+      prisma.regRep.findUnique({
+        where: { email: email.toLowerCase() },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          name: true,
+          isActive: true,
+          createdBy: true,
+        },
+      })
+    ]);
 
-    if (!admin) {
+    const user = admin || regRep;
+    const userType = admin ? 'admin' : 'reg-rep';
+
+    if (!user) {
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'Invalid email or password',
       });
     }
 
-    // Check if admin is active
-    if (!admin.isActive) {
+    // Check if user is active
+    if (!user.isActive) {
       return res.status(401).json({
         error: 'Account disabled',
         message: 'Your account has been disabled',
@@ -37,7 +53,7 @@ const login = async (req, res) => {
     }
 
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, admin.password);
+    const isValidPassword = await bcrypt.compare(password, user.password);
     
     if (!isValidPassword) {
       return res.status(401).json({
@@ -46,17 +62,20 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate JWT token
-    const token = generateToken(admin);
+    // Generate JWT token with user type
+    const token = generateToken(user, userType);
 
     // Return success response (exclude password)
-    const { password: _, ...adminData } = admin;
+    const { password: _, ...userData } = user;
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       token,
-      admin: adminData,
+      user: { ...userData, userType },
+      userType,
+      // Keep legacy format for backwards compatibility
+      ...(userType === 'admin' ? { admin: userData } : { regRep: userData })
     });
 
   } catch (error) {
@@ -69,7 +88,7 @@ const login = async (req, res) => {
 };
 
 /**
- * Admin logout controller
+ * Universal logout controller
  */
 const logout = async (req, res) => {
   try {
@@ -95,12 +114,15 @@ const logout = async (req, res) => {
  */
 const verify = async (req, res) => {
   try {
-    // The authenticateAdmin middleware already verified the token
-    // and attached the admin data to req.admin
+    // The authenticateUser middleware already verified the token
+    // and attached the user data to req.user
     
     res.status(200).json({
       valid: true,
-      admin: req.admin,
+      user: req.user,
+      userType: req.user.userType,
+      // Keep legacy format for backwards compatibility
+      ...(req.user.userType === 'admin' ? { admin: req.user } : { regRep: req.user })
     });
 
   } catch (error) {
@@ -117,16 +139,19 @@ const verify = async (req, res) => {
  */
 const refresh = async (req, res) => {
   try {
-    // The authenticateAdmin middleware already verified the current token
+    // The authenticateUser middleware already verified the current token
     // Generate a new token with extended expiry
     
-    const newToken = generateToken(req.admin);
+    const newToken = generateToken(req.user, req.user.userType);
 
     res.status(200).json({
       success: true,
       message: 'Token refreshed successfully',
       token: newToken,
-      admin: req.admin,
+      user: req.user,
+      userType: req.user.userType,
+      // Keep legacy format for backwards compatibility
+      ...(req.user.userType === 'admin' ? { admin: req.user } : { regRep: req.user })
     });
 
   } catch (error) {
@@ -144,26 +169,29 @@ const refresh = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const adminId = req.admin.id;
+    const userId = req.user.id;
+    const userType = req.user.userType;
 
-    // Get current admin with password
-    const admin = await prisma.admin.findUnique({
-      where: { id: adminId },
-      select: {
-        id: true,
-        password: true,
-      },
-    });
+    // Get current user with password based on user type
+    const user = userType === 'admin' 
+      ? await prisma.admin.findUnique({
+          where: { id: userId },
+          select: { id: true, password: true },
+        })
+      : await prisma.regRep.findUnique({
+          where: { id: userId },
+          select: { id: true, password: true },
+        });
 
-    if (!admin) {
+    if (!user) {
       return res.status(404).json({
-        error: 'Admin not found',
-        message: 'Admin account not found',
+        error: 'User not found',
+        message: `${userType} account not found`,
       });
     }
 
     // Verify current password
-    const isValidPassword = await bcrypt.compare(currentPassword, admin.password);
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
     
     if (!isValidPassword) {
       return res.status(401).json({
@@ -175,11 +203,18 @@ const changePassword = async (req, res) => {
     // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
-    // Update password
-    await prisma.admin.update({
-      where: { id: adminId },
-      data: { password: hashedNewPassword },
-    });
+    // Update password in the appropriate table
+    if (userType === 'admin') {
+      await prisma.admin.update({
+        where: { id: userId },
+        data: { password: hashedNewPassword },
+      });
+    } else {
+      await prisma.regRep.update({
+        where: { id: userId },
+        data: { password: hashedNewPassword },
+      });
+    }
 
     res.status(200).json({
       success: true,

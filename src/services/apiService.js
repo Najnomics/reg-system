@@ -90,7 +90,7 @@ class ApiService {
     }
     
     return this.request(`/members/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(backendData),
     });
   }
@@ -130,6 +130,44 @@ class ApiService {
 
   async getSession(id) {
     return this.request(`/sessions/${id}`);
+  }
+
+  async getSessionAttendance(id) {
+    return this.request(`/sessions/${id}/attendance`);
+  }
+
+  async exportSessionAttendanceCSV(id) {
+    const url = `${API_BASE_URL}/sessions/${id}/attendance/export/csv`;
+    const token = localStorage.getItem('token');
+    
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export CSV');
+    }
+
+    return response.blob();
+  }
+
+  async exportSessionAttendancePDF(id) {
+    const url = `${API_BASE_URL}/sessions/${id}/attendance/export/pdf`;
+    const token = localStorage.getItem('token');
+    
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export PDF');
+    }
+
+    return response.blob();
   }
 
   async createSession(sessionData) {
@@ -204,6 +242,53 @@ class ApiService {
   async exportReport(type, filters = {}) {
     const params = new URLSearchParams({ ...filters, format: 'csv' });
     return this.request(`/reports/${type}/export?${params}`);
+  }
+
+  // Dashboard methods
+  async getDashboardStats() {
+    return this.request('/dashboard/stats');
+  }
+
+  // Reg-Rep management methods (admin only)
+  async getRegReps() {
+    return this.request('/reg-reps');
+  }
+
+  async getRegRep(id) {
+    return this.request(`/reg-reps/${id}`);
+  }
+
+  async createRegRep(regRepData) {
+    return this.request('/reg-reps', {
+      method: 'POST',
+      body: JSON.stringify(regRepData),
+    });
+  }
+
+  async updateRegRep(id, regRepData) {
+    return this.request(`/reg-reps/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(regRepData),
+    });
+  }
+
+  async deleteRegRep(id) {
+    return this.request(`/reg-reps/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleRegRepStatus(id) {
+    return this.request(`/reg-reps/${id}/toggle-status`, {
+      method: 'PATCH',
+    });
+  }
+
+  async resetRegRepPassword(id, newPassword) {
+    return this.request(`/reg-reps/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ newPassword }),
+    });
   }
 }
 

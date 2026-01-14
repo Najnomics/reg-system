@@ -12,7 +12,9 @@ const getMembers = async (req, res) => {
     const orderBy = { [sortBy]: sortOrder };
 
     // Build search conditions
-    let where = {};
+    let where = {
+      isActive: true, // Only show active members by default
+    };
     
     if (query) {
       where.OR = [

@@ -1,24 +1,31 @@
 const express = require('express');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const memberController = require('../controllers/memberController');
 
 const router = express.Router();
 
-// All member routes require admin authentication
-router.use(authenticateAdmin);
-
-// Get all members with pagination and search
+// Member read routes (accessible by admin and reg-rep)
 router.get('/', 
+  authenticateUser,
   validate(schemas.searchQuery, 'query'),
   memberController.getMembers
 );
 
-// Search members with advanced filters
 router.get('/search',
+  authenticateUser,
   validate(schemas.searchQuery, 'query'),
   memberController.searchMembers
 );
+
+router.get('/:id',
+  authenticateUser,
+  validate(schemas.idParam, 'params'),
+  memberController.getMember
+);
+
+// Member management routes (admin only)
+router.use(authenticateAdmin);
 
 // Create new member
 router.post('/',
@@ -40,12 +47,6 @@ router.get('/template',
 // Get upload history
 router.get('/upload-history',
   require('../controllers/uploadController').getUploadHistory
-);
-
-// Get single member by ID
-router.get('/:id',
-  validate(schemas.idParam, 'params'),
-  memberController.getMember
 );
 
 // Update member

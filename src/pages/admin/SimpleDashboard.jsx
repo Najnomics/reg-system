@@ -1,11 +1,32 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../../services/apiService';
 
 const SimpleDashboard = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const { showSuccess } = useApp();
+  const { user, userType, logout } = useAuth();
+  const { showSuccess, showError } = useApp();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getDashboardStats();
+      setDashboardData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      showError(error.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -32,7 +53,7 @@ const SimpleDashboard = () => {
                   <span className="text-white font-bold text-sm">CA</span>
                 </div>
                 <h1 className="ml-3 text-xl font-semibold text-gray-900">
-                  Church Admin Dashboard
+                  {userType === 'admin' ? 'Church Admin Dashboard' : 'Church Portal Dashboard'}
                 </h1>
               </div>
             </div>
@@ -54,7 +75,7 @@ const SimpleDashboard = () => {
         <div className="px-4 py-6 sm:px-0">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard Overview</h2>
-            <p className="text-gray-600">Manage your church attendance and members</p>
+            <p className="text-gray-600">{userType === 'admin' ? 'Manage your church attendance and members' : 'View church attendance and member information'}</p>
           </div>
 
           {/* Stats Cards */}
@@ -72,7 +93,9 @@ const SimpleDashboard = () => {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Total Members</dt>
-                      <dd className="text-lg font-medium text-gray-900">245</dd>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {loading ? '...' : (dashboardData?.stats?.totalMembers || 0)}
+                      </dd>
                     </dl>
                   </div>
                 </div>
@@ -92,7 +115,9 @@ const SimpleDashboard = () => {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Active Sessions</dt>
-                      <dd className="text-lg font-medium text-gray-900">3</dd>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {loading ? '...' : (dashboardData?.stats?.activeSessions || 0)}
+                      </dd>
                     </dl>
                   </div>
                 </div>
@@ -112,7 +137,9 @@ const SimpleDashboard = () => {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Today's Attendance</dt>
-                      <dd className="text-lg font-medium text-gray-900">187</dd>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {loading ? '...' : (dashboardData?.stats?.todaysAttendance || 0)}
+                      </dd>
                     </dl>
                   </div>
                 </div>
@@ -132,7 +159,9 @@ const SimpleDashboard = () => {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Attendance Rate</dt>
-                      <dd className="text-lg font-medium text-gray-900">76%</dd>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {loading ? '...' : `${dashboardData?.stats?.attendanceRate || 0}%`}
+                      </dd>
                     </dl>
                   </div>
                 </div>
@@ -153,21 +182,35 @@ const SimpleDashboard = () => {
                     <svg className="w-5 h-5 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                     </svg>
-                    <span className="text-sm font-medium text-gray-900">Manage Members</span>
+                    <span className="text-sm font-medium text-gray-900">{userType === 'admin' ? 'Manage Members' : 'View Members'}</span>
                   </div>
                 </a>
                 
-                <button 
-                  onClick={handleCreateSession}
-                  className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-md border border-green-200 transition-colors"
+                {userType === 'admin' && (
+                  <button 
+                    onClick={handleCreateSession}
+                    className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-md border border-green-200 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">Create New Session</span>
+                    </div>
+                  </button>
+                )}
+
+                <a
+                  href="/admin/sessions"
+                  className="block w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-colors"
                 >
                   <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    <svg className="w-5 h-5 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span className="text-sm font-medium text-gray-900">Create New Session</span>
+                    <span className="text-sm font-medium text-gray-900">View Sessions</span>
                   </div>
-                </button>
+                </a>
                 
                 <button 
                   onClick={handleGenerateReport}
@@ -180,33 +223,41 @@ const SimpleDashboard = () => {
                     <span className="text-sm font-medium text-gray-900">Generate Report</span>
                   </div>
                 </button>
+
+                {userType === 'admin' && (
+                  <a
+                    href="/admin/reg-reps"
+                    className="block w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-md border border-purple-200 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">Manage Reg-Reps</span>
+                    </div>
+                  </a>
+                )}
               </div>
             </div>
 
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                  <div className="ml-3">
-                    <p className="text-sm text-gray-900">John Doe checked in to Sunday Morning Service</p>
-                    <p className="text-xs text-gray-500">2 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                  <div className="ml-3">
-                    <p className="text-sm text-gray-900">New session "Evening Prayer" created</p>
-                    <p className="text-xs text-gray-500">15 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                  <div className="ml-3">
-                    <p className="text-sm text-gray-900">Weekly attendance report generated</p>
-                    <p className="text-xs text-gray-500">1 hour ago</p>
-                  </div>
-                </div>
+                {loading ? (
+                  <div className="text-gray-500">Loading activities...</div>
+                ) : dashboardData?.recentActivity?.length > 0 ? (
+                  dashboardData.recentActivity.map((activity) => (
+                    <div key={activity.id} className="flex items-start">
+                      <div className={`flex-shrink-0 w-2 h-2 bg-${activity.color}-500 rounded-full mt-2`}></div>
+                      <div className="ml-3">
+                        <p className="text-sm text-gray-900">{activity.message}</p>
+                        <p className="text-xs text-gray-500">{activity.time}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500">No recent activity</div>
+                )}
               </div>
             </div>
           </div>

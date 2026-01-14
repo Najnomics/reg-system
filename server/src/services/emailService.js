@@ -18,7 +18,7 @@ class EmailService {
     try {
       if (process.env.SENDGRID_API_KEY) {
         // Use SendGrid
-        this.transporter = nodemailer.createTransporter({
+        this.transporter = nodemailer.createTransport({
           service: 'SendGrid',
           auth: {
             user: 'apikey',
@@ -29,7 +29,7 @@ class EmailService {
         console.log('Email service initialized with SendGrid');
       } else if (process.env.SMTP_HOST) {
         // Use custom SMTP
-        this.transporter = nodemailer.createTransporter({
+        this.transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
           port: parseInt(process.env.SMTP_PORT) || 587,
           secure: process.env.SMTP_SECURE === 'true',
@@ -59,7 +59,7 @@ class EmailService {
     try {
       const testAccount = await nodemailer.createTestAccount();
       
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         host: 'smtp.ethereal.email',
         port: 587,
         secure: false,
@@ -155,7 +155,7 @@ class EmailService {
             
             <h2>Hello ${member.name},</h2>
             
-            <p>Welcome to ${churchName}! You have been registered in our attendance system. Here is your personal 5-digit PIN for checking in to church services and events:</p>
+            <p>Welcome to ${churchName}! You have been registered in our attendance system. Here is your personal 4-digit PIN for checking in to church services and events:</p>
             
             <div class="pin-box">
                 <div class="pin-label">Your Personal PIN</div>
@@ -168,7 +168,7 @@ class EmailService {
                     <li>Look for the QR code at the entrance of church services or events</li>
                     <li>Scan the QR code with your smartphone camera</li>
                     <li>Answer the location verification question</li>
-                    <li>Enter your 5-digit PIN: <strong>${member.pin}</strong></li>
+                    <li>Enter your 4-digit PIN: <strong>${member.pin}</strong></li>
                     <li>You're checked in!</li>
                 </ol>
             </div>
@@ -205,7 +205,7 @@ How to use your PIN:
 1. Look for the QR code at the entrance of church services or events
 2. Scan the QR code with your smartphone camera
 3. Answer the location verification question
-4. Enter your 5-digit PIN: ${member.pin}
+4. Enter your 4-digit PIN: ${member.pin}
 5. You're checked in!
 
 Important: Please keep this PIN secure and don't share it with others.

@@ -6,6 +6,7 @@ const AuthContext = createContext()
 const initialState = {
   user: null,
   token: null,
+  userType: null, // 'admin' or 'reg-rep'
   isAuthenticated: false,
   isLoading: true,
   error: null,
@@ -34,6 +35,7 @@ const authReducer = (state, action) => {
         ...state,
         user: action.payload.user,
         token: action.payload.token,
+        userType: action.payload.userType,
         isAuthenticated: true,
         isLoading: false,
         error: null,
@@ -54,6 +56,7 @@ const authReducer = (state, action) => {
         ...state,
         user: null,
         token: null,
+        userType: null,
         isAuthenticated: false,
         isLoading: false,
         error: null,
@@ -93,12 +96,13 @@ export const AuthProvider = ({ children }) => {
       }
 
       const response = await apiService.verifyToken()
-      if (response && response.valid && response.admin) {
+      if (response && response.valid && response.user) {
         dispatch({
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: {
-            user: response.admin,
+            user: response.user,
             token,
+            userType: response.userType,
           },
         })
       } else {
@@ -122,8 +126,9 @@ export const AuthProvider = ({ children }) => {
       dispatch({
         type: AuthActionTypes.LOGIN_SUCCESS,
         payload: {
-          user: response.user,
+          user: response.user || response.admin || response.regRep,
           token: response.token,
+          userType: response.userType,
         },
       })
 

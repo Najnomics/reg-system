@@ -3,7 +3,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { apiService } from '../../services/apiService';
+import { useApp } from '../../contexts/SimpleAppContext';
 
 const schema = yup.object().shape({
   name: yup.string().required('Name is required').min(2, 'Name must be at least 2 characters'),
@@ -13,6 +13,7 @@ const schema = yup.object().shape({
 });
 
 const MemberForm = ({ member, onClose, onSuccess }) => {
+  const { createMember, updateMember } = useApp();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -44,17 +45,22 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
   }, [member, reset]);
 
   const onSubmit = async (data) => {
+    console.log('Form submitted with data:', data);
     setSaving(true);
     setError(null);
 
     try {
       if (member) {
-        await apiService.updateMember(member.id, data);
+        console.log('Updating member:', member.id, data);
+        await updateMember(member.id, data);
       } else {
-        await apiService.createMember(data);
+        console.log('Creating new member:', data);
+        await createMember(data);
       }
+      console.log('Operation successful, calling onSuccess');
       onSuccess();
     } catch (err) {
+      console.error('Form submission error:', err);
       setError(err.message);
     } finally {
       setSaving(false);
@@ -145,25 +151,24 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
               Active Member
             </label>
           </div>
-        </form>
 
-        <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            onClick={handleSubmit(onSubmit)}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : (member ? 'Update' : 'Create')}
-          </button>
-        </div>
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : (member ? 'Update' : 'Create')}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

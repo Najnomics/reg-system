@@ -53,7 +53,9 @@ export const AppProvider = ({ children }) => {
       console.log('fetchMembers response:', response);
       // Extract members array from API response
       const membersData = response?.data?.members || response?.members || [];
-      setMembers(Array.isArray(membersData) ? membersData : []);
+      // Filter out inactive members so they don't appear in the UI
+      const activeMembers = Array.isArray(membersData) ? membersData.filter(member => member.isActive !== false) : [];
+      setMembers(activeMembers);
     } catch (error) {
       console.error('Failed to fetch members:', error);
       showError('Failed to load members');
@@ -97,8 +99,15 @@ export const AppProvider = ({ children }) => {
   // Add member functions
   const createMember = async (memberData) => {
     try {
-      const newMember = await apiService.createMember(memberData);
-      setMembers(prev => [...prev, newMember]);
+      console.log('Context: createMember called with:', memberData);
+      const response = await apiService.createMember(memberData);
+      console.log('Context: createMember API response:', response);
+      const newMember = response?.data?.member || response?.member || response;
+      console.log('Context: Extracted member data:', newMember);
+      setMembers(prev => {
+        console.log('Context: Updating members state, current count:', prev.length);
+        return [...prev, newMember];
+      });
       showSuccess('Member created successfully');
       return newMember;
     } catch (error) {
@@ -110,7 +119,8 @@ export const AppProvider = ({ children }) => {
 
   const updateMember = async (id, memberData) => {
     try {
-      const updatedMember = await apiService.updateMember(id, memberData);
+      const response = await apiService.updateMember(id, memberData);
+      const updatedMember = response?.data?.member || response?.member || response;
       setMembers(prev => prev.map(m => m.id === id ? updatedMember : m));
       showSuccess('Member updated successfully');
       return updatedMember;
@@ -208,6 +218,7 @@ export const AppProvider = ({ children }) => {
     removeNotification,
     clearNotifications,
     members,
+    setMembers,
     sessions,
     loading,
     fetchMembers,

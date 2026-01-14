@@ -15,14 +15,29 @@ const ReportsPage = () => {
   const [dateRange, setDateRange] = useState('30');
   const [selectedSession, setSelectedSession] = useState('');
 
-  // Calculate stats
+  // Filter sessions based on date range and selected session
+  const filteredSessions = sessions.filter(session => {
+    // Date filtering
+    const sessionDate = new Date(session.startTime);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(dateRange));
+    
+    const withinDateRange = sessionDate >= cutoffDate;
+    
+    // Session filtering
+    const matchesSession = selectedSession === '' || session.id === parseInt(selectedSession);
+    
+    return withinDateRange && matchesSession;
+  });
+
+  // Calculate stats based on filtered sessions
   const totalMembers = members.length;
-  const totalSessions = sessions.length;
-  const totalCheckins = sessions.reduce((total, session) => total + (session.checkedInCount || 0), 0);
-  const averageAttendance = sessions.length > 0 ? Math.round(totalCheckins / sessions.length) : 0;
+  const totalSessions = filteredSessions.length;
+  const totalCheckins = filteredSessions.reduce((total, session) => total + (session.checkedInCount || 0), 0);
+  const averageAttendance = filteredSessions.length > 0 ? Math.round(totalCheckins / filteredSessions.length) : 0;
 
   // Recent sessions with attendance
-  const recentSessions = sessions
+  const recentSessions = filteredSessions
     .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
     .slice(0, 10);
 
@@ -47,11 +62,16 @@ const ReportsPage = () => {
   };
 
   const handleExportReport = () => {
-    // Mock export functionality
+    // Export filtered data
     const reportData = {
       type: reportType,
       dateRange,
+      selectedSession: selectedSession ? sessions.find(s => s.id === parseInt(selectedSession))?.theme : 'All Sessions',
       generatedAt: new Date().toISOString(),
+      filters: {
+        dateRange: `${dateRange} days`,
+        sessionFilter: selectedSession || 'All',
+      },
       data: {
         totalMembers,
         totalSessions,

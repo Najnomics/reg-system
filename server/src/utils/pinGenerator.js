@@ -2,15 +2,15 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 
 /**
- * Generate a unique 5-digit PIN for a member
+ * Generate a unique 4-digit PIN for a member
  */
 const generateUniquePin = async () => {
   let attempts = 0;
   const maxAttempts = 100;
 
   while (attempts < maxAttempts) {
-    // Generate random 5-digit PIN
-    const pin = Math.floor(10000 + Math.random() * 90000).toString();
+    // Generate random 4-digit PIN
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Check if PIN already exists
     const existingMember = await prisma.member.findUnique({
