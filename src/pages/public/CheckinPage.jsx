@@ -27,6 +27,53 @@ const CheckInPage = () => {
     lastName: '',
   });
 
+  // Helper function to check if device is already authenticated for this session
+  const isDeviceAuthenticated = (sessionId) => {
+    const key = `session_auth_${sessionId}`;
+    const authData = localStorage.getItem(key);
+    if (!authData) return false;
+    
+    try {
+      const { timestamp, expiry } = JSON.parse(authData);
+      const now = Date.now();
+      
+      // Check if authentication is still valid (expires after 24 hours)
+      if (now > expiry) {
+        localStorage.removeItem(key);
+        return false;
+      }
+      return true;
+    } catch {
+      localStorage.removeItem(key);
+      return false;
+    }
+  };
+
+  // Helper function to store device authentication for this session
+  const storeDeviceAuthentication = (sessionId) => {
+    const key = `session_auth_${sessionId}`;
+    const authData = {
+      timestamp: Date.now(),
+      expiry: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+      sessionId: sessionId
+    };
+    localStorage.setItem(key, JSON.stringify(authData));
+  };
+
+  // Helper function to clear device authentication for this session
+  const clearDeviceAuthentication = (sessionId) => {
+    const key = `session_auth_${sessionId}`;
+    localStorage.removeItem(key);
+    setStep(1);
+    setFormData({
+      secretAnswer: '',
+      memberCode: '',
+      firstName: '',
+      lastName: '',
+    });
+    showSuccess('Device authentication cleared. Please answer the security question.');
+  };
+
   useEffect(() => {
     const fetchSessionData = async () => {
       if (!sessionId) {
@@ -43,6 +90,13 @@ const CheckInPage = () => {
         const sessionData = response?.data?.session || response?.session || response;
         if (sessionData) {
           setSession(sessionData);
+          
+          // Check if device is already authenticated for this session
+          if (isDeviceAuthenticated(sessionId)) {
+            console.log('Device already authenticated for this session, skipping secret question');
+            setStep(2); // Skip secret answer step
+            showSuccess('Welcome back! Device already authenticated for this session.');
+          }
         } else {
           console.log('No session data found in response:', response);
           setSession(null);
@@ -56,7 +110,7 @@ const CheckInPage = () => {
     };
 
     fetchSessionData();
-  }, [sessionId]);
+  }, [sessionId, showSuccess]);
 
   const handleChange = (e) => {
     setFormData({
@@ -73,6 +127,10 @@ const CheckInPage = () => {
       const response = await apiService.verifySecretAnswer(sessionId, formData.secretAnswer);
       
       if (response.correct) {
+        // Store device authentication for this session
+        storeDeviceAuthentication(sessionId);
+        console.log('Device authenticated for session', sessionId);
+        
         setStep(2);
         showSuccess('Answer verified! Please enter your member PIN.');
       } else {
@@ -298,6 +356,23 @@ const CheckInPage = () => {
           {/* Step 2: Member Check-in */}
           {step === 2 && (
             <div className="space-y-6">
+              {/* Device Authentication Status */}
+              {isDeviceAuthenticated(sessionId) && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                  <div className="flex">
+                    <CheckCircleIcon className="h-5 w-5 text-green-400 mt-0.5 mr-2" />
+                    <div>
+                      <p className="text-sm font-medium text-green-800">
+                        Device Authenticated
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        This device has already answered the security question for this session.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Member Code Check-in */}
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -380,14 +455,17 @@ const CheckInPage = () => {
                 </form>
               </div>
 
-              {/* Back Button */}
+              {/* Back Button / Reset Authentication */}
               <div className="text-center">
                 <button
-                  onClick={() => setStep(1)}
+                  onClick={() => clearDeviceAuthentication(sessionId)}
                   className="text-sm text-indigo-600 hover:text-indigo-500"
                 >
-                  ← Back to Session Password
+                  ← Reset Device Authentication
                 </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  Clear this device's authentication for this session
+                </p>
               </div>
             </div>
           )}
