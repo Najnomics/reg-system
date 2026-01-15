@@ -58,6 +58,10 @@ const ReportsPage = () => {
   // Active members from analytics
   const activeMembersCount = analyticsData?.summary?.activeMembers || members.filter(m => m.isActive).length;
   const inactiveMembersCount = totalMembers - activeMembersCount;
+  
+  // Keep for backward compatibility in export function
+  const activeMembers = members.filter(member => member.isActive);
+  const inactiveMembers = members.filter(member => !member.isActive);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
