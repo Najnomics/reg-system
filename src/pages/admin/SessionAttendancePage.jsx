@@ -37,6 +37,9 @@ const SessionAttendancePage = () => {
     try {
       setLoading(true);
       const response = await apiService.getSessionAttendance(sessionId);
+      console.log('Session attendance response:', response);
+      console.log('Present members:', response.data?.attendance?.present?.length || 0);
+      console.log('Absent members:', response.data?.attendance?.absent?.length || 0);
       setSessionData(response.data);
     } catch (error) {
       console.error('Failed to fetch session attendance:', error);
