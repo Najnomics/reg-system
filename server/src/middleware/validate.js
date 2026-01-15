@@ -182,6 +182,15 @@ const schemas = {
     }),
   }),
 
+  // Session ID parameter (for routes using :id)
+  sessionId: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      'string.base': 'Session ID must be a string',
+      'string.uuid': 'Session ID must be a valid UUID',
+      'any.required': 'Session ID is required',
+    }),
+  }),
+
   // Reg-rep creation/update
   regRepCreate: Joi.object({
     name: Joi.string().trim().min(2).max(100).required().messages({

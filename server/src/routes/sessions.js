@@ -19,37 +19,37 @@ router.get('/stats',
 
 router.get('/:id',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.getSession
 );
 
 router.get('/:id/attendance',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.getSessionAttendance
 );
 
 router.get('/:id/attendance/export/csv',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.exportSessionAttendanceCSV
 );
 
 router.get('/:id/attendance/export/pdf',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.exportSessionAttendancePDF
 );
 
 router.get('/:id/qr-code',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.downloadQRCode
 );
 
 router.get('/:id/print',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.getPrintableQR
 );
 
@@ -64,14 +64,14 @@ router.post('/',
 
 // Update session
 router.patch('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   validate(schemas.sessionUpdate),
   sessionController.updateSession
 );
 
 // Delete session
 router.delete('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.sessionId, 'params'),
   sessionController.deleteSession
 );
 
