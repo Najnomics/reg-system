@@ -697,17 +697,28 @@ const getSessionAttendance = async (req, res) => {
     const { id } = req.params;
     const { includeAbsent = 'false' } = req.query; // Make absent members optional
 
+    // Check if user is admin or reg-rep (to show secret question and answer)
+    const canViewSecretInfo = req.user && (req.user.userType === 'admin' || req.user.userType === 'reg-rep');
+
+    // Build select fields - include secret question and answer for admins and reg-reps
+    const sessionSelectFields = {
+      id: true,
+      theme: true,
+      startTime: true,
+      endTime: true,
+      isActive: true,
+    };
+
+    if (canViewSecretInfo) {
+      sessionSelectFields.secretQuestion = true;
+      sessionSelectFields.secretAnswerPlain = true;
+    }
+
     // Get session details and attendance records in parallel
     const [session, attendanceRecords, totalMembersCount] = await Promise.all([
       prisma.session.findUnique({
         where: { id },
-        select: {
-          id: true,
-          theme: true,
-          startTime: true,
-          endTime: true,
-          isActive: true,
-        },
+        select: sessionSelectFields,
       }),
       prisma.attendance.findMany({
         where: { sessionId: id },
