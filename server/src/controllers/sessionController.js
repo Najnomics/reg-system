@@ -746,6 +746,16 @@ const getSessionAttendance = async (req, res) => {
       prisma.member.count({ where: { isActive: true } }),
     ]);
 
+    console.log('getSessionAttendance - Session returned from DB:', {
+      id: session?.id,
+      theme: session?.theme,
+      hasSecretQuestion: 'secretQuestion' in (session || {}),
+      hasSecretAnswerPlain: 'secretAnswerPlain' in (session || {}),
+      secretQuestion: session?.secretQuestion,
+      secretAnswerPlain: session?.secretAnswerPlain,
+      selectFields: sessionSelectFields,
+    });
+
     if (!session) {
       return res.status(404).json({
         error: 'Session not found',
