@@ -334,7 +334,7 @@ const ReportsPage = () => {
                     <div className="text-xs text-green-600">Attended in last 30 days</div>
                   </div>
                   <div className="text-2xl font-bold text-green-800">
-                    {activeMembers.length}
+                    {activeMembersCount}
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-4 bg-yellow-50 rounded-lg">
@@ -343,16 +343,16 @@ const ReportsPage = () => {
                     <div className="text-xs text-yellow-600">No recent attendance</div>
                   </div>
                   <div className="text-2xl font-bold text-yellow-800">
-                    {inactiveMembers.length}
+                    {inactiveMembersCount}
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
                   <div>
-                    <div className="text-sm font-medium text-blue-800">Attendance Rate</div>
+                    <div className="text-sm font-medium text-blue-800">Engagement Rate</div>
                     <div className="text-xs text-blue-600">Overall participation</div>
                   </div>
                   <div className="text-2xl font-bold text-blue-800">
-                    {totalMembers > 0 ? Math.round((activeMembers.length / totalMembers) * 100) : 0}%
+                    {analyticsData?.summary?.engagementRate || 0}%
                   </div>
                 </div>
               </div>
