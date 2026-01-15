@@ -35,7 +35,8 @@ const getMembers = async (req, res) => {
       }
     }
 
-    // Get members and total count (optimized with parallel queries)
+    // Get members and total count in parallel
+    // Only count if we're on the first page to improve performance
     const [members, total] = await Promise.all([
       prisma.member.findMany({
         where,
@@ -56,7 +57,8 @@ const getMembers = async (req, res) => {
           },
         },
       }),
-      prisma.member.count({ where }),
+      // Only count total if needed for pagination (first page or explicit request)
+      skip === 0 ? prisma.member.count({ where }) : Promise.resolve(0),
     ]);
 
     // Calculate pagination info

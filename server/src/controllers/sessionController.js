@@ -45,7 +45,8 @@ const getSessions = async (req, res) => {
       where.endTime = { ...where.endTime, lte: new Date(toDate) };
     }
 
-    // Get sessions and total count (optimized with conditional counting)
+    // Get sessions and total count in parallel
+    // Only count if we're on the first page to improve performance
     const [sessions, total] = await Promise.all([
       prisma.session.findMany({
         where,
@@ -66,7 +67,8 @@ const getSessions = async (req, res) => {
           },
         },
       }),
-      prisma.session.count({ where }),
+      // Only count total if needed for pagination (first page or explicit request)
+      skip === 0 ? prisma.session.count({ where }) : Promise.resolve(0),
     ]);
 
     // Add status to each session
@@ -653,18 +655,38 @@ const getSessionStats = async (req, res) => {
 const getSessionAttendance = async (req, res) => {
   try {
     const { id } = req.params;
+    const { includeAbsent = 'false' } = req.query; // Make absent members optional
 
-    // Get session details
-    const session = await prisma.session.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        theme: true,
-        startTime: true,
-        endTime: true,
-        isActive: true,
-      },
-    });
+    // Get session details and attendance records in parallel
+    const [session, attendanceRecords, totalMembersCount] = await Promise.all([
+      prisma.session.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          theme: true,
+          startTime: true,
+          endTime: true,
+          isActive: true,
+        },
+      }),
+      prisma.attendance.findMany({
+        where: { sessionId: id },
+        select: {
+          id: true,
+          checkedInAt: true,
+          member: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              pin: true,
+            },
+          },
+        },
+        orderBy: { checkedInAt: 'desc' },
+      }),
+      prisma.member.count({ where: { isActive: true } }),
+    ]);
 
     if (!session) {
       return res.status(404).json({
@@ -673,33 +695,23 @@ const getSessionAttendance = async (req, res) => {
       });
     }
 
-    // Get all members who checked in for this session
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: { sessionId: id },
-      include: {
-        member: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            pin: true,
-          },
-        },
-      },
-      orderBy: { checkedInAt: 'desc' },
-    });
+    // Get only the IDs of members who attended
+    const attendedMemberIds = new Set(attendanceRecords.map(record => record.member.id));
 
-    // Get all active members
-    const allMembers = await prisma.member.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        pin: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    // Only fetch absent members if explicitly requested and reasonable number
+    let allMembers = [];
+    if (includeAbsent === 'true' && totalMembersCount <= 5000) {
+      allMembers = await prisma.member.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          pin: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+    }
 
     // Create list of members who attended
     const attendedMembers = attendanceRecords.map(record => ({
@@ -711,18 +723,19 @@ const getSessionAttendance = async (req, res) => {
       status: 'present',
     }));
 
-    // Create list of members who didn't attend
-    const attendedMemberIds = new Set(attendedMembers.map(m => m.id));
-    const absentMembers = allMembers
-      .filter(member => !attendedMemberIds.has(member.id))
-      .map(member => ({
-        id: member.id,
-        name: member.name,
-        email: member.email,
-        pin: member.pin,
-        checkedInAt: null,
-        status: 'absent',
-      }));
+    // Create list of members who didn't attend (only if requested and loaded)
+    const absentMembers = allMembers.length > 0
+      ? allMembers
+          .filter(member => !attendedMemberIds.has(member.id))
+          .map(member => ({
+            id: member.id,
+            name: member.name,
+            email: member.email,
+            pin: member.pin,
+            checkedInAt: null,
+            status: 'absent',
+          }))
+      : []; // Empty if not requested or too many members
 
     // Add session status
     const currentTime = new Date();
@@ -739,11 +752,11 @@ const getSessionAttendance = async (req, res) => {
           present: attendedMembers,
           absent: absentMembers,
           summary: {
-            totalMembers: allMembers.length,
+            totalMembers: totalMembersCount,
             present: attendedMembers.length,
-            absent: absentMembers.length,
-            attendanceRate: allMembers.length > 0 
-              ? Math.round((attendedMembers.length / allMembers.length) * 100) 
+            absent: absentMembers.length > 0 ? absentMembers.length : totalMembersCount - attendedMembers.length,
+            attendanceRate: totalMembersCount > 0 
+              ? Math.round((attendedMembers.length / totalMembersCount) * 100) 
               : 0,
           },
         },
