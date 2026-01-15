@@ -21,6 +21,8 @@ const CompleteMembersPage = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [filteredMembers, setFilteredMembers] = useState([]);
+  const [selectedMembers, setSelectedMembers] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   useEffect(() => {
     // Only fetch if members array is empty to avoid duplicate calls
@@ -97,6 +99,69 @@ const CompleteMembersPage = () => {
     // Mock implementation
     showSuccess(`PIN resent to ${member.email}`);
   };
+
+  const handleSelectMember = (memberId) => {
+    setSelectedMembers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(memberId)) {
+        newSet.delete(memberId);
+      } else {
+        newSet.add(memberId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedMembers(new Set());
+      setSelectAll(false);
+    } else {
+      const allIds = new Set(filteredMembers.map(m => m.id));
+      setSelectedMembers(allIds);
+      setSelectAll(true);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedMembers.size === 0) {
+      showError('Please select at least one member to delete');
+      return;
+    }
+
+    const count = selectedMembers.size;
+    const confirmMessage = `Are you sure you want to delete ${count} member(s)? This action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const memberIds = Array.from(selectedMembers);
+      await apiService.bulkDeleteMembers(memberIds);
+      
+      // Update local state by removing deleted members
+      setMembers(prev => prev.filter(m => !selectedMembers.has(m.id)));
+      setSelectedMembers(new Set());
+      setSelectAll(false);
+      
+      showSuccess(`Successfully deleted ${count} member(s)`);
+      fetchMembers(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to bulk delete members:', error);
+      showError(error.message || 'Failed to delete members. Please try again.');
+    }
+  };
+
+  // Update selectAll state when selectedMembers changes
+  useEffect(() => {
+    if (filteredMembers.length > 0) {
+      const allSelected = filteredMembers.every(m => selectedMembers.has(m.id));
+      setSelectAll(allSelected);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedMembers, filteredMembers]);
 
   const handleBulkUpload = (file) => {
     // Mock implementation
@@ -297,6 +362,16 @@ const CompleteMembersPage = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        {isAdmin && (
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                            <input
+                              type="checkbox"
+                              checked={selectAll}
+                              onChange={handleSelectAll}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            />
+                          </th>
+                        )}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Member
                         </th>
@@ -319,7 +394,17 @@ const CompleteMembersPage = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredMembers.map((member) => (
-                        <tr key={member.id} className="hover:bg-gray-50">
+                        <tr key={member.id} className={`hover:bg-gray-50 ${selectedMembers.has(member.id) ? 'bg-blue-50' : ''}`}>
+                          {isAdmin && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedMembers.has(member.id)}
+                                onChange={() => handleSelectMember(member.id)}
+                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                              />
+                            </td>
+                          )}
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">

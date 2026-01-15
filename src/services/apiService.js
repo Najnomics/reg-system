@@ -106,6 +106,13 @@ class ApiService {
     });
   }
 
+  async bulkDeleteMembers(memberIds) {
+    return this.request('/members/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
   async toggleMemberStatus(id) {
     return this.request(`/members/${id}/toggle-status`, {
       method: 'PATCH',

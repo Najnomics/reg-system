@@ -56,6 +56,11 @@ router.patch('/:id',
   memberController.updateMember
 );
 
+// Bulk delete/deactivate members
+router.post('/bulk-delete',
+  memberController.bulkDeleteMembers
+);
+
 // Delete/deactivate member
 router.delete('/:id',
   validate(schemas.idParam, 'params'),

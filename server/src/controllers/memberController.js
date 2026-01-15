@@ -374,6 +374,79 @@ const deleteMember = async (req, res) => {
 };
 
 /**
+ * Bulk delete/deactivate members
+ */
+const bulkDeleteMembers = async (req, res) => {
+  try {
+    const { memberIds } = req.body;
+
+    // Validate input
+    if (!memberIds || !Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid input',
+        message: 'memberIds must be a non-empty array',
+      });
+    }
+
+    // Validate all IDs are UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const invalidIds = memberIds.filter(id => !uuidRegex.test(id));
+    if (invalidIds.length > 0) {
+      return res.status(400).json({
+        error: 'Invalid input',
+        message: 'All member IDs must be valid UUIDs',
+        invalidIds,
+      });
+    }
+
+    // Check if members exist
+    const existingMembers = await prisma.member.findMany({
+      where: {
+        id: { in: memberIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+      },
+    });
+
+    if (existingMembers.length === 0) {
+      return res.status(404).json({
+        error: 'No members found',
+        message: 'None of the specified members exist',
+      });
+    }
+
+    // Soft delete by setting isActive to false
+    const result = await prisma.member.updateMany({
+      where: {
+        id: { in: memberIds },
+      },
+      data: { isActive: false },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully deactivated ${result.count} member(s)`,
+      data: {
+        deletedCount: result.count,
+        requestedCount: memberIds.length,
+        foundCount: existingMembers.length,
+      },
+    });
+
+  } catch (error) {
+    console.error('Bulk delete members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to bulk delete members',
+    });
+  }
+};
+
+/**
  * Search members with advanced filters
  */
 const searchMembers = async (req, res) => {
@@ -577,6 +650,7 @@ module.exports = {
   createMember,
   updateMember,
   deleteMember,
+  bulkDeleteMembers,
   toggleMemberStatus,
   searchMembers,
   resendPin,
