@@ -128,21 +128,49 @@ const MemberUpload = ({ onClose, onSuccess }) => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to download template');
+        const errorText = await response.text();
+        console.error('Template download failed:', response.status, errorText);
+        throw new Error(`Failed to download template: ${response.statusText}`);
       }
       
+      // Check if response has content
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      console.log('Template download response:', {
+        contentType,
+        contentLength,
+        status: response.status
+      });
+      
       const blob = await response.blob();
+      
+      // Verify blob is not empty
+      if (blob.size === 0) {
+        throw new Error('Downloaded template file is empty');
+      }
+      
+      console.log('Template blob size:', blob.size, 'bytes');
+      
+      // Create download link
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `members_template.${format}`;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      showSuccess(`Template downloaded successfully (${Math.round(blob.size / 1024)}KB)`);
     } catch (err) {
       console.error('Template download error:', err);
-      showError('Failed to download template');
+      showError(err.message || 'Failed to download template. Please try again.');
     }
   };
 

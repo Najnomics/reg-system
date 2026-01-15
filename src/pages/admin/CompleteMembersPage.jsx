@@ -751,6 +751,7 @@ const AddMemberModal = ({ member, onSave, onCancel }) => {
 
 // Bulk Upload Modal Component
 const BulkUploadModal = ({ onUpload, onCancel }) => {
+  const { showSuccess, showError } = useApp();
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -776,9 +777,61 @@ const BulkUploadModal = ({ onUpload, onCancel }) => {
     }
   };
 
-  const downloadTemplate = () => {
-    // Mock implementation - would download actual template
-    alert('Template downloaded! Check your downloads folder.');
+  const downloadTemplate = async (format = 'xlsx') => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/members/template?format=${format}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Template download failed:', response.status, errorText);
+        showError(`Failed to download template: ${response.statusText}`);
+        return;
+      }
+      
+      // Check if response has content
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      console.log('Template download response:', {
+        contentType,
+        contentLength,
+        status: response.status
+      });
+      
+      const blob = await response.blob();
+      
+      // Verify blob is not empty
+      if (blob.size === 0) {
+        showError('Downloaded template file is empty. Please try again.');
+        return;
+      }
+      
+      console.log('Template blob size:', blob.size, 'bytes');
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `members_template.${format}`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      showSuccess(`Template downloaded successfully (${Math.round(blob.size / 1024)}KB)`);
+    } catch (err) {
+      console.error('Template download error:', err);
+      showError(err.message || 'Failed to download template. Please try again.');
+    }
   };
 
   return (
@@ -787,12 +840,21 @@ const BulkUploadModal = ({ onUpload, onCancel }) => {
         <h3 className="text-lg font-medium text-gray-900 mb-4">Bulk Upload Members</h3>
         
         <div className="mb-4">
-          <button
-            onClick={downloadTemplate}
-            className="text-indigo-600 hover:text-indigo-800 text-sm underline"
-          >
-            Download Excel Template
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => downloadTemplate('xlsx')}
+              className="text-indigo-600 hover:text-indigo-800 text-sm underline"
+            >
+              Download Excel Template
+            </button>
+            <span className="text-gray-400">|</span>
+            <button
+              onClick={() => downloadTemplate('csv')}
+              className="text-indigo-600 hover:text-indigo-800 text-sm underline"
+            >
+              Download CSV Template
+            </button>
+          </div>
         </div>
 
         <div

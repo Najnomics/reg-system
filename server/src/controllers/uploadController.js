@@ -246,12 +246,34 @@ const downloadTemplate = async (req, res) => {
   try {
     const { format = 'xlsx' } = req.query;
     
+    console.log(`Template download requested: format=${format}`);
+    
     if (format === 'csv') {
-      // Generate CSV template
-      const csvContent = 'name,email,phone\nJohn Doe,john@example.com,+1234567890\nJane Smith,jane@example.com,+1987654321\nBob Johnson,bob@example.com,';
+      // Generate CSV template with proper formatting
+      const csvRows = [
+        ['name', 'email', 'phone'], // Headers
+        ['John Doe', 'john@example.com', '+1234567890'], // Sample row 1
+        ['Jane Smith', 'jane@example.com', '+1987654321'], // Sample row 2
+        ['Bob Johnson', 'bob@example.com', ''], // Sample row 3 (no phone)
+      ];
+      
+      // Convert to CSV string with proper escaping
+      const csvContent = csvRows.map(row => 
+        row.map(cell => {
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+            return `"${cell.replace(/"/g, '""')}"`;
+          }
+          return cell;
+        }).join(',')
+      ).join('\n');
+      
       const csvBuffer = Buffer.from(csvContent, 'utf8');
       
-      res.setHeader('Content-Type', 'text/csv');
+      console.log(`CSV template generated: ${csvBuffer.length} bytes`);
+      console.log('CSV content preview:', csvContent.substring(0, 200));
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="members_template.csv"');
       res.setHeader('Content-Length', csvBuffer.length);
       
@@ -259,6 +281,12 @@ const downloadTemplate = async (req, res) => {
     } else {
       // Generate Excel template
       const templateBuffer = generateTemplate();
+      
+      if (!templateBuffer || templateBuffer.length === 0) {
+        throw new Error('Failed to generate template buffer');
+      }
+      
+      console.log(`Excel template generated: ${templateBuffer.length} bytes`);
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="members_template.xlsx"');
@@ -269,9 +297,11 @@ const downloadTemplate = async (req, res) => {
 
   } catch (error) {
     console.error('Template generation error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to generate template file',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };

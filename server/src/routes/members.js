@@ -18,6 +18,13 @@ router.get('/search',
   memberController.searchMembers
 );
 
+// Template download route must come before /:id to avoid route conflict
+// Admin only since bulk upload is admin-only
+router.get('/template', (req, res, next) => {
+  console.log('Template route matched:', req.path, req.query);
+  next();
+}, authenticateAdmin, require('../controllers/uploadController').downloadTemplate);
+
 router.get('/:id',
   authenticateUser,
   validate(schemas.memberId, 'params'),
@@ -44,11 +51,6 @@ router.post('/',
 router.post('/upload',
   require('../middleware/upload').uploadMiddleware,
   require('../controllers/uploadController').uploadMembers
-);
-
-// Download Excel template
-router.get('/template',
-  require('../controllers/uploadController').downloadTemplate
 );
 
 // Get upload history
