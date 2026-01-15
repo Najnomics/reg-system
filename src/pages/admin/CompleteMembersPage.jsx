@@ -10,6 +10,7 @@ import {
   PencilIcon,
   TrashIcon,
   EnvelopeIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 
 const CompleteMembersPage = () => {
