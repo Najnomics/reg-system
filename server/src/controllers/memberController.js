@@ -57,8 +57,7 @@ const getMembers = async (req, res) => {
           },
         },
       }),
-      // Only count total if needed for pagination (first page or explicit request)
-      skip === 0 ? prisma.member.count({ where }) : Promise.resolve(0),
+      prisma.member.count({ where }),
     ]);
 
     // Calculate pagination info
