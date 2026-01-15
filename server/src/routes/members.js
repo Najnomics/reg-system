@@ -20,8 +20,15 @@ router.get('/search',
 
 router.get('/:id',
   authenticateUser,
-  validate(schemas.idParam, 'params'),
+  validate(schemas.memberId, 'params'),
   memberController.getMember
+);
+
+// Resend PIN email to member (accessible by admin and reg-rep)
+router.post('/:id/resend-pin',
+  authenticateUser,
+  validate(schemas.memberId, 'params'),
+  memberController.resendPin
 );
 
 // Member management routes (admin only)
@@ -51,7 +58,7 @@ router.get('/upload-history',
 
 // Update member
 router.patch('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.memberId, 'params'),
   validate(schemas.memberUpdate),
   memberController.updateMember
 );
@@ -63,13 +70,13 @@ router.post('/bulk-delete',
 
 // Delete/deactivate member
 router.delete('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.memberId, 'params'),
   memberController.deleteMember
 );
 
 // Toggle member status (active/inactive)
 router.patch('/:id/toggle-status',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.memberId, 'params'),
   memberController.toggleMemberStatus
 );
 
@@ -81,12 +88,6 @@ router.post('/bulk-resend-pin',
 // Resend PIN emails to all active members (admin only)
 router.post('/resend-pin-all',
   memberController.resendPinToAll
-);
-
-// Resend PIN email to member
-router.post('/:id/resend-pin',
-  validate(schemas.idParam, 'params'),
-  memberController.resendPin
 );
 
 module.exports = router;

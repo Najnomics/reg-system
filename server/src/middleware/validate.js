@@ -200,6 +200,15 @@ const schemas = {
     }),
   }),
 
+  // Member ID parameter (for routes using :id)
+  memberId: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      'string.base': 'Member ID must be a string',
+      'string.uuid': 'Member ID must be a valid UUID',
+      'any.required': 'Member ID is required',
+    }),
+  }),
+
   // Reg-rep creation/update
   regRepCreate: Joi.object({
     name: Joi.string().trim().min(2).max(100).required().messages({
