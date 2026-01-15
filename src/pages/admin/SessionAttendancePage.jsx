@@ -225,23 +225,28 @@ const SessionAttendancePage = () => {
             </div>
             
             {/* Secret Question and Answer Section */}
-            {(session.secretQuestion || session.secretAnswerPlain) && (
+            {session.secretQuestion && (
               <div className="pt-4 border-t border-gray-200">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                   <KeyIcon className="h-5 w-5 text-indigo-500 mr-2" />
                   Check-in Security
                 </h4>
                 <div className="space-y-3 bg-indigo-50 p-4 rounded-lg">
-                  {session.secretQuestion && (
-                    <div>
-                      <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Question:</span>
-                      <p className="mt-1 text-sm text-gray-900 font-medium">{session.secretQuestion}</p>
-                    </div>
-                  )}
-                  {session.secretAnswerPlain && (
+                  <div>
+                    <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Question:</span>
+                    <p className="mt-1 text-sm text-gray-900 font-medium">{session.secretQuestion}</p>
+                  </div>
+                  {session.secretAnswerPlain ? (
                     <div>
                       <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Answer:</span>
                       <p className="mt-1 text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border border-indigo-200 font-semibold">{session.secretAnswerPlain}</p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                      <p className="text-xs text-yellow-800">
+                        <strong>Note:</strong> Secret answer not available. This session was created before the answer storage feature was added. 
+                        Please edit the session and update the secret answer to see it here.
+                      </p>
                     </div>
                   )}
                 </div>
