@@ -38,6 +38,9 @@ const SessionAttendancePage = () => {
       setLoading(true);
       const response = await apiService.getSessionAttendance(sessionId);
       console.log('Session attendance response:', response);
+      console.log('Session data:', response.data?.session);
+      console.log('Secret question:', response.data?.session?.secretQuestion);
+      console.log('Secret answer:', response.data?.session?.secretAnswerPlain);
       console.log('Present members:', response.data?.attendance?.present?.length || 0);
       console.log('Absent members:', response.data?.attendance?.absent?.length || 0);
       setSessionData(response.data);
