@@ -816,6 +816,15 @@ const getSessionAttendance = async (req, res) => {
       status: getSessionStatus(session, currentTime),
     };
 
+    console.log('getSessionAttendance - Final session data being sent:', {
+      id: sessionWithStatus.id,
+      theme: sessionWithStatus.theme,
+      secretQuestion: sessionWithStatus.secretQuestion,
+      secretAnswerPlain: sessionWithStatus.secretAnswerPlain,
+      hasSecretQuestion: 'secretQuestion' in sessionWithStatus,
+      hasSecretAnswerPlain: 'secretAnswerPlain' in sessionWithStatus,
+    });
+
     res.status(200).json({
       success: true,
       data: {
