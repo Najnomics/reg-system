@@ -26,10 +26,8 @@ const SessionsPage = () => {
   const [selectedSession, setSelectedSession] = useState(null);
 
   useEffect(() => {
-    // Only fetch if sessions array is empty to avoid duplicate calls
-    if (sessions.length === 0 && !loading) {
-      fetchSessions();
-    }
+    // Fetch sessions on mount
+    fetchSessions(true); // Force refresh to get latest data including secret question/answer
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -280,14 +278,17 @@ const SessionsPage = () => {
                             {session.attendanceCount || 0} checked in
                           </div>
                         </div>
-                        {session.secretQuestion && (
+                        {/* Always show secret question/answer section if available */}
+                        {(session.secretQuestion || session.secretAnswerPlain) && (
                           <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="text-sm">
-                              <span className="font-medium text-gray-700">Secret Question: </span>
-                              <span className="text-gray-600">{session.secretQuestion}</span>
-                            </div>
+                            {session.secretQuestion && (
+                              <div className="text-sm mb-2">
+                                <span className="font-medium text-gray-700">Secret Question: </span>
+                                <span className="text-gray-600">{session.secretQuestion}</span>
+                              </div>
+                            )}
                             {session.secretAnswerPlain && (
-                              <div className="text-sm mt-1">
+                              <div className="text-sm">
                                 <span className="font-medium text-gray-700">Secret Answer: </span>
                                 <span className="text-gray-600 font-mono bg-gray-100 px-2 py-0.5 rounded">{session.secretAnswerPlain}</span>
                               </div>

@@ -114,6 +114,13 @@ export const AppProvider = ({ children }) => {
       // Extract sessions array from API response
       const sessionsData = response?.data?.sessions || response?.sessions || [];
       const sessionsArray = Array.isArray(sessionsData) ? sessionsData : [];
+      console.log('Sessions array:', sessionsArray);
+      console.log('First session with secret fields:', sessionsArray[0] ? {
+        id: sessionsArray[0].id,
+        theme: sessionsArray[0].theme,
+        secretQuestion: sessionsArray[0].secretQuestion,
+        secretAnswerPlain: sessionsArray[0].secretAnswerPlain
+      } : 'No sessions');
       setSessions(sessionsArray);
       // Update cache
       setSessionsCache({ data: sessionsArray, timestamp: now });
