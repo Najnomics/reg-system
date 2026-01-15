@@ -6,7 +6,7 @@ const { generateMemberPin } = require('../utils/pinGenerator');
  */
 const getMembers = async (req, res) => {
   try {
-    const { page, limit, sortBy, sortOrder, query, name, email, phone } = req.query;
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email, phone } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -40,7 +40,7 @@ const getMembers = async (req, res) => {
       prisma.member.findMany({
         where,
         skip,
-        take: limit,
+        take: parseInt(limit),
         orderBy,
         select: {
           id: true,
@@ -70,8 +70,8 @@ const getMembers = async (req, res) => {
         members,
         pagination: {
           total,
-          page,
-          limit,
+          page: parseInt(page),
+          limit: parseInt(limit),
           pages,
           hasNext,
           hasPrev,
@@ -96,7 +96,7 @@ const getMember = async (req, res) => {
     const { id } = req.params;
 
     const member = await prisma.member.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -154,7 +154,22 @@ const getMember = async (req, res) => {
  */
 const createMember = async (req, res) => {
   try {
+    console.log('=== CREATE MEMBER REQUEST ===');
+    console.log('Request body:', req.body);
+    console.log('Request user:', req.user ? { id: req.user.id, email: req.user.email, userType: req.user.userType } : 'MISSING');
+    console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+    
     const { name, email, phone } = req.body;
+
+    // Check authentication
+    if (!req.user || !req.user.id) {
+      console.error('Authentication error: req.user is missing');
+      console.error('Request headers:', Object.keys(req.headers));
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User authentication required',
+      });
+    }
 
     // Check if email already exists
     const existingMember = await prisma.member.findUnique({
@@ -172,15 +187,21 @@ const createMember = async (req, res) => {
     // Generate PIN and hash
     const { pin, pinHash } = await generateMemberPin();
 
+    // Generate UUID for member ID
+    const { randomUUID } = require('crypto');
+    const memberId = randomUUID();
+
     // Create member
     const member = await prisma.member.create({
       data: {
+        id: memberId,
         name: name.trim(),
         email: email.toLowerCase(),
         phone: phone?.trim() || null,
         pin,
         pinHash,
         isActive: true,
+        createdBy: req.user.id,
       },
       select: {
         id: true,
@@ -211,9 +232,21 @@ const createMember = async (req, res) => {
 
   } catch (error) {
     console.error('Create member error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error meta:', error.meta);
+    
+    // Return more detailed error information in development
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to create member',
+      ...(isDevelopment && {
+        details: error.message,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+      }),
     });
   }
 };
@@ -228,7 +261,7 @@ const updateMember = async (req, res) => {
 
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, email: true },
     });
 
@@ -263,7 +296,7 @@ const updateMember = async (req, res) => {
 
     // Update member
     const member = await prisma.member.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -301,7 +334,7 @@ const deleteMember = async (req, res) => {
 
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, isActive: true },
     });
 
@@ -314,7 +347,7 @@ const deleteMember = async (req, res) => {
 
     // Soft delete by setting isActive to false
     const member = await prisma.member.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: { isActive: false },
       select: {
         id: true,
@@ -344,7 +377,7 @@ const deleteMember = async (req, res) => {
  */
 const searchMembers = async (req, res) => {
   try {
-    const { query, name, email, phone, pin, page, limit, sortBy, sortOrder } = req.query;
+    const { query, name, email, phone, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc' } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -379,7 +412,7 @@ const searchMembers = async (req, res) => {
       prisma.member.findMany({
         where,
         skip,
-        take: limit,
+        take: parseInt(limit),
         orderBy,
         select: {
           id: true,
@@ -406,8 +439,8 @@ const searchMembers = async (req, res) => {
         members,
         pagination: {
           total,
-          page,
-          limit,
+          page: parseInt(page),
+          limit: parseInt(limit),
           pages,
           hasNext: page < pages,
           hasPrev: page > 1,
@@ -433,7 +466,7 @@ const toggleMemberStatus = async (req, res) => {
 
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, isActive: true, name: true },
     });
 
@@ -446,7 +479,7 @@ const toggleMemberStatus = async (req, res) => {
 
     // Toggle status
     const member = await prisma.member.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: { isActive: !existingMember.isActive },
       select: {
         id: true,
@@ -486,7 +519,7 @@ const resendPin = async (req, res) => {
 
     // Check if member exists
     const member = await prisma.member.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         name: true,

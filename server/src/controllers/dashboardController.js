@@ -92,47 +92,49 @@ const getDashboardStats = async (req, res) => {
     const recentActivity = [];
 
     // Add recent attendance records
-    recentAttendance.forEach(record => {
-      const timeAgo = getTimeAgo(record.checkedInAt);
-      recentActivity.push({
-        id: `attendance-${record.id}`,
-        type: 'check-in',
-        message: `${record.member.name} checked in to ${record.session.theme}`,
-        time: timeAgo,
-        color: 'green',
+    if (recentAttendance && recentAttendance.length > 0) {
+      recentAttendance.forEach(record => {
+        if (record && record.member && record.session) {
+          const timeAgo = getTimeAgo(record.checkedInAt);
+          recentActivity.push({
+            id: `attendance-${record.id}`,
+            type: 'check-in',
+            message: `${record.member.name} checked in to ${record.session.theme}`,
+            time: timeAgo,
+            color: 'green',
+          });
+        }
       });
-    });
+    }
 
     // Add recent sessions
-    recentSessions.forEach(session => {
-      const timeAgo = getTimeAgo(session.createdAt);
-      recentActivity.push({
-        id: `session-${session.id}`,
-        type: 'session-created',
-        message: `New session "${session.theme}" created`,
-        time: timeAgo,
-        color: 'blue',
+    if (recentSessions && recentSessions.length > 0) {
+      recentSessions.forEach(session => {
+        if (session) {
+          const timeAgo = getTimeAgo(session.createdAt);
+          recentActivity.push({
+            id: `session-${session.id}`,
+            type: 'session-created',
+            message: `New session "${session.theme}" created`,
+            time: timeAgo,
+            color: 'blue',
+          });
+        }
       });
-    });
+    }
 
     // Sort by most recent first and take top 5
-    recentActivity.sort((a, b) => {
-      // This is a simplified sort - in production you might want to sort by actual timestamp
-      const timeValues = { 'minute': 1, 'minutes': 1, 'hour': 60, 'hours': 60, 'day': 1440, 'days': 1440 };
-      return 0; // Keep original order since we already got them sorted from DB
-    });
-
     const activityFeed = recentActivity.slice(0, 5);
 
     res.status(200).json({
       success: true,
       data: {
         stats: {
-          totalMembers,
-          activeMembers,
-          activeSessions,
-          upcomingSessions,
-          todaysAttendance,
+          totalMembers: totalMembers || 0,
+          activeMembers: activeMembers || 0,
+          activeSessions: activeSessions || 0,
+          upcomingSessions: upcomingSessions || 0,
+          todaysAttendance: todaysAttendance || 0,
           attendanceRate,
         },
         recentActivity: activityFeed,

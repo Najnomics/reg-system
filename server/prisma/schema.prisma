@@ -3,111 +3,113 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Admin {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String           @id
+  email          String           @unique
+  password       String
+  name           String
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  members        Member[]
+  reg_reps       RegRep[]
+  sessions       Session[]
+  upload_history upload_history[]
 
-  @@index([email])
   @@map("admins")
 }
 
 model RegRep {
-  id        Int      @id @default(autoincrement())
+  id        String   @id
   email     String   @unique
   password  String
   name      String
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy Int      @map("created_by") // Admin who created this reg-rep
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String
+  admins    Admin    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
-  @@index([email])
-  @@index([createdBy])
   @@map("reg_reps")
 }
 
 model Member {
-  id         Int          @id @default(autoincrement())
-  name       String
-  email      String       @unique
-  phone      String?
-  pin        String       @unique @db.VarChar(5)
-  pinHash    String       @map("pin_hash")
-  isActive   Boolean      @default(true) @map("is_active")
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  attendance Attendance[]
+  id             String       @id
+  firstName      String?
+  lastName       String?
+  email          String       @unique
+  phone          String?
+  pin            String       @unique
+  dateOfBirth    DateTime?
+  gender         String?
+  address        String?
+  membershipType String?
+  department     String?
+  position       String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  createdBy      String
+  name           String
+  pinHash        String?
+  attendance     attendance[]
+  admins         Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
-  @@index([email])
-  @@index([pin])
-  @@index([phone])
-  @@index([name])
   @@map("members")
 }
 
 model Session {
-  id             Int          @id @default(autoincrement())
+  id             String       @id
+  name           String?
+  description    String?
+  date           DateTime?
+  time           String?
+  location       String?
+  secretQuestion String
+  secretAnswer   String
+  maxAttendees   Int?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  createdBy      String
+  endTime        DateTime
+  qrCodeData     String?
+  startTime      DateTime
   theme          String
-  startTime      DateTime     @map("start_time")
-  endTime        DateTime     @map("end_time")
-  secretQuestion String       @map("secret_question")
-  secretAnswer   String       @map("secret_answer")
-  qrCodeData     String?      @map("qr_code_data")
-  isActive       Boolean      @default(true) @map("is_active")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  attendance     Attendance[]
+  attendance     attendance[]
+  admins         Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
-  @@index([isActive, startTime, endTime])
-  @@index([startTime, endTime])
   @@map("sessions")
 }
 
-model Attendance {
-  id          Int      @id @default(autoincrement())
-  sessionId   Int      @map("session_id")
-  memberId    Int      @map("member_id")
-  checkedInAt DateTime @default(now()) @map("checked_in_at")
-  ipAddress   String?  @map("ip_address")
-  userAgent   String?  @map("user_agent")
+model attendance {
+  id          String   @id
+  checkedIn   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  memberId    String
+  sessionId   String
+  checkedInAt DateTime @default(now())
   member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  @@unique([sessionId, memberId])
-  @@index([sessionId])
-  @@index([memberId])
-  @@index([checkedInAt])
-  @@map("attendance")
+  @@unique([memberId, sessionId])
+  @@map("attendances")
 }
 
-model EmailLog {
-  id       Int      @id @default(autoincrement())
-  memberId Int      @map("member_id")
-  type     String
-  subject  String
-  status   String
-  sentAt   DateTime @default(now()) @map("sent_at")
-  errorMsg String?  @map("error_msg")
-
-  @@index([memberId])
-  @@index([type])
-  @@index([status])
-  @@map("email_logs")
-}
-
-model SystemSettings {
-  id    Int    @id @default(autoincrement())
-  key   String @unique
-  value String
-
-  @@map("system_settings")
+model upload_history {
+  id           String   @id
+  filename     String
+  totalRecords Int
+  successful   Int
+  failed       Int
+  errors       Json?
+  createdAt    DateTime @default(now())
+  uploadedBy   String
+  admins       Admin    @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 }

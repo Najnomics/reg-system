@@ -22,8 +22,8 @@ const getSessions = async (req, res) => {
         const currentTime = new Date();
         where.AND = [
           { isActive: true },
-          { startTime: { lte: now } },
-          { endTime: { gte: now } },
+          { startTime: { lte: currentTime } },
+          { endTime: { gte: currentTime } },
         ];
       } else if (status === 'upcoming') {
         where.AND = [
@@ -112,7 +112,7 @@ const getSession = async (req, res) => {
     const { id } = req.params;
 
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         theme: true,
@@ -177,8 +177,22 @@ const getSession = async (req, res) => {
  */
 const createSession = async (req, res) => {
   try {
-    console.log('Create session request body:', req.body);
+    console.log('=== CREATE SESSION REQUEST ===');
+    console.log('Request body:', req.body);
+    console.log('Request user:', req.user ? { id: req.user.id, email: req.user.email, userType: req.user.userType } : 'MISSING');
+    console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+    
     const { theme, startTime, endTime, secretQuestion, secretAnswer } = req.body;
+
+    // Check authentication
+    if (!req.user || !req.user.id) {
+      console.error('Authentication error: req.user is missing');
+      console.error('Request headers:', Object.keys(req.headers));
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User authentication required',
+      });
+    }
 
     // Validate required fields
     if (!theme || !startTime || !endTime || !secretQuestion || !secretAnswer) {
@@ -198,7 +212,6 @@ const createSession = async (req, res) => {
     // Validate time window
     const start = new Date(startTime);
     const end = new Date(endTime);
-    const currentTime = new Date();
 
     if (start >= end) {
       return res.status(400).json({
@@ -207,19 +220,24 @@ const createSession = async (req, res) => {
       });
     }
 
-
     // Hash the secret answer
     const hashedAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 12);
+
+    // Generate UUID for session ID
+    const { randomUUID } = require('crypto');
+    const sessionId = randomUUID();
 
     // Create session without QR code first
     const session = await prisma.session.create({
       data: {
+        id: sessionId,
         theme: theme.trim(),
         startTime: start,
         endTime: end,
         secretQuestion: secretQuestion.trim(),
         secretAnswer: hashedAnswer,
         isActive: true,
+        createdBy: req.user.id,
       },
       select: {
         id: true,
@@ -254,6 +272,7 @@ const createSession = async (req, res) => {
     });
 
     // Add QR code images and status
+    const currentTime = new Date();
     const sessionResponse = {
       ...updatedSession,
       status: getSessionStatus(updatedSession, currentTime),
@@ -270,9 +289,21 @@ const createSession = async (req, res) => {
 
   } catch (error) {
     console.error('Create session error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error meta:', error.meta);
+    
+    // Return more detailed error information in development
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to create session',
+      ...(isDevelopment && {
+        details: error.message,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+      }),
     });
   }
 };
@@ -287,7 +318,7 @@ const updateSession = async (req, res) => {
 
     // Check if session exists
     const existingSession = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, startTime: true, endTime: true },
     });
 
@@ -308,7 +339,6 @@ const updateSession = async (req, res) => {
     if (startTime !== undefined || endTime !== undefined) {
       const newStartTime = startTime ? new Date(startTime) : existingSession.startTime;
       const newEndTime = endTime ? new Date(endTime) : existingSession.endTime;
-      const currentTime = new Date();
 
       if (newStartTime >= newEndTime) {
         return res.status(400).json({
@@ -329,7 +359,7 @@ const updateSession = async (req, res) => {
 
     // Update session
     const session = await prisma.session.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -401,7 +431,7 @@ const deleteSession = async (req, res) => {
 
     // Check if session exists
     const existingSession = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, theme: true, _count: { select: { attendance: true } } },
     });
 
@@ -416,7 +446,7 @@ const deleteSession = async (req, res) => {
     if (existingSession._count.attendance > 0) {
       // Soft delete by setting isActive to false
       await prisma.session.update({
-        where: { id: parseInt(id) },
+        where: { id },
         data: { isActive: false },
       });
 
@@ -424,7 +454,7 @@ const deleteSession = async (req, res) => {
         success: true,
         message: 'Session deactivated (attendance records preserved)',
         data: {
-          sessionId: parseInt(id),
+          sessionId: id,
           theme: existingSession.theme,
           attendanceCount: existingSession._count.attendance,
         },
@@ -432,14 +462,14 @@ const deleteSession = async (req, res) => {
     } else {
       // Hard delete if no attendance records
       await prisma.session.delete({
-        where: { id: parseInt(id) },
+        where: { id },
       });
 
       res.status(200).json({
         success: true,
         message: 'Session deleted successfully',
         data: {
-          sessionId: parseInt(id),
+          sessionId: id,
           theme: existingSession.theme,
         },
       });
@@ -464,7 +494,7 @@ const downloadQRCode = async (req, res) => {
 
     // Check if session exists and is active
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, theme: true, isActive: true },
     });
 
@@ -513,7 +543,7 @@ const getPrintableQR = async (req, res) => {
 
     // Check if session exists
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         theme: true,
@@ -552,7 +582,7 @@ const getPrintableQR = async (req, res) => {
 const getSessionStats = async (req, res) => {
   try {
     const currentTime = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(currentTime.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const stats = await Promise.all([
       // Total sessions
@@ -561,15 +591,15 @@ const getSessionStats = async (req, res) => {
       prisma.session.count({
         where: {
           isActive: true,
-          startTime: { lte: now },
-          endTime: { gte: now },
+          startTime: { lte: currentTime },
+          endTime: { gte: currentTime },
         },
       }),
       // Upcoming sessions
       prisma.session.count({
         where: {
           isActive: true,
-          startTime: { gt: now },
+          startTime: { gt: currentTime },
         },
       }),
       // Recent sessions (last 30 days)
@@ -626,7 +656,7 @@ const getSessionAttendance = async (req, res) => {
 
     // Get session details
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         theme: true,
@@ -645,7 +675,7 @@ const getSessionAttendance = async (req, res) => {
 
     // Get all members who checked in for this session
     const attendanceRecords = await prisma.attendance.findMany({
-      where: { sessionId: parseInt(id) },
+      where: { sessionId: id },
       include: {
         member: {
           select: {
@@ -738,7 +768,7 @@ const exportSessionAttendanceCSV = async (req, res) => {
 
     // Get session and attendance data
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         theme: true,
@@ -756,7 +786,7 @@ const exportSessionAttendanceCSV = async (req, res) => {
 
     // Get attendance records
     const attendanceRecords = await prisma.attendance.findMany({
-      where: { sessionId: parseInt(id) },
+      where: { sessionId: id },
       include: {
         member: {
           select: {
@@ -846,7 +876,7 @@ const exportSessionAttendancePDF = async (req, res) => {
 
     // Get session and attendance data (same as CSV)
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         theme: true,
@@ -864,7 +894,7 @@ const exportSessionAttendancePDF = async (req, res) => {
 
     // Get attendance records
     const attendanceRecords = await prisma.attendance.findMany({
-      where: { sessionId: parseInt(id) },
+      where: { sessionId: id },
       include: {
         member: {
           select: {

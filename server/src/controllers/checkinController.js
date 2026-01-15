@@ -10,7 +10,7 @@ const validateSession = async (req, res) => {
     const { sessionId } = req.params;
 
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
+      where: { id: sessionId },
       select: {
         id: true,
         theme: true,
@@ -178,10 +178,6 @@ const submitAttendance = async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { pin } = req.body;
-    
-    // Get client information for logging
-    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
-    const userAgent = req.get('User-Agent') || 'unknown';
 
     // Get session details
     const session = await prisma.session.findUnique({
@@ -267,7 +263,7 @@ const submitAttendance = async (req, res) => {
     const existingAttendance = await prisma.attendance.findUnique({
       where: {
         sessionId_memberId: {
-          sessionId: parseInt(sessionId),
+          sessionId: sessionId,
           memberId: member.id,
         },
       },
@@ -284,13 +280,16 @@ const submitAttendance = async (req, res) => {
       });
     }
 
+    // Generate UUID for attendance ID
+    const { randomUUID } = require('crypto');
+    const attendanceId = randomUUID();
+
     // Create attendance record
     const attendance = await prisma.attendance.create({
       data: {
-        sessionId: parseInt(sessionId),
+        id: attendanceId,
+        sessionId: sessionId,
         memberId: member.id,
-        ipAddress,
-        userAgent,
       },
       select: {
         id: true,
@@ -345,7 +344,7 @@ const getSessionInfo = async (req, res) => {
     const { sessionId } = req.params;
 
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
+      where: { id: sessionId },
       select: {
         id: true,
         theme: true,
@@ -442,12 +441,12 @@ const getCheckInStats = async (req, res) => {
     const [totalAttendance, attendanceByHour] = await Promise.all([
       // Total attendance count
       prisma.attendance.count({
-        where: { sessionId: parseInt(sessionId) },
+        where: { sessionId: sessionId },
       }),
       // Attendance grouped by hour
       prisma.attendance.groupBy({
         by: ['checkedInAt'],
-        where: { sessionId: parseInt(sessionId) },
+        where: { sessionId: sessionId },
         _count: true,
       }),
     ]);
@@ -461,7 +460,7 @@ const getCheckInStats = async (req, res) => {
 
     // Get recent check-ins (last 20)
     const recentCheckIns = await prisma.attendance.findMany({
-      where: { sessionId: parseInt(sessionId) },
+      where: { sessionId: sessionId },
       select: {
         id: true,
         checkedInAt: true,

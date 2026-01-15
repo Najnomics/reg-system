@@ -175,10 +175,9 @@ const schemas = {
   }),
 
   sessionIdParam: Joi.object({
-    sessionId: Joi.number().integer().positive().required().messages({
-      'number.base': 'Session ID must be a number',
-      'number.integer': 'Session ID must be an integer',
-      'number.positive': 'Session ID must be positive',
+    sessionId: Joi.string().uuid().required().messages({
+      'string.base': 'Session ID must be a string',
+      'string.guid': 'Session ID must be a valid UUID',
       'any.required': 'Session ID is required',
     }),
   }),
