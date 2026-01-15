@@ -7,7 +7,8 @@ const validate = (schema, source = 'body') => {
   return (req, res, next) => {
     const data = req[source];
     
-    console.log('Validation - Source:', source, 'Data:', data);
+    console.log('Validation - Source:', source, 'Data:', JSON.stringify(data, null, 2));
+    console.log('Validation - Schema being used:', schema.describe?.());
     
     const { error, value } = schema.validate(data, {
       abortEarly: false,
@@ -16,11 +17,12 @@ const validate = (schema, source = 'body') => {
     });
 
     if (error) {
-      console.log('Validation error:', error.details);
+      console.error('Validation error details:', JSON.stringify(error.details, null, 2));
       const details = error.details.map(detail => ({
         field: detail.path.join('.'),
         message: detail.message,
         value: detail.context?.value,
+        type: detail.type,
       }));
 
       return res.status(400).json({
