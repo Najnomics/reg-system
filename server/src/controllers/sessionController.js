@@ -66,8 +66,7 @@ const getSessions = async (req, res) => {
           },
         },
       }),
-      // Only count if needed for pagination
-      skip === 0 ? prisma.session.count({ where }) : Promise.resolve(0),
+      prisma.session.count({ where }),
     ]);
 
     // Add status to each session
