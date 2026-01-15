@@ -119,6 +119,25 @@ class ApiService {
     });
   }
 
+  async resendPin(memberId) {
+    return this.request(`/members/${memberId}/resend-pin`, {
+      method: 'POST',
+    });
+  }
+
+  async bulkResendPin(memberIds) {
+    return this.request('/members/bulk-resend-pin', {
+      method: 'POST',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async resendPinToAll() {
+    return this.request('/members/resend-pin-all', {
+      method: 'POST',
+    });
+  }
+
   async resendMemberPin(id) {
     return this.request(`/members/${id}/resend-pin`, {
       method: 'POST',

@@ -95,9 +95,75 @@ const CompleteMembersPage = () => {
     }
   };
 
-  const handleResendPIN = (member) => {
-    // Mock implementation
-    showSuccess(`PIN resent to ${member.email}`);
+  const handleResendPIN = async (member) => {
+    try {
+      await apiService.resendPin(member.id);
+      showSuccess(`PIN resent to ${member.email}`);
+    } catch (error) {
+      console.error('Failed to resend PIN:', error);
+      showError(error.message || 'Failed to resend PIN. Please try again.');
+    }
+  };
+
+  const handleBulkResendPIN = async () => {
+    if (selectedMembers.size === 0) {
+      showError('Please select at least one member to resend PIN');
+      return;
+    }
+
+    const count = selectedMembers.size;
+    const confirmMessage = `Are you sure you want to resend PIN emails to ${count} member(s)?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const memberIds = Array.from(selectedMembers);
+      const response = await apiService.bulkResendPin(memberIds);
+      
+      const successful = response.data?.successful || 0;
+      const failed = response.data?.failed || 0;
+      
+      if (failed === 0) {
+        showSuccess(`PIN emails sent successfully to ${successful} member(s)`);
+      } else {
+        showError(`PIN emails sent to ${successful} member(s), but ${failed} failed. Check console for details.`);
+        console.error('Failed PIN sends:', response.data?.results?.failed);
+      }
+      
+      setSelectedMembers(new Set());
+      setSelectAll(false);
+    } catch (error) {
+      console.error('Failed to bulk resend PINs:', error);
+      showError(error.message || 'Failed to resend PINs. Please try again.');
+    }
+  };
+
+  const handleResendPINToAll = async () => {
+    const confirmMessage = `Are you sure you want to resend PIN emails to ALL active members? This may take a while.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const response = await apiService.resendPinToAll();
+      
+      const successful = response.data?.successful || 0;
+      const failed = response.data?.failed || 0;
+      const total = response.data?.totalMembers || 0;
+      
+      if (failed === 0) {
+        showSuccess(`PIN emails sent successfully to all ${successful} active member(s)`);
+      } else {
+        showError(`PIN emails sent to ${successful} out of ${total} member(s). ${failed} failed. Check console for details.`);
+        console.error('Failed PIN sends:', response.data?.results?.failed);
+      }
+    } catch (error) {
+      console.error('Failed to resend PINs to all:', error);
+      showError(error.message || 'Failed to resend PINs. Please try again.');
+    }
   };
 
   const handleSelectMember = (memberId) => {
@@ -331,14 +397,34 @@ const CompleteMembersPage = () => {
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
                   Members ({filteredMembers.length})
                 </h3>
-                {isAdmin && selectedMembers.size > 0 && (
-                  <button
-                    onClick={handleBulkDelete}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  >
-                    <TrashIcon className="h-4 w-4 mr-2" />
-                    Delete Selected ({selectedMembers.size})
-                  </button>
+                {isAdmin && (
+                  <div className="flex items-center space-x-2">
+                    {selectedMembers.size > 0 && (
+                      <>
+                        <button
+                          onClick={handleBulkResendPIN}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          <EnvelopeIcon className="h-4 w-4 mr-2" />
+                          Resend PIN ({selectedMembers.size})
+                        </button>
+                        <button
+                          onClick={handleBulkDelete}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          <TrashIcon className="h-4 w-4 mr-2" />
+                          Delete Selected ({selectedMembers.size})
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={handleResendPINToAll}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <PaperAirplaneIcon className="h-4 w-4 mr-2" />
+                      Resend PIN to All
+                    </button>
+                  </div>
                 )}
               </div>
               

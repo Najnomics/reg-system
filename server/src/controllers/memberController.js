@@ -644,6 +644,173 @@ const resendPin = async (req, res) => {
   }
 };
 
+/**
+ * Bulk resend PIN emails to multiple members (admin only)
+ */
+const bulkResendPin = async (req, res) => {
+  try {
+    const { memberIds } = req.body;
+
+    // Validate input
+    if (!memberIds || !Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid input',
+        message: 'memberIds must be a non-empty array',
+      });
+    }
+
+    // Validate all IDs are UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const invalidIds = memberIds.filter(id => !uuidRegex.test(id));
+    if (invalidIds.length > 0) {
+      return res.status(400).json({
+        error: 'Invalid input',
+        message: 'All member IDs must be valid UUIDs',
+        invalidIds,
+      });
+    }
+
+    // Get members
+    const members = await prisma.member.findMany({
+      where: {
+        id: { in: memberIds },
+        isActive: true, // Only send to active members
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+        isActive: true,
+      },
+    });
+
+    if (members.length === 0) {
+      return res.status(404).json({
+        error: 'No active members found',
+        message: 'None of the specified members exist or are active',
+      });
+    }
+
+    // Send PIN emails
+    const emailService = require('../services/emailService');
+    const results = {
+      successful: [],
+      failed: [],
+    };
+
+    for (const member of members) {
+      try {
+        await emailService.sendPin(member);
+        results.successful.push({
+          id: member.id,
+          email: member.email,
+          name: member.name,
+        });
+      } catch (emailError) {
+        console.error(`Failed to send PIN email to ${member.email}:`, emailError);
+        results.failed.push({
+          id: member.id,
+          email: member.email,
+          name: member.name,
+          error: emailError.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `PIN emails sent to ${results.successful.length} member(s)`,
+      data: {
+        totalRequested: memberIds.length,
+        totalFound: members.length,
+        successful: results.successful.length,
+        failed: results.failed.length,
+        results,
+      },
+    });
+
+  } catch (error) {
+    console.error('Bulk resend PIN error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to bulk resend PINs',
+    });
+  }
+};
+
+/**
+ * Resend PIN emails to all active members (admin only)
+ */
+const resendPinToAll = async (req, res) => {
+  try {
+    // Get all active members
+    const members = await prisma.member.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+        isActive: true,
+      },
+    });
+
+    if (members.length === 0) {
+      return res.status(404).json({
+        error: 'No active members found',
+        message: 'There are no active members to send PINs to',
+      });
+    }
+
+    // Send PIN emails
+    const emailService = require('../services/emailService');
+    const results = {
+      successful: [],
+      failed: [],
+    };
+
+    for (const member of members) {
+      try {
+        await emailService.sendPin(member);
+        results.successful.push({
+          id: member.id,
+          email: member.email,
+          name: member.name,
+        });
+      } catch (emailError) {
+        console.error(`Failed to send PIN email to ${member.email}:`, emailError);
+        results.failed.push({
+          id: member.id,
+          email: member.email,
+          name: member.name,
+          error: emailError.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `PIN emails sent to ${results.successful.length} out of ${members.length} member(s)`,
+      data: {
+        totalMembers: members.length,
+        successful: results.successful.length,
+        failed: results.failed.length,
+        results,
+      },
+    });
+
+  } catch (error) {
+    console.error('Resend PIN to all error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to resend PINs to all members',
+    });
+  }
+};
+
 module.exports = {
   getMembers,
   getMember,
@@ -654,4 +821,6 @@ module.exports = {
   toggleMemberStatus,
   searchMembers,
   resendPin,
+  bulkResendPin,
+  resendPinToAll,
 };

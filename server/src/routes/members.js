@@ -73,6 +73,16 @@ router.patch('/:id/toggle-status',
   memberController.toggleMemberStatus
 );
 
+// Bulk resend PIN emails (admin only)
+router.post('/bulk-resend-pin',
+  memberController.bulkResendPin
+);
+
+// Resend PIN emails to all active members (admin only)
+router.post('/resend-pin-all',
+  memberController.resendPinToAll
+);
+
 // Resend PIN email to member
 router.post('/:id/resend-pin',
   validate(schemas.idParam, 'params'),
