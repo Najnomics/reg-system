@@ -219,27 +219,31 @@ const SessionAttendancePage = () => {
                 <span className="font-medium text-gray-500">End Time:</span>
                 <span className="ml-2 text-gray-900">{formatDateTime(session.endTime)}</span>
               </div>
-              {session.secretQuestion && (
-                <>
-                  <div className="flex items-start text-sm pt-2 border-t border-gray-200">
-                    <KeyIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-500">Secret Question:</span>
-                      <p className="mt-1 text-gray-900">{session.secretQuestion}</p>
-                    </div>
-                  </div>
-                  {session.secretAnswerPlain && (
-                    <div className="flex items-start text-sm">
-                      <KeyIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-500">Secret Answer:</span>
-                        <p className="mt-1 text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded inline-block">{session.secretAnswerPlain}</p>
-                      </div>
+            </div>
+            
+            {/* Secret Question and Answer Section */}
+            {(session.secretQuestion || session.secretAnswerPlain) && (
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                  <KeyIcon className="h-5 w-5 text-indigo-500 mr-2" />
+                  Check-in Security
+                </h4>
+                <div className="space-y-3 bg-indigo-50 p-4 rounded-lg">
+                  {session.secretQuestion && (
+                    <div>
+                      <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Question:</span>
+                      <p className="mt-1 text-sm text-gray-900 font-medium">{session.secretQuestion}</p>
                     </div>
                   )}
-                </>
-              )}
-            </div>
+                  {session.secretAnswerPlain && (
+                    <div>
+                      <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Answer:</span>
+                      <p className="mt-1 text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border border-indigo-200 font-semibold">{session.secretAnswerPlain}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="space-y-4">
