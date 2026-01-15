@@ -98,11 +98,14 @@ const CompleteMembersPage = () => {
 
   const handleResendPIN = async (member) => {
     try {
-      await apiService.resendPin(member.id);
-      showSuccess(`PIN resent to ${member.email}`);
+      console.log(`Resending PIN to ${member.email}...`);
+      const response = await apiService.resendPin(member.id);
+      console.log('Resend PIN response:', response);
+      showSuccess(`PIN email sent successfully to ${member.email}`);
     } catch (error) {
       console.error('Failed to resend PIN:', error);
-      showError(error.message || 'Failed to resend PIN. Please try again.');
+      const errorMessage = error.message || error.response?.data?.message || 'Failed to resend PIN. Please check email configuration.';
+      showError(errorMessage);
     }
   };
 

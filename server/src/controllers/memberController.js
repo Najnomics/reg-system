@@ -618,12 +618,27 @@ const resendPin = async (req, res) => {
     }
 
     // Send PIN email
+    let emailSent = false;
+    let emailError = null;
+    
     try {
       const emailService = require('../services/emailService');
-      await emailService.sendPin(member);
-    } catch (emailError) {
-      console.error('Failed to send PIN email:', emailError);
-      // Continue with success response even if email fails
+      const emailResult = await emailService.sendPin(member);
+      emailSent = emailResult?.success !== false;
+    } catch (err) {
+      console.error('Failed to send PIN email:', err);
+      emailError = err.message || 'Email service error';
+    }
+
+    if (!emailSent) {
+      return res.status(500).json({
+        error: 'Email sending failed',
+        message: emailError || 'Failed to send PIN email. Please check email configuration.',
+        data: { 
+          memberEmail: member.email,
+          memberName: member.name,
+        },
+      });
     }
 
     res.status(200).json({

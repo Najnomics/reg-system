@@ -80,9 +80,25 @@ class EmailService {
    * Send PIN email to member
    */
   async sendPin(member) {
-    if (!this.isConfigured) {
-      console.warn('Email service not configured. PIN email not sent.');
-      return this.logEmail(member.id, 'pin', 'Your Church Attendance PIN', 'failed', 'Email service not configured');
+    // Check if email service is properly configured
+    if (!this.isConfigured || !this.transporter) {
+      const errorMsg = 'Email service not configured. Please configure SENDGRID_API_KEY or SMTP settings in .env file.';
+      console.error('Email service error:', errorMsg);
+      console.error('Current config:', {
+        hasSendGridKey: !!process.env.SENDGRID_API_KEY,
+        hasSmtpHost: !!process.env.SMTP_HOST,
+        nodeEnv: process.env.NODE_ENV,
+        isConfigured: this.isConfigured,
+        hasTransporter: !!this.transporter,
+      });
+      
+      try {
+        await this.logEmail(member.id, 'pin', 'Your Church Attendance PIN', 'failed', errorMsg);
+      } catch (logError) {
+        console.error('Failed to log email error:', logError);
+      }
+      
+      throw new Error(errorMsg);
     }
 
     try {
@@ -98,25 +114,43 @@ class EmailService {
         text: this.generatePinEmailText(member, churchName),
       };
 
+      console.log(`Attempting to send PIN email to ${member.email}...`);
       const result = await this.transporter.sendMail(mailOptions);
       
       // Log successful email
-      await this.logEmail(member.id, 'pin', mailOptions.subject, 'sent');
+      try {
+        await this.logEmail(member.id, 'pin', mailOptions.subject, 'sent');
+      } catch (logError) {
+        console.error('Failed to log email success:', logError);
+      }
       
-      console.log(`PIN email sent to ${member.email}`, { messageId: result.messageId });
+      console.log(`✅ PIN email sent successfully to ${member.email}`, { messageId: result.messageId });
       
       // Log preview URL for development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(result));
+      if (process.env.NODE_ENV === 'development' && nodemailer.getTestMessageUrl) {
+        const previewUrl = nodemailer.getTestMessageUrl(result);
+        if (previewUrl) {
+          console.log('📧 Preview URL: %s', previewUrl);
+        }
       }
 
       return { success: true, messageId: result.messageId };
 
     } catch (error) {
-      console.error('Error sending PIN email:', error);
+      console.error(`❌ Error sending PIN email to ${member.email}:`, error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response,
+        stack: error.stack,
+      });
       
       // Log failed email
-      await this.logEmail(member.id, 'pin', 'Your Church Attendance PIN', 'failed', error.message);
+      try {
+        await this.logEmail(member.id, 'pin', 'Your Church Attendance PIN', 'failed', error.message || 'Unknown error');
+      } catch (logError) {
+        console.error('Failed to log email error:', logError);
+      }
       
       throw error;
     }
