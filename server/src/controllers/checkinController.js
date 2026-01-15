@@ -99,8 +99,12 @@ const verifySecretAnswer = async (req, res) => {
     const { sessionId } = req.params;
     const { answer } = req.body;
 
+    console.log('=== VERIFY SECRET ANSWER ===');
+    console.log('SessionId:', sessionId);
+    console.log('Answer provided:', answer ? 'Yes' : 'No');
+
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
+      where: { id: sessionId },
       select: {
         id: true,
         theme: true,
@@ -163,10 +167,20 @@ const verifySecretAnswer = async (req, res) => {
 
   } catch (error) {
     console.error('Secret answer verification error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error meta:', error.meta);
+    
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(500).json({
       correct: false,
       error: 'Internal server error',
       message: 'Failed to verify answer',
+      ...(isDevelopment && {
+        details: error.message,
+        code: error.code,
+        meta: error.meta,
+      }),
     });
   }
 };
