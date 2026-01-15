@@ -26,6 +26,13 @@ class ApiService {
           statusText: response.statusText,
           errorData: errorData,
         });
+        
+        // Show validation details if available
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const detailsMsg = errorData.details.map(d => `${d.field}: ${d.message}`).join(', ');
+          throw new Error(errorData.message || 'Invalid input data' + (detailsMsg ? ` - ${detailsMsg}` : ''));
+        }
+        
         throw new Error(errorData.message || errorData.details || `HTTP error! status: ${response.status}`);
       }
 
