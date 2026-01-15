@@ -1,7 +1,10 @@
-FROM node:18-alpine
+FROM node:18-slim
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# Install required dependencies for Prisma
+RUN apt-get update && apt-get install -y \
+    openssl \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
