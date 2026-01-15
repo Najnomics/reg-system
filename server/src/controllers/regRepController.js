@@ -79,7 +79,7 @@ const getRegRep = async (req, res) => {
     const { id } = req.params;
 
     const regRep = await prisma.regRep.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -117,6 +117,14 @@ const getRegRep = async (req, res) => {
  */
 const createRegRep = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      console.error('Authentication error: req.user is missing for reg-rep creation');
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User authentication required to create reg-rep',
+      });
+    }
+
     const { name, email, password } = req.body;
     const adminId = req.user.id; // Admin creating this reg-rep
 
@@ -143,9 +151,14 @@ const createRegRep = async (req, res) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // Generate UUID for reg-rep ID
+    const { randomUUID } = require('crypto');
+    const regRepId = randomUUID();
+
     // Create reg-rep
     const regRep = await prisma.regRep.create({
       data: {
+        id: regRepId,
         name: name.trim(),
         email: email.toLowerCase(),
         password: hashedPassword,
@@ -171,9 +184,20 @@ const createRegRep = async (req, res) => {
 
   } catch (error) {
     console.error('Create reg-rep error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error meta:', error.meta);
+    
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to create reg-rep',
+      ...(isDevelopment && {
+        details: error.message,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+      }),
     });
   }
 };
@@ -188,7 +212,7 @@ const updateRegRep = async (req, res) => {
 
     // Check if reg-rep exists
     const existingRegRep = await prisma.regRep.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, email: true },
     });
 
@@ -228,7 +252,7 @@ const updateRegRep = async (req, res) => {
 
     // Update reg-rep
     const regRep = await prisma.regRep.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -265,7 +289,7 @@ const deleteRegRep = async (req, res) => {
 
     // Check if reg-rep exists
     const existingRegRep = await prisma.regRep.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, isActive: true, name: true },
     });
 
@@ -278,7 +302,7 @@ const deleteRegRep = async (req, res) => {
 
     // Soft delete by setting isActive to false
     const regRep = await prisma.regRep.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: { isActive: false },
       select: {
         id: true,
@@ -312,7 +336,7 @@ const toggleRegRepStatus = async (req, res) => {
 
     // Check if reg-rep exists
     const existingRegRep = await prisma.regRep.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, isActive: true, name: true },
     });
 
@@ -325,7 +349,7 @@ const toggleRegRepStatus = async (req, res) => {
 
     // Toggle status
     const regRep = await prisma.regRep.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: { isActive: !existingRegRep.isActive },
       select: {
         id: true,
@@ -365,7 +389,7 @@ const resetRegRepPassword = async (req, res) => {
 
     // Check if reg-rep exists
     const existingRegRep = await prisma.regRep.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       select: { id: true, name: true, email: true },
     });
 
@@ -382,7 +406,7 @@ const resetRegRepPassword = async (req, res) => {
 
     // Update password
     await prisma.regRep.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: { password: hashedPassword },
     });
 

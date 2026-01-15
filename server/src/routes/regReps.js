@@ -22,32 +22,32 @@ router.post('/',
 
 // Get single reg-rep by ID (admin only)
 router.get('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.regRepId, 'params'),
   regRepController.getRegRep
 );
 
 // Update reg-rep (admin only)
 router.patch('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.regRepId, 'params'),
   validate(schemas.regRepUpdate),
   regRepController.updateRegRep
 );
 
 // Delete/deactivate reg-rep (admin only)
 router.delete('/:id',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.regRepId, 'params'),
   regRepController.deleteRegRep
 );
 
 // Toggle reg-rep status (active/inactive) (admin only)
 router.patch('/:id/toggle-status',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.regRepId, 'params'),
   regRepController.toggleRegRepStatus
 );
 
 // Reset reg-rep password (admin only)
 router.post('/:id/reset-password',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.regRepId, 'params'),
   validate(schemas.passwordReset),
   regRepController.resetRegRepPassword
 );
