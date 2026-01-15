@@ -9,7 +9,7 @@ import CreateSessionPage from './pages/admin/CreateSessionPage';
 import SessionAttendancePage from './pages/admin/SessionAttendancePage';
 import ReportsPage from './pages/admin/ReportsPage';
 import RegRepsPage from './pages/admin/RegRepsPage';
-import CheckInPage from './pages/public/CheckInPage';
+import CheckInPage from './pages/public/CheckinPage';
 import SimpleProtectedRoute from './components/common/SimpleProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
 import SimpleNotificationContainer from './components/common/SimpleNotificationContainer';
