@@ -21,7 +21,11 @@ const SessionsPage = () => {
   const [selectedSession, setSelectedSession] = useState(null);
 
   useEffect(() => {
-    fetchSessions();
+    // Only fetch if sessions array is empty to avoid duplicate calls
+    if (sessions.length === 0 && !loading) {
+      fetchSessions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleEditSession = (session) => {

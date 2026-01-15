@@ -22,7 +22,11 @@ const CompleteMembersPage = () => {
   const [filteredMembers, setFilteredMembers] = useState([]);
 
   useEffect(() => {
-    fetchMembers();
+    // Only fetch if members array is empty to avoid duplicate calls
+    if (members.length === 0 && !loading) {
+      fetchMembers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

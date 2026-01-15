@@ -9,6 +9,14 @@ export const AppProvider = ({ children }) => {
   const [members, setMembers] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Cache and request tracking to prevent duplicate calls
+  const [membersCache, setMembersCache] = useState({ data: null, timestamp: null });
+  const [sessionsCache, setSessionsCache] = useState({ data: null, timestamp: null });
+  const [fetchingMembers, setFetchingMembers] = useState(false);
+  const [fetchingSessions, setFetchingSessions] = useState(false);
+  
+  const CACHE_DURATION = 30000; // 30 seconds cache
 
   const setSidebar = (open) => {
     setSidebarOpen(open);
@@ -45,9 +53,24 @@ export const AppProvider = ({ children }) => {
     setNotifications([]);
   };
 
-  // Real API functions
-  const fetchMembers = async () => {
+  // Real API functions with caching and deduplication
+  const fetchMembers = async (forceRefresh = false) => {
+    // Prevent duplicate concurrent requests
+    if (fetchingMembers && !forceRefresh) {
+      console.log('Members fetch already in progress, skipping...');
+      return;
+    }
+    
+    // Check cache first
+    const now = Date.now();
+    if (!forceRefresh && membersCache.data && membersCache.timestamp && (now - membersCache.timestamp) < CACHE_DURATION) {
+      console.log('Using cached members data');
+      setMembers(membersCache.data);
+      return;
+    }
+    
     try {
+      setFetchingMembers(true);
       setLoading(true);
       const response = await apiService.getMembers();
       console.log('fetchMembers response:', response);
@@ -56,29 +79,51 @@ export const AppProvider = ({ children }) => {
       // Filter out inactive members so they don't appear in the UI
       const activeMembers = Array.isArray(membersData) ? membersData.filter(member => member.isActive !== false) : [];
       setMembers(activeMembers);
+      // Update cache
+      setMembersCache({ data: activeMembers, timestamp: now });
     } catch (error) {
       console.error('Failed to fetch members:', error);
       showError('Failed to load members');
       setMembers([]);
     } finally {
       setLoading(false);
+      setFetchingMembers(false);
     }
   };
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (forceRefresh = false) => {
+    // Prevent duplicate concurrent requests
+    if (fetchingSessions && !forceRefresh) {
+      console.log('Sessions fetch already in progress, skipping...');
+      return;
+    }
+    
+    // Check cache first
+    const now = Date.now();
+    if (!forceRefresh && sessionsCache.data && sessionsCache.timestamp && (now - sessionsCache.timestamp) < CACHE_DURATION) {
+      console.log('Using cached sessions data');
+      setSessions(sessionsCache.data);
+      return;
+    }
+    
     try {
+      setFetchingSessions(true);
       setLoading(true);
       const response = await apiService.getSessions();
       console.log('fetchSessions response:', response);
       // Extract sessions array from API response
       const sessionsData = response?.data?.sessions || response?.sessions || [];
-      setSessions(Array.isArray(sessionsData) ? sessionsData : []);
+      const sessionsArray = Array.isArray(sessionsData) ? sessionsData : [];
+      setSessions(sessionsArray);
+      // Update cache
+      setSessionsCache({ data: sessionsArray, timestamp: now });
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
       showError('Failed to load sessions');
       setSessions([]);
     } finally {
       setLoading(false);
+      setFetchingSessions(false);
     }
   };
 
@@ -106,7 +151,10 @@ export const AppProvider = ({ children }) => {
       console.log('Context: Extracted member data:', newMember);
       setMembers(prev => {
         console.log('Context: Updating members state, current count:', prev.length);
-        return [...prev, newMember];
+        const updated = [...prev, newMember];
+        // Update cache
+        setMembersCache({ data: updated, timestamp: Date.now() });
+        return updated;
       });
       showSuccess('Member created successfully');
       return newMember;
@@ -121,7 +169,12 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await apiService.updateMember(id, memberData);
       const updatedMember = response?.data?.member || response?.member || response;
-      setMembers(prev => prev.map(m => m.id === id ? updatedMember : m));
+      setMembers(prev => {
+        const updated = prev.map(m => m.id === id ? updatedMember : m);
+        // Update cache
+        setMembersCache({ data: updated, timestamp: Date.now() });
+        return updated;
+      });
       showSuccess('Member updated successfully');
       return updatedMember;
     } catch (error) {
@@ -134,7 +187,12 @@ export const AppProvider = ({ children }) => {
   const deleteMember = async (id) => {
     try {
       await apiService.deleteMember(id);
-      setMembers(prev => prev.filter(m => m.id !== id));
+      setMembers(prev => {
+        const updated = prev.filter(m => m.id !== id);
+        // Update cache
+        setMembersCache({ data: updated, timestamp: Date.now() });
+        return updated;
+      });
       showSuccess('Member deleted successfully');
     } catch (error) {
       console.error('Failed to delete member:', error);
@@ -147,9 +205,15 @@ export const AppProvider = ({ children }) => {
   const createSession = async (sessionData) => {
     try {
       const newSession = await apiService.createSession(sessionData);
-      setSessions(prev => [...prev, newSession]);
+      const sessionData_extracted = newSession?.data?.session || newSession?.session || newSession;
+      setSessions(prev => {
+        const updated = [...prev, sessionData_extracted];
+        // Update cache
+        setSessionsCache({ data: updated, timestamp: Date.now() });
+        return updated;
+      });
       showSuccess('Session created successfully');
-      return newSession;
+      return sessionData_extracted;
     } catch (error) {
       console.error('Failed to create session:', error);
       showError('Failed to create session');

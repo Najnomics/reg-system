@@ -45,7 +45,7 @@ const getSessions = async (req, res) => {
       where.endTime = { ...where.endTime, lte: new Date(toDate) };
     }
 
-    // Get sessions and total count
+    // Get sessions and total count (optimized with conditional counting)
     const [sessions, total] = await Promise.all([
       prisma.session.findMany({
         where,
@@ -66,7 +66,8 @@ const getSessions = async (req, res) => {
           },
         },
       }),
-      prisma.session.count({ where }),
+      // Only count if needed for pagination
+      skip === 0 ? prisma.session.count({ where }) : Promise.resolve(0),
     ]);
 
     // Add status to each session
