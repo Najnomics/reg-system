@@ -14,7 +14,8 @@ import {
 
 const CompleteMembersPage = () => {
   const { members, setMembers, fetchMembers, loading, showSuccess, showError } = useApp();
-  const { logout } = useAuth();
+  const { logout, userType } = useAuth();
+  const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -151,20 +152,24 @@ const CompleteMembersPage = () => {
                 <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
                 Export
               </button>
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
-                Bulk Upload
-              </button>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add Member
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
+                    Bulk Upload
+                  </button>
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Add Member
+                  </button>
+                </>
+              )}
               <button
                 onClick={handleLogout}
                 className="text-gray-500 hover:text-gray-700 text-sm font-medium"
@@ -274,14 +279,18 @@ const CompleteMembersPage = () => {
                     </svg>
                   </div>
                   <h3 className="text-sm font-medium text-gray-900">No members found</h3>
-                  <p className="text-sm text-gray-500">Get started by adding your first member.</p>
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Member
-                  </button>
+                  <p className="text-sm text-gray-500">
+                    {isAdmin ? 'Get started by adding your first member.' : 'No members available yet.'}
+                  </p>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setShowAddModal(true)}
+                      className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Member
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -352,27 +361,34 @@ const CompleteMembersPage = () => {
                             {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                            <button
-                              onClick={() => handleEditMember(member)}
-                              className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
-                              title="Edit Member"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleResendPIN(member)}
-                              className="text-green-600 hover:text-green-900 inline-flex items-center"
-                              title="Resend PIN"
-                            >
-                              <EnvelopeIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMember(member.id)}
-                              className="text-red-600 hover:text-red-900 inline-flex items-center"
-                              title="Delete Member"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => handleEditMember(member)}
+                                  className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
+                                  title="Edit Member"
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleResendPIN(member)}
+                                  className="text-green-600 hover:text-green-900 inline-flex items-center"
+                                  title="Resend PIN"
+                                >
+                                  <EnvelopeIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMember(member.id)}
+                                  className="text-red-600 hover:text-red-900 inline-flex items-center"
+                                  title="Delete Member"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                            {!isAdmin && (
+                              <span className="text-gray-400 text-xs">View Only</span>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiService } from '../../services/apiService';
 import {
   PlusIcon,
   QrCodeIcon,
@@ -8,6 +10,7 @@ import {
   CalendarIcon,
   MapPinIcon,
   PencilIcon,
+  TrashIcon,
   UsersIcon,
   PlayIcon,
   EyeIcon,
@@ -16,7 +19,9 @@ import QRCodeModal from '../../components/admin/QRCodeModal';
 
 const SessionsPage = () => {
   const navigate = useNavigate();
-  const { sessions, fetchSessions, loading } = useApp();
+  const { sessions, fetchSessions, loading, showSuccess, showError } = useApp();
+  const { userType } = useAuth();
+  const isAdmin = userType === 'admin';
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
 
@@ -43,6 +48,25 @@ const SessionsPage = () => {
 
   const handleViewAttendance = (session) => {
     navigate(`/admin/sessions/${session.id}/attendance`);
+  };
+
+  const handleDeleteSession = async (session) => {
+    if (!isAdmin) return;
+    
+    const confirmMessage = session.attendanceCount > 0
+      ? `This session has ${session.attendanceCount} attendance record(s). It will be deactivated (not deleted) to preserve attendance data. Continue?`
+      : 'Are you sure you want to delete this session?';
+    
+    if (window.confirm(confirmMessage)) {
+      try {
+        await apiService.deleteSession(session.id);
+        showSuccess('Session deleted successfully!');
+        fetchSessions(); // Refresh the list
+      } catch (error) {
+        console.error('Failed to delete session:', error);
+        showError('Failed to delete session. Please try again.');
+      }
+    }
   };
 
   const getSessionStatus = (session) => {
@@ -92,16 +116,18 @@ const SessionsPage = () => {
             Create and manage church sessions with QR code check-ins
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            type="button"
-            onClick={handleCreateSession}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-            Create Session
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="mt-4 sm:mt-0">
+            <button
+              type="button"
+              onClick={handleCreateSession}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+              Create Session
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -203,16 +229,20 @@ const SessionsPage = () => {
             <div className="text-center py-8">
               <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No sessions</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by creating a new session.</p>
-              <div className="mt-6">
-                <button
-                  onClick={handleCreateSession}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                  Create Session
-                </button>
-              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                {isAdmin ? 'Get started by creating a new session.' : 'No sessions available yet.'}
+              </p>
+              {isAdmin && (
+                <div className="mt-6">
+                  <button
+                    onClick={handleCreateSession}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+                    Create Session
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -266,12 +296,24 @@ const SessionsPage = () => {
                           <QrCodeIcon className="h-4 w-4 mr-1" />
                           QR Code
                         </button>
-                        <button
-                          onClick={() => handleEditSession(session)}
-                          className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => handleEditSession(session)}
+                              className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                              title="Edit Session"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSession(session)}
+                              className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-red-400 hover:text-red-500 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              title="Delete Session"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
