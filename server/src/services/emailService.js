@@ -17,16 +17,18 @@ class EmailService {
   initializeTransporter() {
     try {
       if (process.env.SENDGRID_API_KEY) {
-        // Use SendGrid
+        // Use SendGrid SMTP
         this.transporter = nodemailer.createTransport({
-          service: 'SendGrid',
+          host: 'smtp.sendgrid.net',
+          port: 587,
+          secure: false,
           auth: {
             user: 'apikey',
             pass: process.env.SENDGRID_API_KEY,
           },
         });
         this.isConfigured = true;
-        console.log('Email service initialized with SendGrid');
+        console.log('✅ Email service initialized with SendGrid SMTP');
       } else if (process.env.SMTP_HOST) {
         // Use custom SMTP
         this.transporter = nodemailer.createTransport({
