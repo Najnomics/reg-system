@@ -146,6 +146,13 @@ const verifySecretAnswer = async (req, res) => {
     }
 
     // Verify the answer
+    if (!answer || typeof answer !== 'string') {
+      return res.status(400).json({
+        correct: false,
+        error: 'Invalid answer',
+        message: 'Answer is required',
+      });
+    }
     const isCorrect = await bcrypt.compare(answer.toLowerCase().trim(), session.secretAnswer);
 
     if (!isCorrect) {
@@ -195,7 +202,7 @@ const submitAttendance = async (req, res) => {
 
     // Get session details
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
+      where: { id: sessionId },
       select: {
         id: true,
         theme: true,
@@ -274,12 +281,10 @@ const submitAttendance = async (req, res) => {
     }
 
     // Check if already checked in for this session
-    const existingAttendance = await prisma.attendance.findUnique({
+    const existingAttendance = await prisma.attendance.findFirst({
       where: {
-        sessionId_memberId: {
-          sessionId: sessionId,
-          memberId: member.id,
-        },
+        sessionId: sessionId,
+        memberId: member.id,
       },
     });
 
@@ -332,6 +337,9 @@ const submitAttendance = async (req, res) => {
 
   } catch (error) {
     console.error('Submit attendance error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error meta:', error.meta);
     
     // Handle specific Prisma errors
     if (error.code === 'P2002') {
@@ -342,10 +350,17 @@ const submitAttendance = async (req, res) => {
       });
     }
 
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(500).json({
       success: false,
       error: 'Internal server error',
       message: 'Failed to record attendance',
+      ...(isDevelopment && {
+        details: error.message,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+      }),
     });
   }
 };
@@ -434,7 +449,7 @@ const getCheckInStats = async (req, res) => {
 
     // Verify session exists and admin has access
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
+      where: { id: sessionId },
       select: {
         id: true,
         theme: true,
