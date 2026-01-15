@@ -22,8 +22,8 @@ RUN npm ci --omit=dev
 COPY . .
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs nodejs
 
 # Change ownership of app directory
 RUN chown -R nodejs:nodejs /app
