@@ -33,21 +33,30 @@ const CheckInPage = () => {
 
   // Helper function to check if device is already authenticated for this session
   const isDeviceAuthenticated = (sessionId) => {
+    if (!sessionId) return false;
+    
     const key = `session_auth_${sessionId}`;
     const authData = localStorage.getItem(key);
     if (!authData) return false;
     
     try {
-      const { timestamp, expiry } = JSON.parse(authData);
+      const { timestamp, expiry, sessionId: storedSessionId } = JSON.parse(authData);
       const now = Date.now();
       
-      // Check if authentication is still valid (expires after 24 hours)
+      // Verify it's for the correct session
+      if (storedSessionId !== sessionId) {
+        localStorage.removeItem(key);
+        return false;
+      }
+      
+      // Check if authentication is still valid (expires after session ends + 1 hour buffer)
       if (now > expiry) {
         localStorage.removeItem(key);
         return false;
       }
       return true;
-    } catch {
+    } catch (error) {
+      console.error('Error checking device authentication:', error);
       localStorage.removeItem(key);
       return false;
     }
@@ -55,13 +64,39 @@ const CheckInPage = () => {
 
   // Helper function to store device authentication for this session
   const storeDeviceAuthentication = (sessionId) => {
+    if (!sessionId) return;
+    
     const key = `session_auth_${sessionId}`;
+    
+    // Calculate expiry based on session end time + 1 hour buffer
+    // If session end time is not available, default to 24 hours from now
+    let expiry = Date.now() + (24 * 60 * 60 * 1000); // Default: 24 hours
+    
+    if (session?.endTime) {
+      const sessionEndTime = new Date(session.endTime).getTime();
+      const bufferTime = 60 * 60 * 1000; // 1 hour buffer
+      expiry = sessionEndTime + bufferTime;
+      
+      // Ensure expiry is at least 1 hour from now
+      const minExpiry = Date.now() + bufferTime;
+      if (expiry < minExpiry) {
+        expiry = minExpiry;
+      }
+    }
+    
     const authData = {
       timestamp: Date.now(),
-      expiry: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
-      sessionId: sessionId
+      expiry: expiry,
+      sessionId: sessionId,
+      sessionTheme: session?.theme || 'Unknown Session'
     };
-    localStorage.setItem(key, JSON.stringify(authData));
+    
+    try {
+      localStorage.setItem(key, JSON.stringify(authData));
+      console.log(`Device authenticated for session ${sessionId} until ${new Date(expiry).toLocaleString()}`);
+    } catch (error) {
+      console.error('Error storing device authentication:', error);
+    }
   };
 
   // Helper function to clear device authentication for this session
