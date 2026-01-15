@@ -64,25 +64,26 @@ model Member {
 }
 
 model Session {
-  id             String       @id
-  name           String?
-  description    String?
-  date           DateTime?
-  time           String?
-  location       String?
-  secretQuestion String
-  secretAnswer   String
-  maxAttendees   Int?
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  createdBy      String
-  endTime        DateTime
-  qrCodeData     String?
-  startTime      DateTime
-  theme          String
-  attendance     attendance[]
-  admins         Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  id                String       @id
+  name              String?
+  description       String?
+  date              DateTime?
+  time              String?
+  location          String?
+  secretQuestion    String
+  secretAnswer      String
+  secretAnswerPlain String?      // Plain text answer for admin reference only
+  maxAttendees      Int?
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  createdBy         String
+  endTime           DateTime
+  qrCodeData        String?
+  startTime         DateTime
+  theme             String
+  attendance        attendance[]
+  admins            Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }

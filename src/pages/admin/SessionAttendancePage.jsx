@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import apiService from '../../services/apiService';
 import {
   ArrowLeftIcon,
@@ -14,12 +15,15 @@ import {
   HashtagIcon,
   ArrowDownTrayIcon,
   DocumentIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 
 const SessionAttendancePage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { showError } = useApp();
+  const { userType } = useAuth();
+  const isAdmin = userType === 'admin';
   const [loading, setLoading] = useState(true);
   const [sessionData, setSessionData] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'present', 'absent'
@@ -207,6 +211,26 @@ const SessionAttendancePage = () => {
                 <span className="font-medium text-gray-500">End Time:</span>
                 <span className="ml-2 text-gray-900">{formatDateTime(session.endTime)}</span>
               </div>
+              {isAdmin && session.secretQuestion && (
+                <>
+                  <div className="flex items-start text-sm pt-2 border-t border-gray-200">
+                    <KeyIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-500">Secret Question:</span>
+                      <p className="mt-1 text-gray-900">{session.secretQuestion}</p>
+                    </div>
+                  </div>
+                  {session.secretAnswerPlain && (
+                    <div className="flex items-start text-sm">
+                      <KeyIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-500">Secret Answer:</span>
+                        <p className="mt-1 text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded inline-block">{session.secretAnswerPlain}</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
           

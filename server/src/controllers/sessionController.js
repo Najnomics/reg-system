@@ -14,6 +14,9 @@ const getSessions = async (req, res) => {
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
 
+    // Check if user is admin (to show secret question and answer)
+    const isAdmin = req.user && req.user.userType === 'admin';
+
     // Build filter conditions
     let where = {};
 
@@ -45,6 +48,26 @@ const getSessions = async (req, res) => {
       where.endTime = { ...where.endTime, lte: new Date(toDate) };
     }
 
+    // Build select fields - include secret question and answer for admins only
+    const selectFields = {
+      id: true,
+      theme: true,
+      startTime: true,
+      endTime: true,
+      qrCodeData: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: { attendance: true },
+      },
+    };
+
+    if (isAdmin) {
+      selectFields.secretQuestion = true;
+      selectFields.secretAnswerPlain = true;
+    }
+
     // Get sessions and total count in parallel
     // Only count if we're on the first page to improve performance
     const [sessions, total] = await Promise.all([
@@ -53,19 +76,7 @@ const getSessions = async (req, res) => {
         skip,
         take: parseInt(limit),
         orderBy,
-        select: {
-          id: true,
-          theme: true,
-          startTime: true,
-          endTime: true,
-          qrCodeData: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: { attendance: true },
-          },
-        },
+        select: selectFields,
       }),
       prisma.session.count({ where }),
     ]);
@@ -112,36 +123,46 @@ const getSession = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const session = await prisma.session.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        theme: true,
-        startTime: true,
-        endTime: true,
-        secretQuestion: true,
-        qrCodeData: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        attendance: {
-          select: {
-            id: true,
-            checkedInAt: true,
-            member: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+    // Check if user is admin (to show secret question and answer)
+    const isAdmin = req.user && req.user.userType === 'admin';
+
+    // Build select fields - include secret question and answer for admins only
+    const selectFields = {
+      id: true,
+      theme: true,
+      startTime: true,
+      endTime: true,
+      qrCodeData: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      attendance: {
+        select: {
+          id: true,
+          checkedInAt: true,
+          member: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
-          orderBy: { checkedInAt: 'desc' },
         },
-        _count: {
-          select: { attendance: true },
-        },
+        orderBy: { checkedInAt: 'desc' },
       },
+      _count: {
+        select: { attendance: true },
+      },
+    };
+
+    if (isAdmin) {
+      selectFields.secretQuestion = true;
+      selectFields.secretAnswerPlain = true;
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { id },
+      select: selectFields,
     });
 
     if (!session) {
@@ -223,6 +244,7 @@ const createSession = async (req, res) => {
 
     // Hash the secret answer
     const hashedAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 12);
+    const plainAnswer = secretAnswer.trim(); // Store plain text for admin reference
 
     // Generate UUID for session ID
     const { randomUUID } = require('crypto');
@@ -237,6 +259,7 @@ const createSession = async (req, res) => {
         endTime: end,
         secretQuestion: secretQuestion.trim(),
         secretAnswer: hashedAnswer,
+        secretAnswerPlain: plainAnswer, // Store plain text for admin reference
         isActive: true,
         createdBy: req.user.id,
       },
@@ -356,26 +379,37 @@ const updateSession = async (req, res) => {
     if (secretQuestion !== undefined) updateData.secretQuestion = secretQuestion.trim();
     if (secretAnswer !== undefined) {
       updateData.secretAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 12);
+      updateData.secretAnswerPlain = secretAnswer.trim(); // Store plain text for admin reference
+    }
+
+    // Check if user is admin (to show secret question and answer)
+    const isAdmin = req.user && req.user.userType === 'admin';
+
+    // Build select fields - include secret question and answer for admins only
+    const selectFields = {
+      id: true,
+      theme: true,
+      startTime: true,
+      endTime: true,
+      qrCodeData: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: { attendance: true },
+      },
+    };
+
+    if (isAdmin) {
+      selectFields.secretQuestion = true;
+      selectFields.secretAnswerPlain = true;
     }
 
     // Update session
     const session = await prisma.session.update({
       where: { id },
       data: updateData,
-      select: {
-        id: true,
-        theme: true,
-        startTime: true,
-        endTime: true,
-        secretQuestion: true,
-        qrCodeData: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: { attendance: true },
-        },
-      },
+      select: selectFields,
     });
 
     // Regenerate QR code if session is still active

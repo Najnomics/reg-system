@@ -280,6 +280,20 @@ const SessionsPage = () => {
                             {session.attendanceCount || 0} checked in
                           </div>
                         </div>
+                        {isAdmin && session.secretQuestion && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-700">Secret Question: </span>
+                              <span className="text-gray-600">{session.secretQuestion}</span>
+                            </div>
+                            {session.secretAnswerPlain && (
+                              <div className="text-sm mt-1">
+                                <span className="font-medium text-gray-700">Secret Answer: </span>
+                                <span className="text-gray-600 font-mono bg-gray-100 px-2 py-0.5 rounded">{session.secretAnswerPlain}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
