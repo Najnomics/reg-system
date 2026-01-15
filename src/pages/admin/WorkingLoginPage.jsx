@@ -122,12 +122,15 @@ const WorkingLoginPage = () => {
           </div>
 
           <div className="text-center">
-            <div className="bg-green-50 border border-green-200 rounded-md p-4">
-              <h4 className="font-medium text-green-900 mb-2">Demo Mode</h4>
-              <p className="text-sm text-green-700 mb-2">Enter any email and password to login!</p>
-              <div className="text-sm bg-green-100 p-2 rounded">
-                <div>✓ Any valid email format</div>
-                <div>✓ Any password (min 1 character)</div>
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Church Attendance System</h4>
+              <p className="text-sm text-blue-700 mb-2">
+                Secure login for administrators and registration representatives
+              </p>
+              <div className="text-xs bg-blue-100 p-2 rounded mt-2 space-y-1">
+                <div className="text-blue-800">• Use your registered email and password</div>
+                <div className="text-blue-800">• Contact your administrator if you need access</div>
+                <div className="text-blue-800">• All login attempts are logged for security</div>
               </div>
             </div>
           </div>
