@@ -138,7 +138,7 @@ class ApiService {
   }
 
   async getSessionAttendance(id) {
-    return this.request(`/sessions/${id}/attendance`);
+    return this.request(`/sessions/${id}/attendance?includeAbsent=true`);
   }
 
   async exportSessionAttendanceCSV(id) {

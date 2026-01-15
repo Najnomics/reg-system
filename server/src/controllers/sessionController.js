@@ -749,9 +749,12 @@ const getSessionAttendance = async (req, res) => {
     // Get only the IDs of members who attended
     const attendedMemberIds = new Set(attendanceRecords.map(record => record.member.id));
 
-    // Only fetch absent members if explicitly requested and reasonable number
+    // Fetch absent members if explicitly requested
+    // For attendance details page, we always want to show absent members
     let allMembers = [];
-    if (includeAbsent === 'true' && totalMembersCount <= 5000) {
+    if (includeAbsent === 'true') {
+      // If there are too many members, we'll still fetch but limit the query
+      const memberLimit = totalMembersCount > 5000 ? 5000 : undefined;
       allMembers = await prisma.member.findMany({
         where: { isActive: true },
         select: {
@@ -761,6 +764,7 @@ const getSessionAttendance = async (req, res) => {
           pin: true,
         },
         orderBy: { name: 'asc' },
+        ...(memberLimit && { take: memberLimit }),
       });
     }
 

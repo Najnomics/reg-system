@@ -107,17 +107,22 @@ const SessionAttendancePage = () => {
   };
 
   const getFilteredMembers = () => {
-    if (!sessionData) return [];
+    if (!sessionData || !sessionData.attendance) return [];
+    
+    const present = sessionData.attendance.present || [];
+    const absent = sessionData.attendance.absent || [];
     
     if (filter === 'present') {
-      return sessionData.attendance.present;
+      return present;
     } else if (filter === 'absent') {
-      return sessionData.attendance.absent;
+      return absent;
     } else {
-      return [
-        ...sessionData.attendance.present,
-        ...sessionData.attendance.absent
-      ].sort((a, b) => a.name.localeCompare(b.name));
+      // Combine and sort by name
+      return [...present, ...absent].sort((a, b) => {
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
     }
   };
 
