@@ -544,6 +544,13 @@ const CompleteMembersPage = () => {
                             {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <button
+                              onClick={() => handleResendPIN(member)}
+                              className="text-green-600 hover:text-green-900 inline-flex items-center"
+                              title="Resend PIN"
+                            >
+                              <EnvelopeIcon className="h-4 w-4" />
+                            </button>
                             {isAdmin && (
                               <>
                                 <button
@@ -554,13 +561,6 @@ const CompleteMembersPage = () => {
                                   <PencilIcon className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleResendPIN(member)}
-                                  className="text-green-600 hover:text-green-900 inline-flex items-center"
-                                  title="Resend PIN"
-                                >
-                                  <EnvelopeIcon className="h-4 w-4" />
-                                </button>
-                                <button
                                   onClick={() => handleDeleteMember(member.id)}
                                   className="text-red-600 hover:text-red-900 inline-flex items-center"
                                   title="Delete Member"
@@ -568,9 +568,6 @@ const CompleteMembersPage = () => {
                                   <TrashIcon className="h-4 w-4" />
                                 </button>
                               </>
-                            )}
-                            {!isAdmin && (
-                              <span className="text-gray-400 text-xs">View Only</span>
                             )}
                           </td>
                         </tr>
