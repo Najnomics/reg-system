@@ -699,6 +699,10 @@ const getSessionAttendance = async (req, res) => {
 
     // Check if user is admin or reg-rep (to show secret question and answer)
     const canViewSecretInfo = req.user && (req.user.userType === 'admin' || req.user.userType === 'reg-rep');
+    
+    console.log('getSessionAttendance - req.user:', req.user);
+    console.log('getSessionAttendance - canViewSecretInfo:', canViewSecretInfo);
+    console.log('getSessionAttendance - userType:', req.user?.userType);
 
     // Build select fields - include secret question and answer for admins and reg-reps
     const sessionSelectFields = {
@@ -712,6 +716,9 @@ const getSessionAttendance = async (req, res) => {
     if (canViewSecretInfo) {
       sessionSelectFields.secretQuestion = true;
       sessionSelectFields.secretAnswerPlain = true;
+      console.log('getSessionAttendance - Added secret fields to select');
+    } else {
+      console.log('getSessionAttendance - NOT adding secret fields (user not authorized)');
     }
 
     // Get session details and attendance records in parallel
