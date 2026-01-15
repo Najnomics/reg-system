@@ -211,7 +211,7 @@ const SessionAttendancePage = () => {
                 <span className="font-medium text-gray-500">End Time:</span>
                 <span className="ml-2 text-gray-900">{formatDateTime(session.endTime)}</span>
               </div>
-              {isAdmin && session.secretQuestion && (
+              {session.secretQuestion && (
                 <>
                   <div className="flex items-start text-sm pt-2 border-t border-gray-200">
                     <KeyIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />

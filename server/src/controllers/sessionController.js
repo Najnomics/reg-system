@@ -14,8 +14,8 @@ const getSessions = async (req, res) => {
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
 
-    // Check if user is admin (to show secret question and answer)
-    const isAdmin = req.user && req.user.userType === 'admin';
+    // Check if user is admin or reg-rep (to show secret question and answer)
+    const canViewSecretInfo = req.user && (req.user.userType === 'admin' || req.user.userType === 'reg-rep');
 
     // Build filter conditions
     let where = {};
@@ -48,7 +48,7 @@ const getSessions = async (req, res) => {
       where.endTime = { ...where.endTime, lte: new Date(toDate) };
     }
 
-    // Build select fields - include secret question and answer for admins only
+    // Build select fields - include secret question and answer for admins and reg-reps
     const selectFields = {
       id: true,
       theme: true,
@@ -63,7 +63,7 @@ const getSessions = async (req, res) => {
       },
     };
 
-    if (isAdmin) {
+    if (canViewSecretInfo) {
       selectFields.secretQuestion = true;
       selectFields.secretAnswerPlain = true;
     }
@@ -123,10 +123,10 @@ const getSession = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if user is admin (to show secret question and answer)
-    const isAdmin = req.user && req.user.userType === 'admin';
+    // Check if user is admin or reg-rep (to show secret question and answer)
+    const canViewSecretInfo = req.user && (req.user.userType === 'admin' || req.user.userType === 'reg-rep');
 
-    // Build select fields - include secret question and answer for admins only
+    // Build select fields - include secret question and answer for admins and reg-reps
     const selectFields = {
       id: true,
       theme: true,
@@ -155,7 +155,7 @@ const getSession = async (req, res) => {
       },
     };
 
-    if (isAdmin) {
+    if (canViewSecretInfo) {
       selectFields.secretQuestion = true;
       selectFields.secretAnswerPlain = true;
     }
@@ -382,10 +382,10 @@ const updateSession = async (req, res) => {
       updateData.secretAnswerPlain = secretAnswer.trim(); // Store plain text for admin reference
     }
 
-    // Check if user is admin (to show secret question and answer)
-    const isAdmin = req.user && req.user.userType === 'admin';
+    // Check if user is admin or reg-rep (to show secret question and answer)
+    const canViewSecretInfo = req.user && (req.user.userType === 'admin' || req.user.userType === 'reg-rep');
 
-    // Build select fields - include secret question and answer for admins only
+    // Build select fields - include secret question and answer for admins and reg-reps
     const selectFields = {
       id: true,
       theme: true,
@@ -400,7 +400,7 @@ const updateSession = async (req, res) => {
       },
     };
 
-    if (isAdmin) {
+    if (canViewSecretInfo) {
       selectFields.secretQuestion = true;
       selectFields.secretAnswerPlain = true;
     }

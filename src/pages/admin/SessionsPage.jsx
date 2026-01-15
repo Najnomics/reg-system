@@ -280,7 +280,7 @@ const SessionsPage = () => {
                             {session.attendanceCount || 0} checked in
                           </div>
                         </div>
-                        {isAdmin && session.secretQuestion && (
+                        {session.secretQuestion && (
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <div className="text-sm">
                               <span className="font-medium text-gray-700">Secret Question: </span>
