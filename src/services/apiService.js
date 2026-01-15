@@ -263,6 +263,11 @@ class ApiService {
   }
 
   // Reports methods
+  async getAnalytics(filters = {}) {
+    const params = new URLSearchParams(filters);
+    return this.request(`/reports/analytics?${params}`);
+  }
+
   async getAttendanceReport(filters = {}) {
     const params = new URLSearchParams(filters);
     return this.request(`/reports/attendance?${params}`);
@@ -275,6 +280,11 @@ class ApiService {
 
   async getSessionReport(sessionId) {
     return this.request(`/reports/sessions/${sessionId}`);
+  }
+
+  async getAttendanceTrends(filters = {}) {
+    const params = new URLSearchParams(filters);
+    return this.request(`/reports/trends?${params}`);
   }
 
   async exportReport(type, filters = {}) {

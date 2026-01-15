@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/SimpleAppContext';
+import apiService from '../../services/apiService';
 import {
   ChartBarIcon,
   DocumentArrowDownIcon,
@@ -14,36 +15,49 @@ const ReportsPage = () => {
   const [reportType, setReportType] = useState('attendance');
   const [dateRange, setDateRange] = useState('30');
   const [selectedSession, setSelectedSession] = useState('');
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
-  // Filter sessions based on date range and selected session
-  const filteredSessions = sessions.filter(session => {
-    // Date filtering
-    const sessionDate = new Date(session.startTime);
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - parseInt(dateRange));
-    
-    const withinDateRange = sessionDate >= cutoffDate;
-    
-    // Session filtering
-    const matchesSession = selectedSession === '' || session.id === parseInt(selectedSession);
-    
-    return withinDateRange && matchesSession;
-  });
+  useEffect(() => {
+    loadAnalytics();
+  }, [dateRange]);
 
-  // Calculate stats based on filtered sessions
-  const totalMembers = members.length;
-  const totalSessions = filteredSessions.length;
-  const totalCheckins = filteredSessions.reduce((total, session) => total + (session.checkedInCount || 0), 0);
-  const averageAttendance = filteredSessions.length > 0 ? Math.round(totalCheckins / filteredSessions.length) : 0;
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const response = await apiService.getAnalytics({ period: dateRange });
+      if (response.success && response.data) {
+        setAnalyticsData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
-  // Recent sessions with attendance
-  const recentSessions = filteredSessions
+  // Use real analytics data if available, otherwise fall back to filtered sessions
+  const totalMembers = analyticsData?.summary?.activeMembers || members.length;
+  const totalSessions = analyticsData?.summary?.totalSessions || sessions.length;
+  const totalCheckins = analyticsData?.summary?.recentAttendance || 0;
+  const averageAttendance = analyticsData?.summary?.avgAttendancePerSession || 0;
+
+  // Recent sessions from analytics or filtered sessions
+  const recentSessions = analyticsData?.recentSessions || sessions
+    .filter(session => {
+      const sessionDate = new Date(session.startTime);
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - parseInt(dateRange));
+      const withinDateRange = sessionDate >= cutoffDate;
+      const matchesSession = selectedSession === '' || session.id === selectedSession;
+      return withinDateRange && matchesSession;
+    })
     .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
     .slice(0, 10);
 
-  // Active members (those who attended in last 30 days)
-  const activeMembers = members.filter(member => member.isActive);
-  const inactiveMembers = members.filter(member => !member.isActive);
+  // Active members from analytics
+  const activeMembersCount = analyticsData?.summary?.activeMembers || members.filter(m => m.isActive).length;
+  const inactiveMembersCount = totalMembers - activeMembersCount;
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -285,18 +299,15 @@ const ReportsPage = () => {
                     <div key={session.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{session.theme}</h4>
+                          <h4 className="font-medium text-gray-900">{session.theme || session.session?.theme}</h4>
                           <div className="mt-1 flex items-center text-sm text-gray-500">
                             <CalendarIcon className="h-4 w-4 mr-1" />
-                            {formatDate(session.startTime)} at {formatTime(session.startTime)}
+                            {formatDate(session.date || session.startTime)} at {formatTime(session.date || session.startTime)}
                           </div>
-                          {session.location && (
-                            <div className="mt-1 text-sm text-gray-500">{session.location}</div>
-                          )}
                         </div>
                         <div className="text-right">
                           <div className="text-lg font-medium text-gray-900">
-                            {session.checkedInCount || 0}
+                            {session.attendanceCount || session.checkedInCount || 0}
                           </div>
                           <div className="text-sm text-gray-500">attendees</div>
                         </div>
@@ -349,11 +360,33 @@ const ReportsPage = () => {
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Attendance Trends</h3>
-            <div className="text-center py-8 text-gray-500">
-              <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p>Chart visualization will be available when connected to the backend API</p>
-              <p className="text-sm mt-2">This will show attendance patterns over time</p>
-            </div>
+            {analyticsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+              </div>
+            ) : analyticsData?.charts?.attendanceByDay ? (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600">
+                  Showing data for: {analyticsData.period}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(analyticsData.charts.attendanceByDay)
+                    .sort(([a], [b]) => new Date(b) - new Date(a))
+                    .slice(0, 8)
+                    .map(([date, count]) => (
+                      <div key={date} className="bg-gray-50 p-3 rounded">
+                        <div className="text-xs text-gray-500">{formatDate(date)}</div>
+                        <div className="text-lg font-semibold text-gray-900">{count}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p>No attendance data available for the selected period</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

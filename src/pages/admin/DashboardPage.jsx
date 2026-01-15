@@ -7,6 +7,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
 import { useApp } from '../../contexts/SimpleAppContext'
+import apiService from '../../services/apiService'
 import DashboardStats from '../../components/admin/DashboardStats'
 import RecentActivity from '../../components/admin/RecentActivity'
 import QuickActions from '../../components/admin/QuickActions'
@@ -30,19 +31,34 @@ const DashboardPage = () => {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true)
-      // TODO: Implement API calls to fetch dashboard data
-      // const response = await dashboardService.getStats()
       
-      // Mock data for now
-      setTimeout(() => {
+      // Fetch real analytics data
+      const response = await apiService.getAnalytics({ period: '30' })
+      
+      if (response.success && response.data) {
+        const { summary, charts } = response.data
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        // Calculate today's attendance from daily stats
+        const todayKey = today.toISOString().split('T')[0]
+        const todayAttendance = charts?.attendanceByDay?.[todayKey] || 0
+        
+        // Calculate monthly growth (compare last 30 days to previous 30 days)
+        const last30Days = summary.recentAttendance || 0
+        const previous30Days = summary.totalAttendance - last30Days
+        const monthlyGrowth = previous30Days > 0 
+          ? (((last30Days - previous30Days) / previous30Days) * 100).toFixed(1)
+          : last30Days > 0 ? 100 : 0
+        
         setStats({
-          totalMembers: 1247,
-          activeSessions: 3,
-          todayAttendance: 156,
-          monthlyGrowth: 8.2,
+          totalMembers: summary.activeMembers || 0,
+          activeSessions: summary.activeSessions || 0,
+          todayAttendance: todayAttendance,
+          monthlyGrowth: parseFloat(monthlyGrowth),
         })
-        setIsLoading(false)
-      }, 1000)
+      }
+      setIsLoading(false)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
       setIsLoading(false)

@@ -24,32 +24,75 @@ const DashboardStats = () => {
     try {
       setIsLoading(true)
       
-      // Mock data for attendance trend
-      const mockAttendanceData = [
-        { month: 'Jan', attendance: 450 },
-        { month: 'Feb', attendance: 520 },
-        { month: 'Mar', attendance: 480 },
-        { month: 'Apr', attendance: 650 },
-        { month: 'May', attendance: 720 },
-        { month: 'Jun', attendance: 680 },
-      ]
-
-      // Mock data for weekly attendance
-      const mockWeeklyData = [
-        { day: 'Mon', count: 45 },
-        { day: 'Tue', count: 32 },
-        { day: 'Wed', count: 78 },
-        { day: 'Thu', count: 28 },
-        { day: 'Fri', count: 56 },
-        { day: 'Sat', count: 89 },
-        { day: 'Sun', count: 156 },
-      ]
-
-      setTimeout(() => {
-        setAttendanceData(mockAttendanceData)
-        setWeeklyData(mockWeeklyData)
-        setIsLoading(false)
-      }, 800)
+      // Fetch real analytics data
+      const apiService = (await import('../../services/apiService')).default
+      const response = await apiService.getAnalytics({ period: '180' }) // Last 6 months
+      
+      if (response.success && response.data) {
+        const { charts } = response.data
+        
+        // Process attendance by day for monthly trend (last 6 months)
+        const attendanceByDay = charts?.attendanceByDay || {}
+        const monthlyData = {}
+        
+        Object.keys(attendanceByDay).forEach(dateStr => {
+          const date = new Date(dateStr)
+          const monthKey = date.toLocaleDateString('en-US', { month: 'short' })
+          monthlyData[monthKey] = (monthlyData[monthKey] || 0) + attendanceByDay[dateStr]
+        })
+        
+        // Convert to array format for chart (last 6 months)
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const now = new Date()
+        const last6Months = []
+        
+        for (let i = 5; i >= 0; i--) {
+          const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+          const monthKey = monthNames[monthDate.getMonth()]
+          last6Months.push({
+            month: monthKey,
+            attendance: monthlyData[monthKey] || 0
+          })
+        }
+        
+        setAttendanceData(last6Months)
+        
+        // Process attendance by hour for weekly data (convert hours to days of week)
+        const attendanceByHour = charts?.attendanceByHour || {}
+        const weeklyData = [
+          { day: 'Mon', count: 0 },
+          { day: 'Tue', count: 0 },
+          { day: 'Wed', count: 0 },
+          { day: 'Thu', count: 0 },
+          { day: 'Fri', count: 0 },
+          { day: 'Sat', count: 0 },
+          { day: 'Sun', count: 0 },
+        ]
+        
+        // Get recent attendance data to calculate day of week distribution
+        const trendsResponse = await apiService.getAttendanceTrends({ period: '30' })
+        if (trendsResponse.success && trendsResponse.data?.trends?.dayOfWeek) {
+          const dayOfWeekTrends = trendsResponse.data.trends.dayOfWeek
+          const dayMap = {
+            'Sunday': 'Sun',
+            'Monday': 'Mon',
+            'Tuesday': 'Tue',
+            'Wednesday': 'Wed',
+            'Thursday': 'Thu',
+            'Friday': 'Fri',
+            'Saturday': 'Sat',
+          }
+          
+          weeklyData.forEach(day => {
+            const fullDayName = Object.keys(dayMap).find(key => dayMap[key] === day.day)
+            day.count = dayOfWeekTrends[fullDayName] || 0
+          })
+        }
+        
+        setWeeklyData(weeklyData)
+      }
+      
+      setIsLoading(false)
     } catch (error) {
       console.error('Failed to load stats data:', error)
       setIsLoading(false)

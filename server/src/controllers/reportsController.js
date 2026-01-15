@@ -9,7 +9,7 @@ const getSessionReport = async (req, res) => {
     const { sessionId } = req.params;
 
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(sessionId) },
+      where: { id: sessionId },
       select: {
         id: true,
         theme: true,
@@ -99,10 +99,10 @@ const exportAttendance = async (req, res) => {
 
     if (sessionId) {
       // Single session export
-      whereClause.sessionId = parseInt(sessionId);
+      whereClause.sessionId = sessionId;
       
       sessionData = await prisma.session.findUnique({
-        where: { id: parseInt(sessionId) },
+        where: { id: sessionId },
         select: { id: true, theme: true, startTime: true },
       });
 
@@ -441,7 +441,7 @@ const getMemberAttendance = async (req, res) => {
     const { fromDate, toDate, limit = 50 } = req.query;
 
     const member = await prisma.member.findUnique({
-      where: { id: parseInt(memberId) },
+      where: { id: memberId },
       select: { id: true, name: true, email: true, isActive: true },
     });
 
@@ -468,7 +468,7 @@ const getMemberAttendance = async (req, res) => {
     // Get attendance history
     const attendance = await prisma.attendance.findMany({
       where: {
-        memberId: parseInt(memberId),
+        memberId: memberId,
         ...dateFilter,
       },
       select: {
@@ -489,12 +489,12 @@ const getMemberAttendance = async (req, res) => {
 
     // Get attendance statistics
     const totalAttendance = await prisma.attendance.count({
-      where: { memberId: parseInt(memberId) },
+      where: { memberId: memberId },
     });
 
     const recentAttendance = await prisma.attendance.count({
       where: {
-        memberId: parseInt(memberId),
+        memberId: memberId,
         checkedInAt: {
           gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         },

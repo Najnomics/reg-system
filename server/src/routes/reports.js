@@ -22,7 +22,7 @@ router.get('/session/:sessionId',
 
 // Get member attendance history
 router.get('/member/:memberId',
-  validate(schemas.idParam, 'params'),
+  validate(schemas.memberId, 'params'),
   validate(schemas.reportQuery, 'query'),
   reportsController.getMemberAttendance
 );
