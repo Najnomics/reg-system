@@ -154,7 +154,7 @@ const QRCodeModal = ({ session, onClose }) => {
                 <div className="text-sm text-gray-600 space-y-1 max-w-md mx-auto">
                   <p>1. Scan the QR code with your phone camera</p>
                   <p>2. Answer the security question</p>
-                  <p>3. Enter your 5-digit PIN</p>
+                  <p>3. Enter your 4-digit PIN</p>
                   <p>4. Confirm your attendance</p>
                 </div>
               </div>

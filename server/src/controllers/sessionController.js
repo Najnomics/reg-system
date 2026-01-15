@@ -552,7 +552,14 @@ const downloadQRCode = async (req, res) => {
     
     // Set response headers
     const filename = `session-${session.id}-qr-code.${format}`;
-    const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
+    let mimeType;
+    if (format === 'svg') {
+      mimeType = 'image/svg+xml';
+    } else if (format === 'pdf') {
+      mimeType = 'application/pdf';
+    } else {
+      mimeType = 'image/png';
+    }
     
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

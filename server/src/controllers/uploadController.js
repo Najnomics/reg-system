@@ -244,13 +244,28 @@ const uploadMembers = async (req, res) => {
  */
 const downloadTemplate = async (req, res) => {
   try {
-    const templateBuffer = generateTemplate();
+    const { format = 'xlsx' } = req.query;
     
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="members_template.xlsx"');
-    res.setHeader('Content-Length', templateBuffer.length);
-    
-    res.send(templateBuffer);
+    if (format === 'csv') {
+      // Generate CSV template
+      const csvContent = 'name,email,phone\nJohn Doe,john@example.com,+1234567890\nJane Smith,jane@example.com,+1987654321\nBob Johnson,bob@example.com,';
+      const csvBuffer = Buffer.from(csvContent, 'utf8');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="members_template.csv"');
+      res.setHeader('Content-Length', csvBuffer.length);
+      
+      res.send(csvBuffer);
+    } else {
+      // Generate Excel template
+      const templateBuffer = generateTemplate();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="members_template.xlsx"');
+      res.setHeader('Content-Length', templateBuffer.length);
+      
+      res.send(templateBuffer);
+    }
 
   } catch (error) {
     console.error('Template generation error:', error);

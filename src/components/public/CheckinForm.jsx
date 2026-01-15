@@ -7,7 +7,7 @@ import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/ou
 
 const schema = yup.object().shape({
   securityAnswer: yup.string().required('Security answer is required'),
-  pin: yup.string().required('PIN is required').length(5, 'PIN must be exactly 5 digits').matches(/^\d+$/, 'PIN must contain only numbers'),
+  pin: yup.string().required('PIN is required').length(4, 'PIN must be exactly 4 digits').matches(/^\d+$/, 'PIN must contain only numbers'),
 });
 
 const CheckinForm = ({ session, onSuccess }) => {
@@ -147,10 +147,10 @@ const CheckinForm = ({ session, onSuccess }) => {
           <div className="space-y-4">
             <div>
               <label htmlFor="pin" className="block text-lg font-medium text-gray-900 mb-2">
-                Enter Your 5-Digit PIN
+                Enter Your 4-Digit PIN
               </label>
               <p className="text-sm text-gray-600 mb-4">
-                Enter the 5-digit PIN that was sent to your email when you were registered.
+                Enter the 4-digit PIN that was sent to your email when you were registered.
               </p>
               <input
                 type="text"

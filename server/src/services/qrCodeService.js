@@ -1,4 +1,5 @@
 const QRCode = require('qrcode');
+const PDFDocument = require('pdfkit');
 
 /**
  * QR Code service for generating session QR codes
@@ -81,8 +82,12 @@ class QRCodeService {
             type: 'svg',
           }));
           break;
+        case 'pdf':
+          // Generate PDF with QR code
+          buffer = await this.generateQRPDF(sessionId, checkInUrl, baseUrl);
+          break;
         default:
-          throw new Error('Unsupported format. Use png or svg.');
+          throw new Error('Unsupported format. Use png, svg, or pdf.');
       }
 
       return buffer;
@@ -263,7 +268,7 @@ class QRCodeService {
                 <li>Point the camera at the QR code above</li>
                 <li>Tap the notification or link that appears</li>
                 <li>Answer the location verification question</li>
-                <li>Enter your 5-digit PIN</li>
+                <li>Enter your 4-digit PIN</li>
                 <li>You're checked in!</li>
             </ol>
             <p><strong>Need your PIN?</strong> Check your email or contact church administration.</p>
@@ -363,6 +368,67 @@ class QRCodeService {
       console.error('Multi-format QR generation error:', error);
       throw new Error(`Failed to generate QR codes: ${error.message}`);
     }
+  }
+
+  /**
+   * Generate QR code as PDF
+   */
+  async generateQRPDF(sessionId, checkInUrl, baseUrl = null) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const frontendUrl = baseUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
+        
+        // Generate QR code as data URL
+        const qrDataUrl = await QRCode.toDataURL(checkInUrl, {
+          errorCorrectionLevel: 'M',
+          type: 'image/png',
+          width: 400,
+          margin: 2,
+        });
+
+        // Create PDF
+        const doc = new PDFDocument({ 
+          size: 'LETTER',
+          margin: 50,
+        });
+        
+        const buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          resolve(pdfBuffer);
+        });
+        doc.on('error', reject);
+
+        // Add title
+        doc.fontSize(20).text('Session QR Code', { align: 'center' });
+        doc.moveDown();
+
+        // Add QR code image
+        const qrImageBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+        const qrWidth = 300;
+        const x = (doc.page.width - qrWidth) / 2;
+        doc.image(qrImageBuffer, x, doc.y, { width: qrWidth });
+
+        // Add instructions
+        doc.moveDown(2);
+        doc.fontSize(14).text('How to Check In', { align: 'center' });
+        doc.moveDown(0.5);
+        doc.fontSize(11).text('1. Scan the QR code with your phone camera', { align: 'left' });
+        doc.text('2. Answer the security question', { align: 'left' });
+        doc.text('3. Enter your 4-digit PIN', { align: 'left' });
+        doc.text('4. Confirm your attendance', { align: 'left' });
+
+        // Add URL
+        doc.moveDown(1);
+        doc.fontSize(10).fillColor('gray').text(`Or visit: ${checkInUrl}`, { align: 'center' });
+
+        doc.end();
+      } catch (error) {
+        console.error('QR PDF generation error:', error);
+        reject(new Error(`Failed to generate QR PDF: ${error.message}`));
+      }
+    });
   }
 }
 

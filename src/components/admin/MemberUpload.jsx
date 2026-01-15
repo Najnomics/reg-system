@@ -119,9 +119,9 @@ const MemberUpload = ({ onClose, onSuccess }) => {
     }
   };
 
-  const downloadTemplate = async () => {
+  const downloadTemplate = async (format = 'xlsx') => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/members/template`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/members/template?format=${format}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -135,7 +135,7 @@ const MemberUpload = ({ onClose, onSuccess }) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'members_template.xlsx';
+      link.download = `members_template.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -177,12 +177,19 @@ const MemberUpload = ({ onClose, onSuccess }) => {
                 <p className="mt-1 text-sm text-blue-700">
                   Download the Excel template to see the required format for member data.
                 </p>
-                <div className="mt-2">
+                <div className="mt-2 flex gap-2">
                   <button
-                    onClick={downloadTemplate}
+                    onClick={() => downloadTemplate('xlsx')}
                     className="text-sm font-medium text-blue-800 hover:text-blue-900"
                   >
-                    Download template →
+                    Download Excel →
+                  </button>
+                  <span className="text-blue-600">|</span>
+                  <button
+                    onClick={() => downloadTemplate('csv')}
+                    className="text-sm font-medium text-blue-800 hover:text-blue-900"
+                  >
+                    Download CSV →
                   </button>
                 </div>
               </div>
