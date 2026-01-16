@@ -24,8 +24,6 @@ const CheckInPage = () => {
   const [formData, setFormData] = useState({
     secretAnswer: '',
     memberCode: '',
-    firstName: '',
-    lastName: '',
   });
 
   // Ref to prevent duplicate API calls in React Strict Mode
@@ -108,8 +106,6 @@ const CheckInPage = () => {
     setFormData({
       secretAnswer: '',
       memberCode: '',
-      firstName: '',
-      lastName: '',
     });
     showSuccess('Device authentication cleared. Please answer the security question.');
   };
@@ -206,7 +202,6 @@ const CheckInPage = () => {
         setCheckedInMember({
           firstName: memberData?.name?.split(' ')[0] || 'Member',
           lastName: memberData?.name?.split(' ').slice(1).join(' ') || '',
-          isGuest: false
         });
         // Store member details for display (PIN and email)
         setMemberDetails({
@@ -228,35 +223,6 @@ const CheckInPage = () => {
     }
   };
 
-  const handleGuestSubmit = async (e) => {
-    e.preventDefault();
-    setChecking(true);
-
-    try {
-      if (!formData.firstName.trim() || !formData.lastName.trim()) {
-        showError('Please enter both first and last name.');
-        setChecking(false);
-        return;
-      }
-
-      // Mock API call for manual check-in
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const guestMember = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        isGuest: true,
-      };
-
-      setCheckedInMember(guestMember);
-      setCheckInSuccess(true);
-      showSuccess(`Welcome, ${guestMember.firstName}! You have been checked in as a guest.`);
-    } catch (error) {
-      showError('Failed to check in. Please try again.');
-    } finally {
-      setChecking(false);
-    }
-  };
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString('en-US', {
@@ -301,14 +267,9 @@ const CheckInPage = () => {
           <p className="text-base sm:text-lg text-gray-700 mb-3 sm:mb-4">
             Welcome, <span className="font-semibold">{checkedInMember.firstName}</span>!
           </p>
-          {checkedInMember.isGuest && (
-            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
-              Thank you for joining us as our guest today.
-            </p>
-          )}
           
-          {/* Member Details (PIN and Email) - Only show for non-guests */}
-          {!checkedInMember.isGuest && memberDetails && (
+          {/* Member Details (PIN and Email) */}
+          {memberDetails && (
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 text-left">
               <h4 className="text-xs sm:text-sm font-semibold text-indigo-900 mb-2">Your Member Information</h4>
               <div className="space-y-2 text-xs sm:text-sm">
@@ -487,54 +448,6 @@ const CheckInPage = () => {
                     className="w-full px-4 py-3 sm:py-2.5 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                   >
                     {checking ? 'Checking In...' : 'Check In'}
-                  </button>
-                </form>
-              </div>
-
-              {/* Guest Check-in */}
-              <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                  Don't have a member code? Check in as Guest
-                </h3>
-                <form onSubmit={handleGuestSubmit} className="space-y-3 sm:space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                        First Name
-                      </label>
-                      <input
-                        type="text"
-                        name="firstName"
-                        id="firstName"
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        required
-                        autoComplete="given-name"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                        Last Name
-                      </label>
-                      <input
-                        type="text"
-                        name="lastName"
-                        id="lastName"
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        required
-                        autoComplete="family-name"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={checking || !formData.firstName.trim() || !formData.lastName.trim()}
-                    className="w-full px-4 py-3 sm:py-2.5 border border-gray-300 rounded-md shadow-sm text-sm sm:text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                  >
-                    {checking ? 'Checking In...' : 'Check In as Guest'}
                   </button>
                 </form>
               </div>
