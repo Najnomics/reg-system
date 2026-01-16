@@ -20,22 +20,21 @@ const getDashboardStats = async (req, res) => {
       recentAttendance,
     ] = await Promise.all([
       // Total members count (active members: isActive !== false, matching frontend filter)
+      // This matches the frontend filter: member.isActive !== false
       prisma.member.count({
         where: {
-          OR: [
-            { isActive: true },
-            { isActive: null },
-          ],
+          isActive: {
+            not: false,
+          },
         },
       }),
 
       // Active members count (same as total for consistency)
       prisma.member.count({
         where: {
-          OR: [
-            { isActive: true },
-            { isActive: null },
-          ],
+          isActive: {
+            not: false,
+          },
         },
       }),
 
