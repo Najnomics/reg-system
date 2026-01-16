@@ -59,7 +59,7 @@ const SessionsPage = () => {
       try {
         await apiService.deleteSession(session.id);
         showSuccess('Session deleted successfully!');
-        fetchSessions(); // Refresh the list
+        fetchSessions(true); // Force refresh the list
       } catch (error) {
         console.error('Failed to delete session:', error);
         showError('Failed to delete session. Please try again.');

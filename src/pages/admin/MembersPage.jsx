@@ -23,7 +23,9 @@ const MembersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchMembers();
+    // Force refresh on mount to get latest data
+    fetchMembers(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleEditMember = (member) => {
@@ -181,7 +183,7 @@ const MembersPage = () => {
           onClose={() => setShowUpload(false)} 
           onSuccess={() => {
             setShowUpload(false);
-            fetchMembers();
+            fetchMembers(true);
           }}
         />
       )}
@@ -193,7 +195,7 @@ const MembersPage = () => {
           onClose={handleCloseForm}
           onSuccess={() => {
             handleCloseForm();
-            fetchMembers();
+            fetchMembers(true);
           }}
         />
       )}

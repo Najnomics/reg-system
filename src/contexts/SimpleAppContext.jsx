@@ -16,7 +16,7 @@ export const AppProvider = ({ children }) => {
   const [fetchingMembers, setFetchingMembers] = useState(false);
   const [fetchingSessions, setFetchingSessions] = useState(false);
   
-  const CACHE_DURATION = 30000; // 30 seconds cache
+  const CACHE_DURATION = 5000; // 5 seconds cache for fresher data
 
   const setSidebar = (open) => {
     setSidebarOpen(open);

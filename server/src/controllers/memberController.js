@@ -216,18 +216,23 @@ const createMember = async (req, res) => {
       },
     });
 
-    // Send PIN email to new member
-    try {
-      const emailService = require('../services/emailService');
-      await emailService.sendPin(member);
-    } catch (emailError) {
-      console.error('Failed to send PIN email to new member:', emailError);
-      // Continue with success response even if email fails
-    }
+    // Send PIN email to new member asynchronously (non-blocking)
+    // Don't await - let it send in the background
+    setImmediate(async () => {
+      try {
+        const emailService = require('../services/emailService');
+        await emailService.sendPin(member);
+        console.log(`✅ PIN email sent successfully to ${member.email}`);
+      } catch (emailError) {
+        console.error(`❌ Failed to send PIN email to ${member.email}:`, emailError);
+        // Email failure doesn't affect member creation
+      }
+    });
 
+    // Return success immediately without waiting for email
     res.status(201).json({
       success: true,
-      message: 'Member created successfully and PIN email sent',
+      message: 'Member created successfully. PIN email is being sent.',
       data: { member },
     });
 

@@ -30,10 +30,8 @@ const CompleteMembersPage = () => {
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
 
   useEffect(() => {
-    // Only fetch if members array is empty to avoid duplicate calls
-    if (members.length === 0 && !loading) {
-      fetchMembers();
-    }
+    // Force refresh on mount to get latest data
+    fetchMembers(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,8 +100,8 @@ const CompleteMembersPage = () => {
       setShowAddModal(false);
       setSelectedMember(null);
       
-      // Refresh the list
-      await fetchMembers();
+      // Force refresh the list to get latest data
+      await fetchMembers(true);
     } catch (error) {
       console.error('Failed to create member:', error);
       
@@ -134,8 +132,8 @@ const CompleteMembersPage = () => {
         setMembers(prev => prev.filter(m => m.id !== memberId));
         
         showSuccess('Member deleted successfully!');
-        // Refresh the list to ensure consistency
-        fetchMembers(); 
+        // Force refresh the list to ensure consistency
+        fetchMembers(true); 
       } catch (error) {
         console.error('Failed to delete member:', error);
         showError('Failed to delete member. Please try again.');
@@ -263,7 +261,7 @@ const CompleteMembersPage = () => {
       setSelectAll(false);
       
       showSuccess(`Successfully deleted ${count} member(s)`);
-      fetchMembers(); // Refresh the list
+      fetchMembers(true); // Force refresh the list
     } catch (error) {
       console.error('Failed to bulk delete members:', error);
       showError(error.message || 'Failed to delete members. Please try again.');
