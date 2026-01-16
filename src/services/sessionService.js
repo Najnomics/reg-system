@@ -100,16 +100,49 @@ export const sessionService = {
         params: { format }
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Check if response is actually an error (blob with error JSON)
+      if (response.data instanceof Blob && response.data.type === 'application/json') {
+        const errorText = await response.data.text();
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.message || 'Failed to download QR code');
+      }
+      
+      // Determine MIME type based on format
+      const mimeTypes = {
+        png: 'image/png',
+        pdf: 'application/pdf',
+        svg: 'image/svg+xml'
+      };
+      const mimeType = mimeTypes[format.toLowerCase()] || 'image/png';
+      
+      const blob = new Blob([response.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `session-${id}-qr.${format}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      
+      // Clean up after a short delay to ensure download starts
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to download QR code');
+      console.error('Download QR code error:', error);
+      
+      // Handle axios errors with blob responses
+      if (error.response?.data instanceof Blob) {
+        try {
+          const errorText = await error.response.data.text();
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || 'Failed to download QR code');
+        } catch (parseError) {
+          throw new Error('Failed to download QR code. Please try again.');
+        }
+      }
+      
+      throw new Error(error.response?.data?.message || error.message || 'Failed to download QR code');
     }
   },
 

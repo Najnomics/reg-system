@@ -527,6 +527,17 @@ const downloadQRCode = async (req, res) => {
     const { id } = req.params;
     const { format = 'png' } = req.query;
 
+    console.log(`Download QR code request: sessionId=${id}, format=${format}`);
+
+    // Validate format
+    const validFormats = ['png', 'pdf', 'svg'];
+    if (!validFormats.includes(format.toLowerCase())) {
+      return res.status(400).json({
+        error: 'Invalid format',
+        message: `Format must be one of: ${validFormats.join(', ')}`,
+      });
+    }
+
     // Check if session exists and is active
     const session = await prisma.session.findUnique({
       where: { id },
@@ -547,15 +558,23 @@ const downloadQRCode = async (req, res) => {
       });
     }
 
+    console.log(`Generating QR code buffer for session ${id}, format: ${format}`);
+
     // Generate QR code buffer
     const qrBuffer = await qrCodeService.generateQRBuffer(session.id, format);
+    
+    if (!qrBuffer || qrBuffer.length === 0) {
+      throw new Error('Generated QR code buffer is empty');
+    }
+
+    console.log(`QR code buffer generated successfully, size: ${qrBuffer.length} bytes`);
     
     // Set response headers
     const filename = `session-${session.id}-qr-code.${format}`;
     let mimeType;
-    if (format === 'svg') {
+    if (format.toLowerCase() === 'svg') {
       mimeType = 'image/svg+xml';
-    } else if (format === 'pdf') {
+    } else if (format.toLowerCase() === 'pdf') {
       mimeType = 'application/pdf';
     } else {
       mimeType = 'image/png';
@@ -569,9 +588,17 @@ const downloadQRCode = async (req, res) => {
 
   } catch (error) {
     console.error('Download QR code error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // If headers already sent, we can't send JSON error
+    if (res.headersSent) {
+      return res.end();
+    }
+    
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to download QR code',
+      message: error.message || 'Failed to download QR code',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 };

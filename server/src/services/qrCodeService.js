@@ -373,13 +373,17 @@ class QRCodeService {
   /**
    * Generate QR code as PDF
    */
-  async generateQRPDF(sessionId, checkInUrl, baseUrl = null) {
+  async generateQRPDF(sessionId, checkInUrl = null, baseUrl = null) {
     return new Promise(async (resolve, reject) => {
       try {
+        // Use provided checkInUrl or generate it
         const frontendUrl = baseUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
+        const finalCheckInUrl = checkInUrl || `${frontendUrl}/checkin/${sessionId}`;
+        
+        console.log(`Generating QR PDF for session ${sessionId}, URL: ${finalCheckInUrl}`);
         
         // Generate QR code as data URL
-        const qrDataUrl = await QRCode.toDataURL(checkInUrl, {
+        const qrDataUrl = await QRCode.toDataURL(finalCheckInUrl, {
           errorCorrectionLevel: 'M',
           type: 'image/png',
           width: 400,
@@ -421,7 +425,7 @@ class QRCodeService {
 
         // Add URL
         doc.moveDown(1);
-        doc.fontSize(10).fillColor('gray').text(`Or visit: ${checkInUrl}`, { align: 'center' });
+        doc.fontSize(10).fillColor('gray').text(`Or visit: ${finalCheckInUrl}`, { align: 'center' });
 
         doc.end();
       } catch (error) {
