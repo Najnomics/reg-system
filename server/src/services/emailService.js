@@ -162,6 +162,21 @@ class EmailService {
       };
 
       console.log(`Attempting to send PIN email to ${member.email}...`);
+      
+      // Verify connection before sending (with timeout)
+      try {
+        const verifyPromise = this.transporter.verify();
+        const verifyTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('SMTP verification timeout')), 10000);
+        });
+        await Promise.race([verifyPromise, verifyTimeout]);
+        console.log('✅ SMTP connection verified');
+      } catch (verifyError) {
+        console.error('❌ SMTP verification failed:', verifyError);
+        // Don't throw here - try sending anyway as verification can fail but sending might work
+        console.warn('⚠️ Continuing with email send despite verification failure...');
+      }
+      
       const result = await this.transporter.sendMail(mailOptions);
       
       // Log successful email
