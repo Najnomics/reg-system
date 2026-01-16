@@ -51,10 +51,14 @@ class EmailService {
               user: process.env.SMTP_USER,
               pass: process.env.SMTP_PASS,
             },
-            // Add connection timeout settings
-            connectionTimeout: 10000, // 10 seconds
-            socketTimeout: 10000, // 10 seconds
-            greetingTimeout: 10000, // 10 seconds
+            // Increased timeout settings for Railway/Gmail
+            connectionTimeout: 30000, // 30 seconds
+            socketTimeout: 30000, // 30 seconds
+            greetingTimeout: 30000, // 30 seconds
+            // Additional Gmail-specific settings
+            pool: true,
+            maxConnections: 1,
+            maxMessages: 3,
           });
         } else {
           // Generic SMTP configuration
@@ -66,10 +70,10 @@ class EmailService {
               user: process.env.SMTP_USER,
               pass: process.env.SMTP_PASS,
             },
-            // Add connection timeout settings
-            connectionTimeout: 10000, // 10 seconds
-            socketTimeout: 10000, // 10 seconds
-            greetingTimeout: 10000, // 10 seconds
+            // Increased timeout settings
+            connectionTimeout: 30000, // 30 seconds
+            socketTimeout: 30000, // 30 seconds
+            greetingTimeout: 30000, // 30 seconds
           });
         }
         this.isConfigured = true;

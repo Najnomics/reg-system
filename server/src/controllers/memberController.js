@@ -626,10 +626,10 @@ const resendPin = async (req, res) => {
       const emailService = require('../services/emailService');
       console.log(`📧 Attempting to send PIN email to ${member.email}...`);
       
-      // Add timeout wrapper to prevent hanging
+      // Add timeout wrapper to prevent hanging (increased to 45 seconds for Railway/Gmail)
       const emailPromise = emailService.sendPin(member);
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Email sending timeout after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Email sending timeout after 45 seconds. This may be due to Gmail blocking Railway IPs. Consider using SendGrid or another email service.')), 45000);
       });
       
       const emailResult = await Promise.race([emailPromise, timeoutPromise]);
