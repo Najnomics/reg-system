@@ -11,6 +11,8 @@ import {
   TrashIcon,
   EnvelopeIcon,
   PaperAirplaneIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
 } from '@heroicons/react/24/outline';
 
 const CompleteMembersPage = () => {
@@ -24,6 +26,8 @@ const CompleteMembersPage = () => {
   const [filteredMembers, setFilteredMembers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [sortBy, setSortBy] = useState('name'); // 'name' or 'date'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
 
   useEffect(() => {
     // Only fetch if members array is empty to avoid duplicate calls
@@ -33,19 +37,40 @@ const CompleteMembersPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Filter and sort members
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredMembers(members);
-    } else {
-      const filtered = members.filter(member =>
-        (member.name && member.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (member.phone && member.phone.includes(searchTerm)) ||
+    let filtered = members;
+    
+    // Apply search filter
+    if (searchTerm.trim() !== '') {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = members.filter(member =>
+        (member.name && member.name.toLowerCase().includes(searchLower)) ||
+        (member.email && member.email.toLowerCase().includes(searchLower)) ||
+        (member.phone && member.phone.toLowerCase().includes(searchLower)) ||
         (member.pin && member.pin.includes(searchTerm))
       );
-      setFilteredMembers(filtered);
     }
-  }, [searchTerm, members]);
+    
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortBy === 'name') {
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        comparison = nameA.localeCompare(nameB);
+      } else if (sortBy === 'date') {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        comparison = dateA - dateB;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    setFilteredMembers(sorted);
+  }, [searchTerm, members, sortBy, sortOrder]);
 
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
 
@@ -310,18 +335,47 @@ const CompleteMembersPage = () => {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      {/* Search and Sort Controls */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        {/* Search */}
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Search by name, email, phone, or PIN..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          className="block w-full pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-          placeholder="Search by name, email, phone, or PIN..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        
+        {/* Sort Controls */}
+        <div className="flex gap-2">
+          {/* Sort By Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="name">Sort by Name</option>
+            <option value="date">Sort by Date Added</option>
+          </select>
+          
+          {/* Sort Order Toggle */}
+          <button
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="inline-flex items-center px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+            title={sortOrder === 'asc' ? 'Ascending (A-Z, Oldest First)' : 'Descending (Z-A, Newest First)'}
+          >
+            {sortOrder === 'asc' ? (
+              <ArrowUpIcon className="h-5 w-5 text-gray-600" />
+            ) : (
+              <ArrowDownIcon className="h-5 w-5 text-gray-600" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Members Stats */}
