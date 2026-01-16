@@ -13,62 +13,81 @@ import {
   PaperAirplaneIcon,
   ArrowUpIcon,
   ArrowDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 const CompleteMembersPage = () => {
-  const { members, setMembers, fetchMembers, loading, showSuccess, showError } = useApp();
+  const { showSuccess, showError } = useApp();
   const { logout, userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [filteredMembers, setFilteredMembers] = useState([]);
+  const [members, setMembers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
-  const [sortBy, setSortBy] = useState('name'); // 'name' or 'date'
+  const [sortBy, setSortBy] = useState('name'); // 'name' or 'createdAt'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const membersPerPage = 20;
+
+  // Fetch members with pagination
+  const fetchMembers = async (page = currentPage, forceRefresh = false) => {
+    try {
+      setLoading(true);
+      const response = await apiService.getMembers({
+        page,
+        limit: membersPerPage,
+        sortBy: sortBy === 'date' ? 'createdAt' : 'name',
+        sortOrder,
+        query: searchTerm.trim() || undefined,
+      });
+      
+      if (response?.success && response?.data) {
+        const membersData = response.data.members || [];
+        setMembers(membersData);
+        setTotalMembers(response.data.pagination?.total || 0);
+        setTotalPages(response.data.pagination?.pages || 1);
+        setCurrentPage(response.data.pagination?.page || page);
+      }
+    } catch (error) {
+      console.error('Failed to fetch members:', error);
+      showError('Failed to load members');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Force refresh on mount to get latest data
-    fetchMembers(true);
+    // Fetch members on mount
+    fetchMembers(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter and sort members
+  // Refetch when search, sort, or page changes
   useEffect(() => {
-    let filtered = members;
-    
-    // Apply search filter
-    if (searchTerm.trim() !== '') {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = members.filter(member =>
-        (member.name && member.name.toLowerCase().includes(searchLower)) ||
-        (member.email && member.email.toLowerCase().includes(searchLower)) ||
-        (member.phone && member.phone.toLowerCase().includes(searchLower)) ||
-        (member.pin && member.pin.includes(searchTerm))
-      );
-    }
-    
-    // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
-      let comparison = 0;
-      
-      if (sortBy === 'name') {
-        const nameA = (a.name || '').toLowerCase();
-        const nameB = (b.name || '').toLowerCase();
-        comparison = nameA.localeCompare(nameB);
-      } else if (sortBy === 'date') {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        comparison = dateA - dateB;
-      }
-      
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-    
-    setFilteredMembers(sorted);
-  }, [searchTerm, members, sortBy, sortOrder]);
+    // Debounce search to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      fetchMembers(1); // Reset to page 1 when search/sort changes
+    }, searchTerm.trim() ? 500 : 0); // 500ms delay for search, immediate for sort
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, sortBy, sortOrder]);
+
+  // Handle page change
+  useEffect(() => {
+    fetchMembers(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
+
+  // Use members directly (already filtered and sorted by backend)
+  const filteredMembers = members;
 
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
 
@@ -100,8 +119,8 @@ const CompleteMembersPage = () => {
       setShowAddModal(false);
       setSelectedMember(null);
       
-      // Force refresh the list to get latest data
-      await fetchMembers(true);
+      // Refresh the list to get latest data (stay on current page)
+      await fetchMembers(currentPage);
     } catch (error) {
       console.error('Failed to create member:', error);
       
@@ -132,8 +151,8 @@ const CompleteMembersPage = () => {
         setMembers(prev => prev.filter(m => m.id !== memberId));
         
         showSuccess('Member deleted successfully!');
-        // Force refresh the list to ensure consistency
-        fetchMembers(true); 
+        // Refresh the list to ensure consistency
+        fetchMembers(currentPage); 
       } catch (error) {
         console.error('Failed to delete member:', error);
         showError('Failed to delete member. Please try again.');
@@ -261,7 +280,7 @@ const CompleteMembersPage = () => {
       setSelectAll(false);
       
       showSuccess(`Successfully deleted ${count} member(s)`);
-      fetchMembers(true); // Force refresh the list
+      fetchMembers(currentPage); // Refresh the list
     } catch (error) {
       console.error('Failed to bulk delete members:', error);
       showError(error.message || 'Failed to delete members. Please try again.');
@@ -301,15 +320,15 @@ const CompleteMembersPage = () => {
         <div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Members</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage church members and their information</p>
-        </div>
+                </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={exportMembers}
+              <button
+                onClick={exportMembers}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 touch-manipulation"
-          >
-            <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+              >
+                <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Export</span>
-          </button>
+              </button>
           {isAdmin && (
             <>
               <button
@@ -330,24 +349,24 @@ const CompleteMembersPage = () => {
               </button>
             </>
           )}
-        </div>
-      </div>
+            </div>
+          </div>
 
       {/* Search and Sort Controls */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         {/* Search */}
         <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
             className="block w-full pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="Search by name, email, phone, or PIN..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
         
         {/* Sort Controls */}
         <div className="flex gap-2">
@@ -373,67 +392,67 @@ const CompleteMembersPage = () => {
               <ArrowDownIcon className="h-5 w-5 text-gray-600" />
             )}
           </button>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {/* Members Stats */}
+          {/* Members Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
-          <div className="flex items-center">
+              <div className="flex items-center">
             <div className="p-1.5 sm:p-2 bg-blue-100 rounded-md flex-shrink-0">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
             <div className="ml-2 sm:ml-3 min-w-0">
               <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total</p>
-              <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{members.length}</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{totalMembers}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
         <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
-          <div className="flex items-center">
+              <div className="flex items-center">
             <div className="p-1.5 sm:p-2 bg-green-100 rounded-md flex-shrink-0">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
             <div className="ml-2 sm:ml-3 min-w-0">
               <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Active</p>
-              <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{members.filter(m => m.isActive !== false).length}</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{totalMembers}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
         <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
-          <div className="flex items-center">
+              <div className="flex items-center">
             <div className="p-1.5 sm:p-2 bg-yellow-100 rounded-md flex-shrink-0">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
             <div className="ml-2 sm:ml-3 min-w-0">
               <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Recent</p>
               <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">12</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
         <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
-          <div className="flex items-center">
+              <div className="flex items-center">
             <div className="p-1.5 sm:p-2 bg-purple-100 rounded-md flex-shrink-0">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
             <div className="ml-2 sm:ml-3 min-w-0">
               <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Avg Rate</p>
               <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">78%</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
       {/* Bulk Actions */}
       {isAdmin && selectedMembers.size > 0 && (
@@ -479,11 +498,11 @@ const CompleteMembersPage = () => {
       )}
 
       {/* Members List */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-4 py-4 sm:px-6 sm:py-5">
           <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">
-            Members ({filteredMembers.length})
-          </h3>
+                Members {searchTerm.trim() ? `(${filteredMembers.length} found)` : `(${totalMembers} total)`}
+              </h3>
               
               {loading ? (
                 <div className="text-center py-8">
@@ -502,13 +521,13 @@ const CompleteMembersPage = () => {
                     {isAdmin ? 'Get started by adding your first member.' : 'No members available yet.'}
                   </p>
                   {isAdmin && (
-                    <button
-                      onClick={() => setShowAddModal(true)}
-                      className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Add Member
-                    </button>
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Add Member
+                  </button>
                   )}
                 </div>
               ) : (
@@ -631,9 +650,9 @@ const CompleteMembersPage = () => {
 
                   {/* Desktop Table View */}
                   <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
                           {isAdmin && (
                             <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                               <input
@@ -645,27 +664,27 @@ const CompleteMembersPage = () => {
                             </th>
                           )}
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Member
-                          </th>
+                          Member
+                        </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Contact
-                          </th>
+                          Contact
+                        </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            PIN
-                          </th>
+                          PIN
+                        </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
+                          Status
+                        </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Joined
-                          </th>
+                          Joined
+                        </th>
                           <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredMembers.map((member) => (
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredMembers.map((member) => (
                           <tr key={member.id} className={`hover:bg-gray-50 ${selectedMembers.has(member.id) ? 'bg-blue-50' : ''}`}>
                             {isAdmin && (
                               <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
@@ -678,52 +697,52 @@ const CompleteMembersPage = () => {
                               </td>
                             )}
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10">
-                                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                    <span className="text-sm font-medium text-indigo-600">
-                                      {member.name?.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {member.name}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    ID: {member.id.substring(0, 8)}...
-                                  </div>
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-indigo-600">
+                                    {member.name?.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                  </span>
                                 </div>
                               </div>
-                            </td>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {member.name}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    ID: {member.id.substring(0, 8)}...
+                                </div>
+                              </div>
+                            </div>
+                          </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{member.email}</div>
-                              <div className="text-sm text-gray-500">{member.phone || 'No phone'}</div>
-                            </td>
+                            <div className="text-sm text-gray-900">{member.email}</div>
+                            <div className="text-sm text-gray-500">{member.phone || 'No phone'}</div>
+                          </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {member.pin || '12345'}
-                              </span>
-                            </td>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {member.pin || '12345'}
+                            </span>
+                          </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                member.isActive !== false 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {member.isActive !== false ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              member.isActive !== false 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {member.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}
-                            </td>
+                            {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}
+                          </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                              <button
-                                onClick={() => handleResendPIN(member)}
+                            <button
+                              onClick={() => handleResendPIN(member)}
                                 className="text-green-600 hover:text-green-900 inline-flex items-center touch-manipulation"
-                                title="Resend PIN"
-                              >
-                                <EnvelopeIcon className="h-4 w-4" />
+                              title="Resend PIN"
+                            >
+                              <EnvelopeIcon className="h-4 w-4" />
                               </button>
                               {isAdmin && (
                                 <>
@@ -733,26 +752,106 @@ const CompleteMembersPage = () => {
                                     title="Edit Member"
                                   >
                                     <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteMember(member.id)}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMember(member.id)}
                                     className="text-red-600 hover:text-red-900 inline-flex items-center touch-manipulation"
-                                    title="Delete Member"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
+                              title="Delete Member"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
                                 </>
                               )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 </>
               )}
+
+              {/* Pagination Controls */}
+              {!loading && totalPages > 1 && (
+                <div className="bg-white px-4 py-3 sm:px-6 border-t border-gray-200 sm:flex sm:items-center sm:justify-between">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                    >
+                      Next
+                    </button>
+            </div>
+                  <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{(currentPage - 1) * membersPerPage + 1}</span> to{' '}
+                        <span className="font-medium">{Math.min(currentPage * membersPerPage, totalMembers)}</span> of{' '}
+                        <span className="font-medium">{totalMembers}</span> members
+                      </p>
+          </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                        >
+                          <span className="sr-only">Previous</span>
+                          <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                        
+                        {/* Page Numbers */}
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium touch-manipulation ${
+                                currentPage === pageNum
+                                  ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                        >
+                          <span className="sr-only">Next</span>
+                          <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </nav>
         </div>
-      </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
       {/* Add/Edit Member Modal */}
       {showAddModal && (
@@ -1019,19 +1118,19 @@ const BulkUploadModal = ({ onUpload, onCancel }) => {
         
         <div className="mb-4">
           <div className="flex gap-3">
-            <button
+          <button
               onClick={() => downloadTemplate('xlsx')}
-              className="text-indigo-600 hover:text-indigo-800 text-sm underline"
-            >
-              Download Excel Template
-            </button>
+            className="text-indigo-600 hover:text-indigo-800 text-sm underline"
+          >
+            Download Excel Template
+          </button>
             <span className="text-gray-400">|</span>
             <button
               onClick={() => downloadTemplate('csv')}
               className="text-indigo-600 hover:text-indigo-800 text-sm underline"
             >
               Download CSV Template
-            </button>
+          </button>
           </div>
         </div>
 

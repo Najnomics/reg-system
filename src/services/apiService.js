@@ -68,8 +68,19 @@ class ApiService {
   }
 
   // Members methods
-  async getMembers() {
-    const response = await this.request('/members');
+  async getMembers(params = {}) {
+    // Build query string from params
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    if (params.query) queryParams.append('query', params.query);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/members${queryString ? `?${queryString}` : ''}`;
+    const response = await this.request(endpoint);
+    
     // Transform backend 'pin' field to frontend 'memberCode' field
     if (response && response.data && response.data.members) {
       response.data.members = response.data.members.map(member => ({
