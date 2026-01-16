@@ -47,7 +47,15 @@ const CompleteMembersPage = () => {
     }
   }, [searchTerm, members]);
 
+  const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+
   const handleAddMember = async (memberData) => {
+    // Prevent double submission
+    if (isSubmittingMember) {
+      return;
+    }
+
+    setIsSubmittingMember(true);
     try {
       // Transform frontend data format to match backend API
       const apiData = {
@@ -62,13 +70,27 @@ const CompleteMembersPage = () => {
       // Update local state
       setMembers(prev => [...prev, newMember]);
       
-      showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully!`);
+      // Show success message
+      showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully! PIN email has been sent.`);
+      
+      // Close modal and reset
       setShowAddModal(false);
       setSelectedMember(null);
-      fetchMembers(); // Refresh the list
+      
+      // Refresh the list
+      await fetchMembers();
     } catch (error) {
       console.error('Failed to create member:', error);
-      showError('Failed to create member. Please try again.');
+      
+      // Handle specific error cases
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('already exists') || errorMessage.includes('Email already exists')) {
+        showError(`A member with email ${memberData.email} already exists. Please use a different email address.`);
+      } else {
+        showError(errorMessage || 'Failed to create member. Please try again.');
+      }
+    } finally {
+      setIsSubmittingMember(false);
     }
   };
 
@@ -685,9 +707,11 @@ const CompleteMembersPage = () => {
         <AddMemberModal
           member={selectedMember}
           onSave={handleAddMember}
+          isSubmitting={isSubmittingMember}
           onCancel={() => {
             setShowAddModal(false);
             setSelectedMember(null);
+            setIsSubmittingMember(false);
           }}
         />
       )}
@@ -704,7 +728,7 @@ const CompleteMembersPage = () => {
 };
 
 // Add Member Modal Component
-const AddMemberModal = ({ member, onSave, onCancel }) => {
+const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
   const [formData, setFormData] = useState({
     firstName: member?.firstName || '',
     lastName: member?.lastName || '',
@@ -720,6 +744,11 @@ const AddMemberModal = ({ member, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (isSubmitting) {
+      return;
+    }
     
     // Basic validation
     const newErrors = {};
@@ -834,9 +863,10 @@ const AddMemberModal = ({ member, onSave, onCancel }) => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              disabled={isSubmitting}
+              className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {member ? 'Update' : 'Add'} Member
+              {isSubmitting ? 'Adding...' : (member ? 'Update' : 'Add') + ' Member'}
             </button>
           </div>
         </form>
