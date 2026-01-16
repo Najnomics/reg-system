@@ -42,7 +42,7 @@ JWT_EXPIRES_IN=7d
 # Application
 NODE_ENV=production
 PORT=3000
-FRONTEND_URL=https://church-attendance-app-rouge.vercel.app
+FRONTEND_URL=https://reg-system-mu.vercel.app
 
 # Email (Gmail SMTP)
 SMTP_HOST=smtp.gmail.com
