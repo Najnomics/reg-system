@@ -659,15 +659,23 @@ const resendPin = async (req, res) => {
     }
 
     if (!emailSent) {
-      return res.status(500).json({
+      // Return 500 but with detailed error message
+      const errorResponse = {
         error: 'Email sending failed',
         message: emailError || 'Failed to send PIN email. Please check email configuration.',
         data: { 
           memberEmail: member.email,
           memberName: member.name,
-          emailDetails: emailDetails,
         },
-      });
+      };
+      
+      // Add email details in development mode
+      if (process.env.NODE_ENV === 'development') {
+        errorResponse.data.emailDetails = emailDetails;
+      }
+      
+      console.error('❌ Email sending failed response:', errorResponse);
+      return res.status(500).json(errorResponse);
     }
 
     res.status(200).json({
@@ -681,9 +689,18 @@ const resendPin = async (req, res) => {
 
   } catch (error) {
     console.error('Resend PIN error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    
+    const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to resend PIN',
+      message: error.message || 'Failed to resend PIN',
+      ...(isDevelopment && {
+        details: error.message,
+        code: error.code,
+        stack: error.stack,
+      }),
     });
   }
 };
