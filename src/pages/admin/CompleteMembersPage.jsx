@@ -459,83 +459,96 @@ const CompleteMembersPage = () => {
                         key={member.id}
                         className={`border rounded-lg p-4 ${selectedMembers.has(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start space-x-3 flex-1 min-w-0">
-                            {isAdmin && (
-                              <input
-                                type="checkbox"
-                                checked={selectedMembers.has(member.id)}
-                                onChange={() => handleSelectMember(member.id)}
-                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1 flex-shrink-0"
-                              />
-                            )}
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                <span className="text-sm font-medium text-indigo-600">
-                                  {member.name?.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
-                                <div className="min-w-0 flex-1 pr-2">
-                                  <div className="text-sm font-medium text-gray-900 break-words">
-                                    {member.name || 'Unnamed Member'}
-                                  </div>
-                                  <div className="text-xs text-gray-500 truncate mt-0.5">
-                                    {member.email}
-                                  </div>
-                                </div>
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 self-start sm:self-auto ${
-                                  member.isActive !== false 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {member.isActive !== false ? 'Active' : 'Inactive'}
-                                </span>
-                              </div>
-                              <div className="mt-2 space-y-1">
-                                <div className="text-xs text-gray-600">
-                                  <span className="font-medium">Phone:</span> {member.phone || 'N/A'}
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                  <span className="font-medium">PIN:</span>{' '}
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                    {member.pin || '12345'}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                  <span className="font-medium">Joined:</span> {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}
-                                </div>
-                              </div>
+                        <div className="flex items-start gap-3">
+                          {/* Checkbox */}
+                          {isAdmin && (
+                            <input
+                              type="checkbox"
+                              checked={selectedMembers.has(member.id)}
+                              onChange={() => handleSelectMember(member.id)}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1 flex-shrink-0"
+                            />
+                          )}
+                          
+                          {/* Avatar */}
+                          <div className="flex-shrink-0">
+                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <span className="text-sm font-medium text-indigo-600 uppercase">
+                                {member.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'NA'}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-start space-x-2 ml-2 flex-shrink-0">
-                            <button
-                              onClick={() => handleResendPIN(member)}
-                              className="p-1.5 text-green-600 hover:text-green-900 hover:bg-green-50 rounded touch-manipulation"
-                              title="Resend PIN"
-                            >
-                              <EnvelopeIcon className="h-5 w-5" />
-                            </button>
-                            {isAdmin && (
-                              <>
-                                <button
-                                  onClick={() => handleEditMember(member)}
-                                  className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded touch-manipulation"
-                                  title="Edit Member"
-                                >
-                                  <PencilIcon className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteMember(member.id)}
-                                  className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded touch-manipulation"
-                                  title="Delete Member"
-                                >
-                                  <TrashIcon className="h-5 w-5" />
-                                </button>
-                              </>
-                            )}
+                          
+                          {/* Member Info */}
+                          <div className="flex-1 min-w-0">
+                            {/* Name, Email, and Badge Row */}
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 break-words">
+                                  {member.name || 'Unnamed Member'}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate mt-0.5">
+                                  {member.email}
+                                </div>
+                              </div>
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
+                                member.isActive !== false 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {member.isActive !== false ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+                            
+                            {/* Action Icons Row */}
+                            <div className="flex items-center justify-end gap-2 mb-2">
+                              <button
+                                onClick={() => handleResendPIN(member)}
+                                className="p-1.5 text-green-600 hover:text-green-900 hover:bg-green-50 rounded touch-manipulation"
+                                title="Resend PIN"
+                              >
+                                <EnvelopeIcon className="h-5 w-5" />
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => handleEditMember(member)}
+                                    className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded touch-manipulation"
+                                    title="Edit Member"
+                                  >
+                                    <PencilIcon className="h-5 w-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMember(member.id)}
+                                    className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded touch-manipulation"
+                                    title="Delete Member"
+                                  >
+                                    <TrashIcon className="h-5 w-5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            
+                            {/* Details Section */}
+                            <div className="space-y-1 pt-2 border-t border-gray-100">
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">Phone:</span> {member.phone || 'N/A'}
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">PIN:</span>{' '}
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                  {member.pin || 'N/A'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">Joined:</span>{' '}
+                                {member.createdAt ? new Date(member.createdAt).toLocaleDateString('en-GB', { 
+                                  day: 'numeric', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
