@@ -51,6 +51,10 @@ class EmailService {
               user: process.env.SMTP_USER,
               pass: process.env.SMTP_PASS,
             },
+            // Add connection timeout settings
+            connectionTimeout: 10000, // 10 seconds
+            socketTimeout: 10000, // 10 seconds
+            greetingTimeout: 10000, // 10 seconds
           });
         } else {
           // Generic SMTP configuration
@@ -62,6 +66,10 @@ class EmailService {
               user: process.env.SMTP_USER,
               pass: process.env.SMTP_PASS,
             },
+            // Add connection timeout settings
+            connectionTimeout: 10000, // 10 seconds
+            socketTimeout: 10000, // 10 seconds
+            greetingTimeout: 10000, // 10 seconds
           });
         }
         this.isConfigured = true;

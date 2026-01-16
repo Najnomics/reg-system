@@ -617,7 +617,7 @@ const resendPin = async (req, res) => {
       });
     }
 
-    // Send PIN email
+    // Send PIN email with timeout
     let emailSent = false;
     let emailError = null;
     let emailDetails = null;
@@ -625,7 +625,14 @@ const resendPin = async (req, res) => {
     try {
       const emailService = require('../services/emailService');
       console.log(`📧 Attempting to send PIN email to ${member.email}...`);
-      const emailResult = await emailService.sendPin(member);
+      
+      // Add timeout wrapper to prevent hanging
+      const emailPromise = emailService.sendPin(member);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Email sending timeout after 15 seconds')), 15000);
+      });
+      
+      const emailResult = await Promise.race([emailPromise, timeoutPromise]);
       emailSent = emailResult?.success !== false;
       emailDetails = emailResult;
       console.log(`✅ PIN email sent successfully to ${member.email}`);
@@ -637,6 +644,7 @@ const resendPin = async (req, res) => {
         response: err.response,
         command: err.command,
         responseCode: err.responseCode,
+        stack: err.stack,
       });
       emailError = err.message || 'Email service error';
       
@@ -644,6 +652,8 @@ const resendPin = async (req, res) => {
       if (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail.com')) {
         if (err.code === 'EAUTH' || err.message?.includes('authentication') || err.message?.includes('password')) {
           emailError = 'Gmail authentication failed. Please ensure you are using an App Password (not your regular Gmail password). Enable 2-Step Verification and generate an App Password at https://myaccount.google.com/apppasswords';
+        } else if (err.message?.includes('timeout')) {
+          emailError = 'Gmail connection timeout. Please check your internet connection and ensure port 587 is not blocked.';
         }
       }
     }
