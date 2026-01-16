@@ -2,6 +2,12 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
+// Debug: Log API URL in production to help troubleshoot
+if (import.meta.env.PROD) {
+  console.log('🔗 Auth Service API Base URL:', API_BASE_URL);
+  console.log('🔗 VITE_API_URL env var:', import.meta.env.VITE_API_URL || 'NOT SET');
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
