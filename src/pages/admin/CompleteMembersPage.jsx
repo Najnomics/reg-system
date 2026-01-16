@@ -15,6 +15,8 @@ import {
   ArrowDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 const CompleteMembersPage = () => {
@@ -35,6 +37,10 @@ const CompleteMembersPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const membersPerPage = 20;
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState(null); // 'single' or 'bulk'
+  const [memberToDelete, setMemberToDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // Fetch members with pagination
   const fetchMembers = async (page = currentPage, forceRefresh = false) => {
@@ -141,22 +147,39 @@ const CompleteMembersPage = () => {
     setShowAddModal(true);
   };
 
-  const handleDeleteMember = async (memberId) => {
-    if (confirm('Are you sure you want to delete this member?')) {
-      try {
-        console.log('Deleting member with ID:', memberId);
-        await apiService.deleteMember(memberId);
-        
-        // Update local state by removing the member immediately
-        setMembers(prev => prev.filter(m => m.id !== memberId));
-        
-        showSuccess('Member deleted successfully!');
-        // Refresh the list to ensure consistency
-        fetchMembers(currentPage); 
-      } catch (error) {
-        console.error('Failed to delete member:', error);
-        showError('Failed to delete member. Please try again.');
-      }
+  const handleDeleteMember = (memberId) => {
+    const member = members.find(m => m.id === memberId);
+    setMemberToDelete(member);
+    setDeleteType('single');
+    setDeleteModalOpen(true);
+    setDeleteConfirmText('');
+  };
+
+  const confirmDeleteMember = async () => {
+    if (deleteConfirmText.toLowerCase() !== 'delete') {
+      showError('Please type "delete" to confirm');
+      return;
+    }
+
+    try {
+      console.log('Deleting member with ID:', memberToDelete.id);
+      await apiService.deleteMember(memberToDelete.id);
+      
+      // Update local state by removing the member immediately
+      setMembers(prev => prev.filter(m => m.id !== memberToDelete.id));
+      
+      showSuccess('Member deleted successfully!');
+      // Refresh the list to ensure consistency
+      fetchMembers(currentPage);
+      
+      // Close modal
+      setDeleteModalOpen(false);
+      setDeleteConfirmText('');
+      setMemberToDelete(null);
+      setDeleteType(null);
+    } catch (error) {
+      console.error('Failed to delete member:', error);
+      showError('Failed to delete member. Please try again.');
     }
   };
 
@@ -257,19 +280,24 @@ const CompleteMembersPage = () => {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedMembers.size === 0) {
       showError('Please select at least one member to delete');
       return;
     }
 
-    const count = selectedMembers.size;
-    const confirmMessage = `Are you sure you want to delete ${count} member(s)? This action cannot be undone.`;
-    
-    if (!window.confirm(confirmMessage)) {
+    setDeleteType('bulk');
+    setDeleteModalOpen(true);
+    setDeleteConfirmText('');
+  };
+
+  const confirmBulkDelete = async () => {
+    if (deleteConfirmText.toLowerCase() !== 'delete') {
+      showError('Please type "delete" to confirm');
       return;
     }
 
+    const count = selectedMembers.size;
     try {
       const memberIds = Array.from(selectedMembers);
       await apiService.bulkDeleteMembers(memberIds);
@@ -281,6 +309,11 @@ const CompleteMembersPage = () => {
       
       showSuccess(`Successfully deleted ${count} member(s)`);
       fetchMembers(currentPage); // Refresh the list
+      
+      // Close modal
+      setDeleteModalOpen(false);
+      setDeleteConfirmText('');
+      setDeleteType(null);
     } catch (error) {
       console.error('Failed to bulk delete members:', error);
       showError(error.message || 'Failed to delete members. Please try again.');
@@ -874,6 +907,25 @@ const CompleteMembersPage = () => {
           onCancel={() => setShowUploadModal(false)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <DeleteConfirmationModal
+          isOpen={deleteModalOpen}
+          deleteType={deleteType}
+          memberName={memberToDelete?.name}
+          memberCount={selectedMembers.size}
+          confirmText={deleteConfirmText}
+          onConfirmTextChange={setDeleteConfirmText}
+          onConfirm={deleteType === 'bulk' ? confirmBulkDelete : confirmDeleteMember}
+          onCancel={() => {
+            setDeleteModalOpen(false);
+            setDeleteConfirmText('');
+            setMemberToDelete(null);
+            setDeleteType(null);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -1186,6 +1238,101 @@ const BulkUploadModal = ({ onUpload, onCancel }) => {
           >
             Upload Members
           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Delete Confirmation Modal Component
+const DeleteConfirmationModal = ({
+  isOpen,
+  deleteType,
+  memberName,
+  memberCount,
+  confirmText,
+  onConfirmTextChange,
+  onConfirm,
+  onCancel,
+}) => {
+  if (!isOpen) return null;
+
+  const isBulk = deleteType === 'bulk';
+  const isValid = confirmText.toLowerCase() === 'delete';
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-lg font-medium text-gray-900">
+                Confirm Deletion
+              </h3>
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">
+                  {isBulk ? (
+                    <>
+                      You are about to delete <strong>{memberCount} member(s)</strong>. This action cannot be undone.
+                    </>
+                  ) : (
+                    <>
+                      You are about to delete <strong>{memberName}</strong>. This action cannot be undone.
+                    </>
+                  )}
+                </p>
+                <p className="text-sm text-gray-700 mt-3 font-medium">
+                  Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">delete</span> to confirm:
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onCancel}
+              className="ml-4 flex-shrink-0 text-gray-400 hover:text-gray-500"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Confirmation Input */}
+          <div className="mt-4">
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => onConfirmTextChange(e.target.value)}
+              placeholder="Type 'delete' to confirm"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+              autoFocus
+            />
+            {confirmText && !isValid && (
+              <p className="mt-2 text-sm text-red-600">
+                Please type exactly "delete" to confirm
+              </p>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 space-y-3 space-y-reverse sm:space-y-0">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full sm:w-auto inline-flex justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!isValid}
+              className="w-full sm:w-auto inline-flex justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isBulk ? `Delete ${memberCount} Member(s)` : 'Delete Member'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
