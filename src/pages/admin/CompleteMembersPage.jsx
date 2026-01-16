@@ -477,16 +477,16 @@ const CompleteMembersPage = () => {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-medium text-gray-900 truncate">
-                                    {member.name}
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <div className="text-sm font-medium text-gray-900 break-words">
+                                    {member.name || 'Unnamed Member'}
                                   </div>
                                   <div className="text-xs text-gray-500 truncate mt-0.5">
                                     {member.email}
                                   </div>
                                 </div>
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ml-2 flex-shrink-0 ${
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 self-start sm:self-auto ${
                                   member.isActive !== false 
                                     ? 'bg-green-100 text-green-800' 
                                     : 'bg-red-100 text-red-800'
