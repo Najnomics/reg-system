@@ -161,20 +161,25 @@ class EmailService {
         text: this.generatePinEmailText(member, churchName),
       };
 
-      console.log(`Attempting to send PIN email to ${member.email}...`);
+      console.log(`📧 Attempting to send PIN email to ${member.email}...`);
+      console.log(`   From: ${mailOptions.from}`);
+      console.log(`   SMTP Host: ${process.env.SMTP_HOST || 'N/A'}`);
+      console.log(`   SMTP Port: ${process.env.SMTP_PORT || 'N/A'}`);
+      console.log(`   SMTP User: ${process.env.SMTP_USER ? '***set***' : 'MISSING'}`);
       
-      // Verify connection before sending (with timeout)
-      try {
-        const verifyPromise = this.transporter.verify();
-        const verifyTimeout = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('SMTP verification timeout')), 10000);
-        });
-        await Promise.race([verifyPromise, verifyTimeout]);
-        console.log('✅ SMTP connection verified');
-      } catch (verifyError) {
-        console.error('❌ SMTP verification failed:', verifyError);
-        // Don't throw here - try sending anyway as verification can fail but sending might work
-        console.warn('⚠️ Continuing with email send despite verification failure...');
+      // Verify connection before sending (with timeout) - skip in production to avoid delays
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const verifyPromise = this.transporter.verify();
+          const verifyTimeout = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('SMTP verification timeout')), 10000);
+          });
+          await Promise.race([verifyPromise, verifyTimeout]);
+          console.log('✅ SMTP connection verified');
+        } catch (verifyError) {
+          console.error('❌ SMTP verification failed:', verifyError.message);
+          console.warn('⚠️ Continuing with email send despite verification failure...');
+        }
       }
       
       const result = await this.transporter.sendMail(mailOptions);
