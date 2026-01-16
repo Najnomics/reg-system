@@ -412,21 +412,26 @@ The ${churchName} Team
   }
 
   /**
-   * Log email attempt to database
+   * Log email attempt to database (optional - only if emailLog model exists)
    */
   async logEmail(memberId, type, subject, status, errorMsg = null) {
     try {
-      await prisma.emailLog.create({
-        data: {
-          memberId,
-          type,
-          subject,
-          status,
-          errorMsg,
-        },
-      });
+      // Check if emailLog model exists before trying to log
+      if (prisma.emailLog && typeof prisma.emailLog.create === 'function') {
+        await prisma.emailLog.create({
+          data: {
+            memberId,
+            type,
+            subject,
+            status,
+            errorMsg,
+          },
+        });
+      }
+      // Silently skip if model doesn't exist (not critical for functionality)
     } catch (error) {
-      console.error('Error logging email:', error);
+      // Don't log errors for email logging failures - it's not critical
+      // console.error('Error logging email:', error);
     }
   }
 
