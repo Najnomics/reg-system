@@ -40,7 +40,7 @@ JWT_EXPIRES_IN=7d
 # ============================================
 NODE_ENV=production
 PORT=3000
-FRONTEND_URL=https://your-vercel-app.vercel.app
+FRONTEND_URL=https://reg-system-mu.vercel.app
 
 # ============================================
 # EMAIL - SendGrid (Choose ONE email option)

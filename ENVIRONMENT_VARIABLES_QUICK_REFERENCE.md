@@ -3,7 +3,7 @@
 ## 🚀 Current Deployment URLs
 
 - **Railway Backend**: `https://reg-system-production.up.railway.app`
-- **Vercel Frontend**: `https://church-attendance-app-rouge.vercel.app`
+- **Vercel Frontend**: `https://reg-system-mu.vercel.app`
 
 ---
 
@@ -76,7 +76,7 @@ Should return: `{"status":"OK",...}`
 - If you see `NOT SET`, the environment variable wasn't included in the build
 
 ### 3. Test Login:
-- Go to: `https://church-attendance-app-rouge.vercel.app/admin/login`
+- Go to: `https://reg-system-mu.vercel.app/admin/login`
 - Try logging in
 - Check browser console for errors
 
@@ -106,11 +106,11 @@ Should return: `{"status":"OK",...}`
 
 - [ ] `VITE_API_URL` set in Vercel → `https://reg-system-production.up.railway.app/api`
 - [ ] Vercel redeployed after setting `VITE_API_URL`
-- [ ] `FRONTEND_URL` set in Railway → `https://church-attendance-app-rouge.vercel.app`
+- [ ] `FRONTEND_URL` set in Railway → `https://reg-system-mu.vercel.app`
 - [ ] Railway `DATABASE_URL` includes `&sslmode=require`
 - [ ] Railway service is running (check Railway dashboard)
 - [ ] Test health endpoint: `https://reg-system-production.up.railway.app/health`
-- [ ] Test frontend: `https://church-attendance-app-rouge.vercel.app`
+- [ ] Test frontend: `https://reg-system-mu.vercel.app`
 
 ---
 
@@ -123,5 +123,5 @@ VITE_API_URL=https://reg-system-production.up.railway.app/api
 
 ### Railway:
 ```
-FRONTEND_URL=https://church-attendance-app-rouge.vercel.app
+FRONTEND_URL=https://reg-system-mu.vercel.app
 ```
