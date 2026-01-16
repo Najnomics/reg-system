@@ -323,6 +323,8 @@ const submitAttendance = async (req, res) => {
         member: {
           id: member.id,
           name: member.name,
+          email: member.email,
+          pin: pin, // Return the PIN that was used for check-in
         },
         session: {
           id: session.id,

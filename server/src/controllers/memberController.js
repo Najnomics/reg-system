@@ -620,14 +620,32 @@ const resendPin = async (req, res) => {
     // Send PIN email
     let emailSent = false;
     let emailError = null;
+    let emailDetails = null;
     
     try {
       const emailService = require('../services/emailService');
+      console.log(`📧 Attempting to send PIN email to ${member.email}...`);
       const emailResult = await emailService.sendPin(member);
       emailSent = emailResult?.success !== false;
+      emailDetails = emailResult;
+      console.log(`✅ PIN email sent successfully to ${member.email}`);
     } catch (err) {
-      console.error('Failed to send PIN email:', err);
+      console.error('❌ Failed to send PIN email:', err);
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        response: err.response,
+        command: err.command,
+        responseCode: err.responseCode,
+      });
       emailError = err.message || 'Email service error';
+      
+      // Provide more helpful error message for Gmail
+      if (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail.com')) {
+        if (err.code === 'EAUTH' || err.message?.includes('authentication') || err.message?.includes('password')) {
+          emailError = 'Gmail authentication failed. Please ensure you are using an App Password (not your regular Gmail password). Enable 2-Step Verification and generate an App Password at https://myaccount.google.com/apppasswords';
+        }
+      }
     }
 
     if (!emailSent) {
@@ -637,6 +655,7 @@ const resendPin = async (req, res) => {
         data: { 
           memberEmail: member.email,
           memberName: member.name,
+          emailDetails: emailDetails,
         },
       });
     }

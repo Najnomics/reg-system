@@ -13,12 +13,12 @@ const AdminLayout = () => {
       <Sidebar />
       
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-200 ${
-        sidebarOpen ? 'ml-64' : 'ml-0'
+        sidebarOpen ? 'lg:ml-64' : 'ml-0'
       }`}>
         <Header />
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="container mx-auto px-6 py-8">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
             <Outlet />
           </div>
         </main>

@@ -85,29 +85,30 @@ const QRCodeModal = ({ session, onClose }) => {
         `}
       </style>
 
-      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 no-print">
-            <h3 className="text-lg font-medium text-gray-900">
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-auto">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 no-print">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate pr-2">
               QR Code for {session.theme}
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500"
+              className="text-gray-400 hover:text-gray-500 flex-shrink-0 touch-manipulation"
+              aria-label="Close modal"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="print-area text-center">
               {/* Session Information */}
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">{session.theme}</h2>
+              <div className="mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{session.theme}</h2>
                 {session.description && (
-                  <p className="text-gray-600 mb-2">{session.description}</p>
+                  <p className="text-sm sm:text-base text-gray-600 mb-2">{session.description}</p>
                 )}
-                <div className="text-sm text-gray-500 space-y-1">
+                <div className="text-xs sm:text-sm text-gray-500 space-y-1">
                   <p>
                     <strong>Date:</strong> {format(new Date(session.startTime), 'MMMM dd, yyyy')}
                   </p>
@@ -123,22 +124,22 @@ const QRCodeModal = ({ session, onClose }) => {
               </div>
 
               {/* QR Code */}
-              <div className="flex justify-center mb-6">
-                <div className="bg-white p-4 rounded-lg shadow-sm border-2 border-gray-200">
+              <div className="flex justify-center mb-4 sm:mb-6">
+                <div className="bg-white p-2 sm:p-4 rounded-lg shadow-sm border-2 border-gray-200">
                   {qrLoaded ? (
                     <QRCode
                       value={checkinUrl}
-                      size={qrSize}
+                      size={Math.min(qrSize, window.innerWidth - 100)}
                       level="M"
                       includeMargin={true}
                     />
                   ) : (
                     <div 
                       className="bg-gray-100 animate-pulse rounded flex items-center justify-center"
-                      style={{ width: qrSize, height: qrSize }}
+                      style={{ width: Math.min(qrSize, window.innerWidth - 100), height: Math.min(qrSize, window.innerWidth - 100) }}
                     >
                       <div className="text-gray-400 text-center">
-                        <svg className="mx-auto h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="mx-auto h-6 w-6 sm:h-8 sm:w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                         </svg>
                         <span className="text-xs">Generating QR Code...</span>
@@ -150,8 +151,8 @@ const QRCodeModal = ({ session, onClose }) => {
 
               {/* Instructions */}
               <div className="text-center space-y-2">
-                <h3 className="text-lg font-medium text-gray-900">How to Check In</h3>
-                <div className="text-sm text-gray-600 space-y-1 max-w-md mx-auto">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900">How to Check In</h3>
+                <div className="text-xs sm:text-sm text-gray-600 space-y-1 max-w-md mx-auto">
                   <p>1. Scan the QR code with your phone camera</p>
                   <p>2. Answer the security question</p>
                   <p>3. Enter your 4-digit PIN</p>
@@ -160,17 +161,17 @@ const QRCodeModal = ({ session, onClose }) => {
               </div>
 
               {/* URL for manual entry */}
-              <div className="mt-6 p-3 bg-gray-50 rounded-md">
+              <div className="mt-4 sm:mt-6 p-2 sm:p-3 bg-gray-50 rounded-md">
                 <p className="text-xs text-gray-500 mb-1">Or visit:</p>
-                <p className="text-sm font-mono text-gray-700 break-all">
+                <p className="text-xs sm:text-sm font-mono text-gray-700 break-all">
                   {checkinUrl}
                 </p>
               </div>
             </div>
 
             {/* Size Control */}
-            <div className="mt-6 no-print">
-              <label htmlFor="qr-size" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mt-4 sm:mt-6 no-print">
+              <label htmlFor="qr-size" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                 QR Code Size
               </label>
               <select
@@ -181,7 +182,7 @@ const QRCodeModal = ({ session, onClose }) => {
                   setQrSize(parseInt(e.target.value));
                   setTimeout(() => setQrLoaded(true), 50);
                 }}
-                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="block w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 touch-manipulation"
               >
                 <option value={128}>Small (128x128)</option>
                 <option value={256}>Medium (256x256)</option>
@@ -191,45 +192,45 @@ const QRCodeModal = ({ session, onClose }) => {
           </div>
 
           {/* Actions */}
-          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 no-print">
-            <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 px-4 sm:px-6 py-4 border-t border-gray-200 no-print">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => handleDownload('png')}
                 disabled={downloading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 touch-manipulation"
               >
-                {downloading ? 'Downloading...' : 'Download PNG'}
+                {downloading ? 'Downloading...' : <><span className="hidden sm:inline">Download </span>PNG</>}
               </button>
 
               <button
                 onClick={() => handleDownload('pdf')}
                 disabled={downloading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 touch-manipulation"
               >
-                {downloading ? 'Downloading...' : 'Download PDF'}
+                {downloading ? 'Downloading...' : <><span className="hidden sm:inline">Download </span>PDF</>}
               </button>
             </div>
 
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleShare}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
               >
-                <ShareIcon className="h-4 w-4 mr-2" />
-                Share
+                <ShareIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Share</span>
               </button>
 
               <button
                 onClick={handlePrint}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
               >
-                <PrinterIcon className="h-4 w-4 mr-2" />
-                Print
+                <PrinterIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Print</span>
               </button>
 
               <button
                 onClick={onClose}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
               >
                 Close
               </button>

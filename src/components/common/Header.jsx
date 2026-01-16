@@ -24,13 +24,14 @@ const Header = () => {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center space-x-4">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 touch-manipulation"
+            aria-label="Toggle sidebar"
           >
-            <Bars3Icon className="h-5 w-5 text-gray-600" />
+            <Bars3Icon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
           </button>
           
           <div className="hidden sm:block">
@@ -38,13 +39,21 @@ const Header = () => {
               Church Attendance System
             </h2>
           </div>
+          <div className="sm:hidden">
+            <h2 className="text-base font-semibold text-gray-900">
+              Church Admin
+            </h2>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           {/* Notifications */}
           <div className="relative">
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 relative">
-              <BellIcon className="h-5 w-5 text-gray-600" />
+            <button 
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 relative touch-manipulation"
+              aria-label="Notifications"
+            >
+              <BellIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
               {unreadNotifications > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
                   {unreadNotifications > 9 ? '9+' : unreadNotifications}
@@ -57,9 +66,10 @@ const Header = () => {
           <div className="relative">
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+              className="flex items-center space-x-1 sm:space-x-2 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 touch-manipulation"
+              aria-label="User menu"
             >
-              <UserCircleIcon className="h-8 w-8 text-gray-600" />
+              <UserCircleIcon className="h-7 w-7 sm:h-8 sm:w-8 text-gray-600" />
               <div className="hidden sm:block text-left">
                 <div className="text-sm font-medium text-gray-900">
                   {user?.name || 'User'}
@@ -76,7 +86,7 @@ const Header = () => {
                   className="fixed inset-0 z-10" 
                   onClick={() => setProfileDropdownOpen(false)}
                 ></div>
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                <div className="absolute right-0 mt-2 w-56 sm:w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
                   <div className="py-2">
                     <div className="px-4 py-3 border-b border-gray-200">
                       <div className="text-sm font-medium text-gray-900">

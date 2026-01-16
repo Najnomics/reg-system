@@ -35,21 +35,21 @@ const WorkingLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 rounded-full bg-indigo-600 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">CA</span>
+          <div className="mx-auto h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-600 flex items-center justify-center">
+            <span className="text-white font-bold text-base sm:text-lg">CA</span>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900">
             Church Admin Login
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm sm:text-base text-gray-600">
             Access the Church Attendance Management System
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">
@@ -61,7 +61,7 @@ const WorkingLoginPage = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-3 sm:py-2.5 border border-gray-300 placeholder-gray-500 text-base sm:text-sm text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -77,15 +77,16 @@ const WorkingLoginPage = () => {
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-3 sm:py-2.5 pr-10 border border-gray-300 placeholder-gray-500 text-base sm:text-sm text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center touch-manipulation"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
                   <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -105,7 +106,7 @@ const WorkingLoginPage = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-3 sm:py-2.5 px-4 border border-transparent text-base sm:text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             >
               {isLoading ? (
                 <>
@@ -122,12 +123,12 @@ const WorkingLoginPage = () => {
           </div>
 
           <div className="text-center">
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <h4 className="font-medium text-blue-900 mb-2">Church Attendance System</h4>
-              <p className="text-sm text-blue-700 mb-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-medium text-blue-900 mb-1.5 sm:mb-2">Church Attendance System</h4>
+              <p className="text-xs sm:text-sm text-blue-700 mb-2">
                 Secure login for administrators and registration representatives
               </p>
-              <div className="text-xs bg-blue-100 p-2 rounded mt-2 space-y-1">
+              <div className="text-xs bg-blue-100 p-2 sm:p-3 rounded mt-2 space-y-1">
                 <div className="text-blue-800">• Use your registered email and password</div>
                 <div className="text-blue-800">• Contact your administrator if you need access</div>
                 <div className="text-blue-800">• All login attempts are logged for security</div>

@@ -107,43 +107,42 @@ const SessionsPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Session Management</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Session Management</h1>
+          <p className="mt-1 text-sm sm:text-base text-gray-600">
             Create and manage church sessions with QR code check-ins
           </p>
         </div>
         {isAdmin && (
-          <div className="mt-4 sm:mt-0">
-            <button
-              type="button"
-              onClick={handleCreateSession}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-              Create Session
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleCreateSession}
+            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            <span className="hidden sm:inline">Create Session</span>
+            <span className="sm:hidden">Create</span>
+          </button>
         )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-3 sm:p-4 lg:p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <CalendarIcon className="h-5 w-5 text-blue-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-2 sm:ml-3 lg:ml-5 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Total Sessions
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-lg sm:text-xl lg:text-2xl font-medium text-gray-900">
                     {sessions.length}
                   </dd>
                 </dl>
@@ -247,34 +246,34 @@ const SessionsPage = () => {
               {sessions.map((session) => {
                 const status = getSessionStatus(session);
                 return (
-                  <div key={session.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <h4 className="text-base font-medium text-gray-900">{session.theme}</h4>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
+                  <div key={session.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                          <h4 className="text-sm sm:text-base font-medium text-gray-900 truncate">{session.theme}</h4>
+                          <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${status.color}`}>
                             {status.label}
                           </span>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                        <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500">
                           <div className="flex items-center">
-                            <CalendarIcon className="h-4 w-4 mr-1" />
-                            {formatDateTime(session.startTime)}
+                            <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
+                            <span className="truncate">{formatDateTime(session.startTime)}</span>
                           </div>
                           {session.endTime && (
                             <div className="flex items-center">
-                              <ClockIcon className="h-4 w-4 mr-1" />
-                              Ends {formatDateTime(session.endTime)}
+                              <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
+                              <span className="truncate">Ends {formatDateTime(session.endTime)}</span>
                             </div>
                           )}
                           {session.location && (
-                            <div className="flex items-center">
-                              <MapPinIcon className="h-4 w-4 mr-1" />
-                              {session.location}
+                            <div className="flex items-start">
+                              <MapPinIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0 mt-0.5" />
+                              <span className="truncate">{session.location}</span>
                             </div>
                           )}
                           <div className="flex items-center">
-                            <UsersIcon className="h-4 w-4 mr-1" />
+                            <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
                             {session.attendanceCount || 0} checked in
                           </div>
                         </div>
@@ -296,33 +295,35 @@ const SessionsPage = () => {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => handleViewAttendance(session)}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          className="inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
                         >
-                          <EyeIcon className="h-4 w-4 mr-1" />
-                          View Attendance
+                          <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                          <span className="hidden sm:inline">View Attendance</span>
+                          <span className="sm:hidden">View</span>
                         </button>
                         <button
                           onClick={() => handleShowQRCode(session)}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          className="inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
                         >
-                          <QrCodeIcon className="h-4 w-4 mr-1" />
-                          QR Code
+                          <QrCodeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                          <span className="hidden sm:inline">QR Code</span>
+                          <span className="sm:hidden">QR</span>
                         </button>
                         {isAdmin && (
                           <>
                             <button
                               onClick={() => handleEditSession(session)}
-                              className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                              className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
                               title="Edit Session"
                             >
                               <PencilIcon className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteSession(session)}
-                              className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-red-400 hover:text-red-500 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              className="inline-flex items-center p-1.5 border border-gray-300 rounded-md text-red-400 hover:text-red-500 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 touch-manipulation"
                               title="Delete Session"
                             >
                               <TrashIcon className="h-4 w-4" />

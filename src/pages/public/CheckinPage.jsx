@@ -19,6 +19,7 @@ const CheckInPage = () => {
   const [checking, setChecking] = useState(false);
   const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [checkedInMember, setCheckedInMember] = useState(null);
+  const [memberDetails, setMemberDetails] = useState(null);
   const [step, setStep] = useState(1); // 1: Secret answer, 2: Member code
   const [formData, setFormData] = useState({
     secretAnswer: '',
@@ -207,6 +208,12 @@ const CheckInPage = () => {
           lastName: memberData?.name?.split(' ').slice(1).join(' ') || '',
           isGuest: false
         });
+        // Store member details for display (PIN and email)
+        setMemberDetails({
+          pin: memberData?.pin || formData.memberCode,
+          email: memberData?.email || '',
+          name: memberData?.name || ''
+        });
         setCheckInSuccess(true);
         showSuccess(response.message || 'Welcome! You have been checked in successfully.');
       } else {
@@ -273,11 +280,11 @@ const CheckInPage = () => {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <ExclamationTriangleIcon className="mx-auto h-16 w-16 text-red-500 mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Session Not Found</h1>
-          <p className="text-gray-600">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-8">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 sm:p-8 text-center">
+          <ExclamationTriangleIcon className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-red-500 mb-3 sm:mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Session Not Found</h1>
+          <p className="text-sm sm:text-base text-gray-600">
             The session you're looking for doesn't exist or may have been removed.
           </p>
         </div>
@@ -287,29 +294,53 @@ const CheckInPage = () => {
 
   if (checkInSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Check-In Successful!</h1>
-          <p className="text-lg text-gray-700 mb-4">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center px-4 py-8">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 sm:p-8 text-center">
+          <CheckCircleIcon className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-green-500 mb-3 sm:mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Check-In Successful!</h1>
+          <p className="text-base sm:text-lg text-gray-700 mb-3 sm:mb-4">
             Welcome, <span className="font-semibold">{checkedInMember.firstName}</span>!
           </p>
           {checkedInMember.isGuest && (
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
               Thank you for joining us as our guest today.
             </p>
           )}
-          <div className="bg-gray-50 rounded-lg p-4 text-left">
-            <h3 className="font-medium text-gray-900 mb-2">{session.theme}</h3>
-            <div className="space-y-2 text-sm text-gray-600">
+          
+          {/* Member Details (PIN and Email) - Only show for non-guests */}
+          {!checkedInMember.isGuest && memberDetails && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 text-left">
+              <h4 className="text-xs sm:text-sm font-semibold text-indigo-900 mb-2">Your Member Information</h4>
+              <div className="space-y-2 text-xs sm:text-sm">
+                {memberDetails.pin && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-indigo-700 font-medium">4-Digit PIN:</span>
+                    <span className="text-indigo-900 font-mono font-bold text-base sm:text-lg bg-white px-2 py-1 rounded border border-indigo-300">
+                      {memberDetails.pin}
+                    </span>
+                  </div>
+                )}
+                {memberDetails.email && (
+                  <div className="flex items-start">
+                    <span className="text-indigo-700 font-medium mr-2">Email:</span>
+                    <span className="text-indigo-900 break-all">{memberDetails.email}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-left">
+            <h3 className="text-sm sm:text-base font-medium text-gray-900 mb-2">{session.theme}</h3>
+            <div className="space-y-2 text-xs sm:text-sm text-gray-600">
               <div className="flex items-center">
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                {formatDateTime(session.startTime)}
+                <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="break-words">{formatDateTime(session.startTime)}</span>
               </div>
               {session.location && (
-                <div className="flex items-center">
-                  <MapPinIcon className="h-4 w-4 mr-2" />
-                  {session.location}
+                <div className="flex items-start">
+                  <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
+                  <span className="break-words">{session.location}</span>
                 </div>
               )}
             </div>
@@ -321,62 +352,62 @@ const CheckInPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-6 lg:py-8">
         <div className="max-w-md mx-auto">
           {/* Header */}
-          <div className="text-center mb-8">
-            <QrCodeIcon className="mx-auto h-16 w-16 text-indigo-600 mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Check In</h1>
-            <p className="text-gray-600">Welcome! Please check in to join the session.</p>
+          <div className="text-center mb-6 sm:mb-8">
+            <QrCodeIcon className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-indigo-600 mb-3 sm:mb-4" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Check In</h1>
+            <p className="text-sm sm:text-base text-gray-600">Welcome! Please check in to join the session.</p>
           </div>
 
           {/* Session Info */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">{session.theme}</h2>
-            <div className="space-y-3 text-sm">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">{session.theme}</h2>
+            <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
               <div className="flex items-center text-gray-600">
-                <CalendarIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                {formatDateTime(session.startTime)}
+                <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-indigo-600 flex-shrink-0" />
+                <span className="break-words">{formatDateTime(session.startTime)}</span>
               </div>
               {session.endTime && (
                 <div className="flex items-center text-gray-600">
-                  <ClockIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                  Ends at {new Date(session.endTime).toLocaleTimeString('en-US', {
+                  <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-indigo-600 flex-shrink-0" />
+                  <span>Ends at {new Date(session.endTime).toLocaleTimeString('en-US', {
                     hour: 'numeric',
                     minute: '2-digit',
                     hour12: true
-                  })}
+                  })}</span>
                 </div>
               )}
               {session.location && (
-                <div className="flex items-center text-gray-600">
-                  <MapPinIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                  {session.location}
+                <div className="flex items-start text-gray-600">
+                  <MapPinIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-indigo-600 flex-shrink-0 mt-0.5" />
+                  <span className="break-words">{session.location}</span>
                 </div>
               )}
             </div>
             {session.description && (
-              <p className="mt-4 text-gray-600 text-sm">{session.description}</p>
+              <p className="mt-3 sm:mt-4 text-gray-600 text-xs sm:text-sm">{session.description}</p>
             )}
           </div>
 
           {/* Step 1: Security Question */}
           {step === 1 && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Step 1: Answer Security Question
               </h3>
-              <div className="bg-blue-50 p-4 rounded-md mb-4">
-                <p className="text-sm font-medium text-blue-900 mb-2">
+              <div className="bg-blue-50 p-3 sm:p-4 rounded-md mb-3 sm:mb-4">
+                <p className="text-xs sm:text-sm font-medium text-blue-900 mb-1.5 sm:mb-2">
                   Security Question:
                 </p>
-                <p className="text-blue-800">
+                <p className="text-sm sm:text-base text-blue-800 break-words">
                   {session.secretQuestion}
                 </p>
               </div>
-              <form onSubmit={handleSecretAnswerSubmit} className="space-y-4">
+              <form onSubmit={handleSecretAnswerSubmit} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label htmlFor="secretAnswer" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="secretAnswer" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     Your Answer
                   </label>
                   <input
@@ -385,15 +416,16 @@ const CheckInPage = () => {
                     id="secretAnswer"
                     value={formData.secretAnswer}
                     onChange={handleChange}
-                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Enter your answer"
                     required
+                    autoComplete="off"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={checking || !formData.secretAnswer.trim()}
-                  className="w-full px-4 py-3 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="w-full px-4 py-3 sm:py-2.5 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                 >
                   {checking ? 'Verifying...' : 'Continue'}
                 </button>
@@ -406,11 +438,11 @@ const CheckInPage = () => {
             <div className="space-y-6">
               {/* Device Authentication Status */}
               {isDeviceAuthenticated(sessionId) && (
-                <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                <div className="bg-green-50 border border-green-200 rounded-md p-3 sm:p-4">
                   <div className="flex">
-                    <CheckCircleIcon className="h-5 w-5 text-green-400 mt-0.5 mr-2" />
-                    <div>
-                      <p className="text-sm font-medium text-green-800">
+                    <CheckCircleIcon className="h-5 w-5 text-green-400 mt-0.5 mr-2 sm:mr-3 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-green-800">
                         Device Authenticated
                       </p>
                       <p className="text-xs text-green-700 mt-1">
@@ -422,35 +454,37 @@ const CheckInPage = () => {
               )}
               
               {/* Member Code Check-in */}
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                   Step 2: Enter Your Member Code
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                   Please enter the 4-digit member code that was sent to your email.
                 </p>
-                <form onSubmit={handleMemberCodeSubmit} className="space-y-4">
+                <form onSubmit={handleMemberCodeSubmit} className="space-y-3 sm:space-y-4">
                   <div>
-                    <label htmlFor="memberCode" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="memberCode" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                       Member Code
                     </label>
                     <input
-                      type="text"
+                      type="tel"
+                      inputMode="numeric"
                       name="memberCode"
                       id="memberCode"
                       maxLength="4"
                       pattern="[0-9]{4}"
                       value={formData.memberCode}
                       onChange={handleChange}
-                      className="w-full text-center text-2xl font-mono border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-3 sm:py-2.5 text-center text-2xl sm:text-3xl font-mono border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="1234"
                       required
+                      autoComplete="off"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={checking || formData.memberCode.length !== 4}
-                    className="w-full px-4 py-3 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    className="w-full px-4 py-3 sm:py-2.5 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                   >
                     {checking ? 'Checking In...' : 'Check In'}
                   </button>
@@ -458,14 +492,14 @@ const CheckInPage = () => {
               </div>
 
               {/* Guest Check-in */}
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                   Don't have a member code? Check in as Guest
                 </h3>
-                <form onSubmit={handleGuestSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleGuestSubmit} className="space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         First Name
                       </label>
                       <input
@@ -474,12 +508,13 @@ const CheckInPage = () => {
                         id="firstName"
                         value={formData.firstName}
                         onChange={handleChange}
-                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                         required
+                        autoComplete="given-name"
                       />
                     </div>
                     <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Last Name
                       </label>
                       <input
@@ -488,15 +523,16 @@ const CheckInPage = () => {
                         id="lastName"
                         value={formData.lastName}
                         onChange={handleChange}
-                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                         required
+                        autoComplete="family-name"
                       />
                     </div>
                   </div>
                   <button
                     type="submit"
                     disabled={checking || !formData.firstName.trim() || !formData.lastName.trim()}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    className="w-full px-4 py-3 sm:py-2.5 border border-gray-300 rounded-md shadow-sm text-sm sm:text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                   >
                     {checking ? 'Checking In...' : 'Check In as Guest'}
                   </button>
@@ -507,11 +543,11 @@ const CheckInPage = () => {
               <div className="text-center">
                 <button
                   onClick={() => clearDeviceAuthentication(sessionId)}
-                  className="text-sm text-indigo-600 hover:text-indigo-500"
+                  className="text-xs sm:text-sm text-indigo-600 hover:text-indigo-500 touch-manipulation"
                 >
                   ← Reset Device Authentication
                 </button>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1 px-4">
                   Clear this device's authentication for this session
                 </p>
               </div>

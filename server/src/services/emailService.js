@@ -30,18 +30,42 @@ class EmailService {
         this.isConfigured = true;
         console.log('✅ Email service initialized with SendGrid SMTP');
       } else if (process.env.SMTP_HOST) {
-        // Use custom SMTP
-        this.transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT) || 587,
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
+        // Use custom SMTP (Gmail or other SMTP server)
+        if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+          console.error('❌ SMTP configuration incomplete. SMTP_USER and SMTP_PASS are required.');
+          console.error('Current SMTP config:', {
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            user: process.env.SMTP_USER ? '***set***' : 'MISSING',
+            pass: process.env.SMTP_PASS ? '***set***' : 'MISSING',
+          });
+          this.isConfigured = false;
+          return;
+        }
+        
+        // Gmail-specific configuration
+        if (process.env.SMTP_HOST.includes('gmail.com')) {
+          this.transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+          });
+        } else {
+          // Generic SMTP configuration
+          this.transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT) || 587,
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+          });
+        }
         this.isConfigured = true;
-        console.log('Email service initialized with SMTP');
+        console.log(`✅ Email service initialized with SMTP (${process.env.SMTP_HOST})`);
       } else if (process.env.NODE_ENV === 'development') {
         // Use Ethereal for development testing
         this.createTestAccount();
@@ -85,14 +109,23 @@ class EmailService {
     // Check if email service is properly configured
     if (!this.isConfigured || !this.transporter) {
       const errorMsg = 'Email service not configured. Please configure SENDGRID_API_KEY or SMTP settings in .env file.';
-      console.error('Email service error:', errorMsg);
+      console.error('❌ Email service error:', errorMsg);
       console.error('Current config:', {
         hasSendGridKey: !!process.env.SENDGRID_API_KEY,
         hasSmtpHost: !!process.env.SMTP_HOST,
+        smtpHost: process.env.SMTP_HOST || 'not set',
+        smtpUser: process.env.SMTP_USER ? '***set***' : 'MISSING',
+        smtpPass: process.env.SMTP_PASS ? '***set***' : 'MISSING',
         nodeEnv: process.env.NODE_ENV,
         isConfigured: this.isConfigured,
         hasTransporter: !!this.transporter,
       });
+      
+      // Provide helpful Gmail-specific error message
+      if (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail.com')) {
+        const gmailError = 'Gmail SMTP requires an App Password. Regular Gmail password will not work. Please:\n1. Enable 2-Step Verification on your Google account\n2. Generate an App Password at https://myaccount.google.com/apppasswords\n3. Use the App Password as SMTP_PASS in your .env file';
+        console.error('📧 Gmail Configuration Help:', gmailError);
+      }
       
       try {
         await this.logEmail(member.id, 'pin', 'Your Church Attendance PIN', 'failed', errorMsg);
@@ -144,8 +177,28 @@ class EmailService {
         message: error.message,
         code: error.code,
         response: error.response,
+        responseCode: error.responseCode,
+        command: error.command,
         stack: error.stack,
       });
+      
+      // Provide specific Gmail error guidance
+      if (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail.com')) {
+        if (error.code === 'EAUTH' || error.message?.includes('authentication') || error.message?.includes('Invalid login')) {
+          console.error('📧 Gmail Authentication Error:');
+          console.error('   Gmail requires an App Password, not your regular password.');
+          console.error('   Steps to fix:');
+          console.error('   1. Go to https://myaccount.google.com/security');
+          console.error('   2. Enable 2-Step Verification');
+          console.error('   3. Go to https://myaccount.google.com/apppasswords');
+          console.error('   4. Generate an App Password for "Mail"');
+          console.error('   5. Use that 16-character password as SMTP_PASS in your .env file');
+        } else if (error.code === 'ECONNECTION' || error.message?.includes('connection')) {
+          console.error('📧 Gmail Connection Error:');
+          console.error('   Check your internet connection and firewall settings.');
+          console.error('   Gmail SMTP requires port 587 to be open.');
+        }
+      }
       
       // Log failed email
       try {
