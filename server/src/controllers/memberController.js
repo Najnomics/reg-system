@@ -12,8 +12,11 @@ const getMembers = async (req, res) => {
     const orderBy = { [sortBy]: sortOrder };
 
     // Build search conditions
+    // Match frontend filter: isActive !== false (includes true and null)
     let where = {
-      isActive: true, // Only show active members by default
+      isActive: {
+        not: false,
+      },
     };
     
     if (query) {
