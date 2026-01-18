@@ -62,6 +62,12 @@ class EmailService {
           });
         } else {
           // Generic SMTP configuration
+          // Check if it's Namecheap Private Email for optimized settings
+          const isNamecheap = process.env.SMTP_HOST && (
+            process.env.SMTP_HOST.includes('privateemail.com') ||
+            process.env.SMTP_HOST.includes('homecomming26.com')
+          );
+          
           this.transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: parseInt(process.env.SMTP_PORT) || 587,
@@ -70,10 +76,16 @@ class EmailService {
               user: process.env.SMTP_USER,
               pass: process.env.SMTP_PASS,
             },
-            // Increased timeout settings
-            connectionTimeout: 30000, // 30 seconds
-            socketTimeout: 30000, // 30 seconds
-            greetingTimeout: 30000, // 30 seconds
+            // Optimized timeout settings
+            connectionTimeout: isNamecheap ? 15000 : 30000, // 15s for Namecheap, 30s for others
+            socketTimeout: isNamecheap ? 15000 : 30000,
+            greetingTimeout: isNamecheap ? 10000 : 30000,
+            // Connection pooling for better performance
+            pool: true,
+            maxConnections: isNamecheap ? 5 : 1, // Namecheap allows more concurrent connections
+            maxMessages: isNamecheap ? 100 : 3, // Send more messages per connection
+            rateDelta: isNamecheap ? 1000 : 1000, // Rate limit: 1 message per second
+            rateLimit: isNamecheap ? 50 : 5, // Max 50 messages per rateDelta for Namecheap
           });
         }
         this.isConfigured = true;
