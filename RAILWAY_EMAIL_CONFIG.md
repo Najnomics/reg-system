@@ -36,7 +36,7 @@ Go to your Railway project → **Variables** tab → Add these:
 SMTP_HOST=mail.privateemail.com
 SMTP_PORT=587
 SMTP_USER=grace_edge@homecomming26.com
-SMTP_PASS=price873
+SMTP_PASS=YOUR_SMTP_PASSWORD
 SMTP_SECURE=false
 FROM_EMAIL=grace_edge@homecomming26.com
 FROM_NAME=Grace Edge Ministries
@@ -49,7 +49,7 @@ CHURCH_NAME=Grace Edge Ministries
 SMTP_HOST=mail.privateemail.com
 SMTP_PORT=465
 SMTP_USER=grace_edge@homecomming26.com
-SMTP_PASS=price873
+SMTP_PASS=YOUR_SMTP_PASSWORD
 SMTP_SECURE=true
 FROM_EMAIL=grace_edge@homecomming26.com
 FROM_NAME=Grace Edge Ministries

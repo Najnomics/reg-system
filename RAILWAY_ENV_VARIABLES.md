@@ -37,7 +37,7 @@ SMTP_USER=grace_edge@homecomming26.com
 ### Email Configuration (Updated):
 - ✅ `SMTP_HOST`: Changed from `smtp.gmail.com` → `mail.privateemail.com`
 - ✅ `SMTP_USER`: Changed from `graceedgeministry@gmail.com` → `grace_edge@homecomming26.com`
-- ✅ `SMTP_PASS`: Changed from Gmail app password → `price873`
+- ✅ `SMTP_PASS`: Changed from Gmail app password → `YOUR_SMTP_PASSWORD`
 - ✅ `FROM_EMAIL`: Changed from `graceedgeministry@gmail.com` → `grace_edge@homecomming26.com`
 
 ### Unchanged:

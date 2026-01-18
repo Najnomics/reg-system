@@ -79,7 +79,7 @@ SMTP_USER=grace_edge@homecomming26.com
 | `RATE_LIMIT_MAX_REQUESTS` | `100` | Max requests per window |
 | `RATE_LIMIT_WINDOW_MS` | `900000` | Rate limit window (15 minutes) |
 | `SMTP_HOST` | `mail.privateemail.com` | Namecheap SMTP server |
-| `SMTP_PASS` | `price873` | Email account password |
+| `SMTP_PASS` | `YOUR_SMTP_PASSWORD` | Email account password |
 | `SMTP_PORT` | `465` | **SSL port** (changed from 587) |
 | `SMTP_SECURE` | `true` | **SSL enabled** (changed from false) |
 | `SMTP_USER` | `grace_edge@homecomming26.com` | Email account username |
