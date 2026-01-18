@@ -10,10 +10,10 @@ Copy these **exact values** to your Railway project → **Variables** tab:
 
 ```env
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
 CHURCH_NAME=Grace Edge Ministries
-DATABASE_URL=postgresql://postgres.ncablrtbpijqsxtsplyz:priceMANwithTHE@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true&schema=public&sslmode=require
-DIRECT_URL=postgresql://postgres:priceMANwithTHE@db.ncablrtbpijqsxtsplyz.supabase.co:5432/postgres?schema=public&sslmode=require
+DATABASE_URL=postgresql://postgres.ncablrtbpijqsxtsplyz:YOUR_DATABASE_PASSWORD@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true&schema=public&sslmode=require
+DIRECT_URL=postgresql://postgres:YOUR_DATABASE_PASSWORD@db.ncablrtbpijqsxtsplyz.supabase.co:5432/postgres?schema=public&sslmode=require
 FROM_EMAIL=grace_edge@homecomming26.com
 FROM_NAME=Grace Edge Ministries
 FRONTEND_URL=https://reg-system-mu.vercel.app
@@ -24,7 +24,7 @@ PORT=3000
 RATE_LIMIT_MAX_REQUESTS=100
 RATE_LIMIT_WINDOW_MS=900000
 SMTP_HOST=mail.privateemail.com
-SMTP_PASS=price873
+SMTP_PASS=YOUR_SMTP_PASSWORD
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=grace_edge@homecomming26.com
@@ -38,10 +38,10 @@ For Railway, copy these without quotes:
 
 ```
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
 CHURCH_NAME=Grace Edge Ministries
-DATABASE_URL=postgresql://postgres.ncablrtbpijqsxtsplyz:priceMANwithTHE@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true&schema=public&sslmode=require
-DIRECT_URL=postgresql://postgres:priceMANwithTHE@db.ncablrtbpijqsxtsplyz.supabase.co:5432/postgres?schema=public&sslmode=require
+DATABASE_URL=postgresql://postgres.ncablrtbpijqsxtsplyz:YOUR_DATABASE_PASSWORD@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true&schema=public&sslmode=require
+DIRECT_URL=postgresql://postgres:YOUR_DATABASE_PASSWORD@db.ncablrtbpijqsxtsplyz.supabase.co:5432/postgres?schema=public&sslmode=require
 FROM_EMAIL=grace_edge@homecomming26.com
 FROM_NAME=Grace Edge Ministries
 FRONTEND_URL=https://reg-system-mu.vercel.app
@@ -52,7 +52,7 @@ PORT=3000
 RATE_LIMIT_MAX_REQUESTS=100
 RATE_LIMIT_WINDOW_MS=900000
 SMTP_HOST=mail.privateemail.com
-SMTP_PASS=price873
+SMTP_PASS=YOUR_SMTP_PASSWORD
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=grace_edge@homecomming26.com

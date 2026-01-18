@@ -11,7 +11,7 @@ sed -i.bak 's|SMTP_HOST=.*|SMTP_HOST=mail.privateemail.com|' .env
 sed -i.bak 's|SMTP_PORT=.*|SMTP_PORT=587|' .env
 sed -i.bak 's|SMTP_SECURE=.*|SMTP_SECURE=false|' .env
 sed -i.bak 's|SMTP_USER=.*|SMTP_USER=grace_edge@homecomming26.com|' .env
-sed -i.bak 's|SMTP_PASS=.*|SMTP_PASS=price873|' .env
+sed -i.bak 's|SMTP_PASS=.*|SMTP_PASS=YOUR_SMTP_PASSWORD|' .env
 sed -i.bak 's|FROM_EMAIL=.*|FROM_EMAIL=grace_edge@homecomming26.com|' .env
 sed -i.bak 's|FROM_NAME=.*|FROM_NAME=Grace Edge Ministries|' .env
 sed -i.bak 's|CHURCH_NAME=.*|CHURCH_NAME=Grace Edge Ministries|' .env

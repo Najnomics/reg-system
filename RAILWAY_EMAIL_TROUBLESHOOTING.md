@@ -99,7 +99,7 @@ SMTP_HOST=mail.privateemail.com
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=grace_edge@homecomming26.com
-SMTP_PASS=price873
+SMTP_PASS=YOUR_SMTP_PASSWORD
 FROM_EMAIL=grace_edge@homecomming26.com
 FROM_NAME=Grace Edge Ministries
 ```
@@ -111,7 +111,7 @@ SMTP_HOST=smtp.privateemail.com
 SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=grace_edge@homecomming26.com
-SMTP_PASS=price873
+SMTP_PASS=YOUR_SMTP_PASSWORD
 FROM_EMAIL=grace_edge@homecomming26.com
 FROM_NAME=Grace Edge Ministries
 ```
