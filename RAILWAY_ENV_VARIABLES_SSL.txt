@@ -1,0 +1,22 @@
+# Railway Environment Variables - With SSL (Port 465)
+# Copy these values to Railway → Variables tab
+
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=admin123
+CHURCH_NAME=Grace Edge Ministries
+DATABASE_URL=postgresql://postgres.ncablrtbpijqsxtsplyz:priceMANwithTHE@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true&schema=public&sslmode=require
+DIRECT_URL=postgresql://postgres:priceMANwithTHE@db.ncablrtbpijqsxtsplyz.supabase.co:5432/postgres?schema=public&sslmode=require
+FROM_EMAIL=grace_edge@homecomming26.com
+FROM_NAME=Grace Edge Ministries
+FRONTEND_URL=https://reg-system-mu.vercel.app
+JWT_EXPIRES_IN=7d
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters-long-change-this-in-production
+NODE_ENV=production
+PORT=3000
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=900000
+SMTP_HOST=mail.privateemail.com
+SMTP_PASS=price873
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=grace_edge@homecomming26.com

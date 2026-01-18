@@ -226,7 +226,7 @@ class EmailService {
         stack: error.stack,
       });
       
-      // Provide specific Gmail error guidance
+      // Provide specific error guidance for different SMTP providers
       if (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail.com')) {
         if (error.code === 'EAUTH' || error.message?.includes('authentication') || error.message?.includes('Invalid login')) {
           console.error('📧 Gmail Authentication Error:');
@@ -237,10 +237,32 @@ class EmailService {
           console.error('   3. Go to https://myaccount.google.com/apppasswords');
           console.error('   4. Generate an App Password for "Mail"');
           console.error('   5. Use that 16-character password as SMTP_PASS in your .env file');
-        } else if (error.code === 'ECONNECTION' || error.message?.includes('connection')) {
+        } else if (error.code === 'ECONNECTION' || error.message?.includes('connection') || error.code === 'ETIMEDOUT') {
           console.error('📧 Gmail Connection Error:');
-          console.error('   Check your internet connection and firewall settings.');
-          console.error('   Gmail SMTP requires port 587 to be open.');
+          console.error('   Railway IP addresses may be blocked by Gmail.');
+          console.error('   Consider using SendGrid or a hosting email service instead.');
+        }
+      } else if (process.env.SMTP_HOST && (
+        process.env.SMTP_HOST.includes('privateemail.com') ||
+        process.env.SMTP_HOST.includes('homecomming26.com')
+      )) {
+        // Namecheap Private Email error guidance
+        if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION' || error.message?.includes('timeout') || error.message?.includes('Connection timeout')) {
+          console.error('📧 Namecheap SMTP Connection Timeout:');
+          console.error('   Railway may not be able to reach Namecheap SMTP on port 587.');
+          console.error('   Try these solutions:');
+          console.error('   1. Switch to port 465 with SSL:');
+          console.error('      SMTP_PORT=465');
+          console.error('      SMTP_SECURE=true');
+          console.error('   2. Try alternative SMTP host:');
+          console.error('      SMTP_HOST=smtp.privateemail.com');
+          console.error('   3. Check Railway logs for firewall/network restrictions');
+          console.error('   4. Verify Namecheap email account is active and credentials are correct');
+        } else if (error.code === 'EAUTH' || error.message?.includes('authentication')) {
+          console.error('📧 Namecheap Authentication Error:');
+          console.error('   Verify your email and password are correct.');
+          console.error('   Email: grace_edge@homecomming26.com');
+          console.error('   Check Namecheap email account settings.');
         }
       }
       
