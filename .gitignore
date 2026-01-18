@@ -81,4 +81,4 @@ secrets/
 server/secrets/
 
 # Test files
-server/test-*.js
+server/test-*.jsserver/.env.backup.*
