@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { authService } from './authService';
+import vercelEmailService from './vercelEmailService.js';
+import apiService from './apiService.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -115,10 +117,10 @@ export const memberService = {
 
   async resendPin(id) {
     try {
-      const response = await api.post(`/members/${id}/resend-pin`);
-      return response.data;
+      // Use apiService which now uses Vercel email service
+      return await apiService.resendPin(id);
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to resend PIN');
+      throw new Error(error.message || 'Failed to resend PIN');
     }
   },
 

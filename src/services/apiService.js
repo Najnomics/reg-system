@@ -1,3 +1,5 @@
+import vercelEmailService from './vercelEmailService.js';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Debug: Log API URL in production to help troubleshoot
@@ -143,29 +145,100 @@ class ApiService {
     });
   }
 
+  /**
+   * Resend PIN email using Vercel serverless function
+   * Fetches member data first, then sends email via Vercel
+   */
   async resendPin(memberId) {
-    return this.request(`/members/${memberId}/resend-pin`, {
-      method: 'POST',
-    });
+    try {
+      // First, fetch member data to get name, email, and pin
+      const memberResponse = await this.getMember(memberId);
+      const member = memberResponse.data?.member || memberResponse.data;
+      
+      if (!member || !member.email || !member.pin) {
+        throw new Error('Member data incomplete. Missing email or PIN.');
+      }
+
+      // Use Vercel email service instead of Railway backend
+      const result = await vercelEmailService.sendPinEmail({
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        pin: member.pin || member.memberCode, // Support both pin and memberCode
+      });
+
+      return {
+        success: true,
+        message: 'PIN email sent successfully',
+        data: result,
+      };
+    } catch (error) {
+      console.error('Failed to resend PIN via Vercel:', error);
+      throw error;
+    }
   }
 
+  /**
+   * Bulk resend PIN emails using Vercel serverless function
+   */
   async bulkResendPin(memberIds) {
-    return this.request('/members/bulk-resend-pin', {
-      method: 'POST',
-      body: JSON.stringify({ memberIds }),
-    });
+    const results = {
+      successful: 0,
+      failed: 0,
+      results: {
+        successful: [],
+        failed: [],
+      },
+    };
+
+    // Process each member sequentially to avoid overwhelming the email service
+    for (const memberId of memberIds) {
+      try {
+        await this.resendPin(memberId);
+        results.successful++;
+        results.results.successful.push(memberId);
+      } catch (error) {
+        results.failed++;
+        results.results.failed.push({
+          memberId,
+          error: error.message || 'Unknown error',
+        });
+        console.error(`Failed to resend PIN for member ${memberId}:`, error);
+      }
+    }
+
+    return {
+      success: results.failed === 0,
+      message: `Sent ${results.successful} PIN emails, ${results.failed} failed`,
+      data: results,
+    };
   }
 
+  /**
+   * Resend PIN emails to all active members using Vercel serverless function
+   */
   async resendPinToAll() {
-    return this.request('/members/resend-pin-all', {
-      method: 'POST',
-    });
+    try {
+      // Fetch all active members
+      const membersResponse = await this.getMembers({ limit: 10000 }); // Get all members
+      const members = membersResponse.data?.members || [];
+      
+      const activeMembers = members.filter(m => m.isActive !== false);
+      const memberIds = activeMembers.map(m => m.id);
+
+      console.log(`Resending PIN emails to ${activeMembers.length} active members...`);
+
+      // Use bulk resend function
+      return await this.bulkResendPin(memberIds);
+    } catch (error) {
+      console.error('Failed to resend PINs to all members:', error);
+      throw error;
+    }
   }
 
   async resendMemberPin(id) {
-    return this.request(`/members/${id}/resend-pin`, {
-      method: 'POST',
-    });
+    // Alias for resendPin
+    return this.resendPin(id);
   }
 
   async bulkUploadMembers(csvData) {
