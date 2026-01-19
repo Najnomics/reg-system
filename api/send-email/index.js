@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 /**
  * Vercel Serverless Function for sending emails
@@ -13,7 +13,7 @@ const nodemailer = require('nodemailer');
  *   memberId?: string (optional, for logging)
  * }
  */
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');

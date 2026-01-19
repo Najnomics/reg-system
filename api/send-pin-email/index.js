@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 /**
  * Vercel Serverless Function for sending PIN emails to members
@@ -12,7 +12,7 @@ const nodemailer = require('nodemailer');
  *   memberPin: string (4-digit PIN)
  * }
  */
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
