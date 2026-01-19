@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+const nodemailer = require('nodemailer');
 
 /**
  * Vercel Serverless Function for sending PIN emails to members
@@ -12,7 +12,7 @@ import nodemailer from 'nodemailer';
  *   memberPin: string (4-digit PIN)
  * }
  */
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ 
@@ -255,4 +255,4 @@ The ${churchName} Team
       } : undefined,
     });
   }
-}
+};

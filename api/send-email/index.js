@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+const nodemailer = require('nodemailer');
 
 /**
  * Vercel Serverless Function for sending emails
@@ -13,7 +13,7 @@ import nodemailer from 'nodemailer';
  *   memberId?: string (optional, for logging)
  * }
  */
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ 
@@ -164,4 +164,4 @@ export default async function handler(req, res) {
       } : undefined,
     });
   }
-}
+};
