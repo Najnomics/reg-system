@@ -13,6 +13,16 @@ const nodemailer = require('nodemailer');
  * }
  */
 module.exports = async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ 
@@ -22,7 +32,20 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { memberId, memberName, memberEmail, memberPin } = req.body;
+    // Parse request body if it's a string
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (parseError) {
+        return res.status(400).json({
+          error: 'Invalid JSON',
+          message: 'Request body must be valid JSON',
+        });
+      }
+    }
+
+    const { memberId, memberName, memberEmail, memberPin } = body;
 
     // Validate required fields
     if (!memberName || !memberEmail || !memberPin) {
@@ -231,10 +254,13 @@ The ${churchName} Team
       message: error.message,
       code: error.code,
       command: error.command,
+      stack: error.stack,
+      name: error.name,
     });
 
     let errorMessage = 'Failed to send PIN email';
     let errorCode = 500;
+    let errorDetails = {};
 
     if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
       errorMessage = 'Connection timeout. Vercel may also be blocking SMTP connections. Consider using SendGrid API instead.';
@@ -246,13 +272,25 @@ The ${churchName} Team
       errorMessage = error.message;
     }
 
+    // Include error details for debugging
+    errorDetails = {
+      code: error.code,
+      command: error.command,
+      name: error.name,
+    };
+
+    // Log environment variable status (without exposing values)
+    console.error('Environment check:', {
+      SMTP_HOST: process.env.SMTP_HOST ? 'SET' : 'MISSING',
+      SMTP_USER: process.env.SMTP_USER ? 'SET' : 'MISSING',
+      SMTP_PASS: process.env.SMTP_PASS ? 'SET' : 'MISSING',
+      SMTP_PORT: process.env.SMTP_PORT || 'DEFAULT (587)',
+    });
+
     return res.status(errorCode).json({
       error: 'Email sending failed',
       message: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? {
-        code: error.code,
-        command: error.command,
-      } : undefined,
+      details: errorDetails,
     });
   }
 };

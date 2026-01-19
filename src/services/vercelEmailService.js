@@ -33,8 +33,18 @@ class VercelEmailService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { message: `HTTP error! status: ${response.status}` };
+        }
+        
+        const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        error.details = errorData.details;
+        throw error;
       }
 
       return await response.json();
@@ -68,8 +78,18 @@ class VercelEmailService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { message: `HTTP error! status: ${response.status}` };
+        }
+        
+        const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        error.details = errorData.details;
+        throw error;
       }
 
       return await response.json();
