@@ -81,6 +81,19 @@ CHURCH_NAME=Your Church Name
 ```
 **Note:** These are used in email templates. If not set, defaults are used.
 
+### Chariot Authentication (Required if using Chariot system)
+```env
+CHARIOT_LEADER_PASSWORD=your-secure-leader-password
+CHARIOT_ASSISTANT_PASSWORD=your-secure-assistant-password
+```
+**Important:** 
+- These are preset passwords used by ALL chariot leaders and assistants
+- Chariot leaders use `CHARIOT_LEADER_PASSWORD`
+- Chariot assistants use `CHARIOT_ASSISTANT_PASSWORD`
+- These should be strong passwords (minimum 8 characters recommended)
+- All leaders share the same password, all assistants share the same password
+- Members must be assigned as leaders/assistants in the system to use these passwords
+
 ## Complete Railway Environment Variables List
 
 Copy and paste this into Railway's environment variables section:
@@ -116,6 +129,10 @@ SENDGRID_API_KEY=SG.your-sendgrid-api-key-here
 FROM_EMAIL=noreply@yourchurch.com
 FROM_NAME=Your Church Name
 CHURCH_NAME=Your Church Name
+
+# Chariot Authentication (Required if using Chariot system)
+CHARIOT_LEADER_PASSWORD=your-secure-leader-password-here
+CHARIOT_ASSISTANT_PASSWORD=your-secure-assistant-password-here
 ```
 
 ## How to Add Environment Variables in Railway
@@ -143,6 +160,7 @@ CHURCH_NAME=Your Church Name
 - [ ] Set `CORS_ORIGIN` (same as FRONTEND_URL if frontend is on same domain)
 - [ ] Configure email (SendGrid API key OR SMTP settings)
 - [ ] Set `FROM_EMAIL`, `FROM_NAME`, `CHURCH_NAME` (optional but recommended)
+- [ ] Set `CHARIOT_LEADER_PASSWORD` and `CHARIOT_ASSISTANT_PASSWORD` (required if using Chariot system)
 
 ## Testing Your Configuration
 
@@ -180,6 +198,12 @@ If you see errors, check:
 ### Authentication Errors
 - Verify `JWT_SECRET` is set and is strong (32+ characters)
 - Check `JWT_EXPIRES_IN` is valid format (e.g., `7d`, `24h`)
+
+### Chariot Login Errors
+- Verify `CHARIOT_LEADER_PASSWORD` and `CHARIOT_ASSISTANT_PASSWORD` are set
+- Ensure member is assigned as leader/assistant in the system
+- Check member email matches exactly (case-insensitive)
+- Verify member account is active (`isActive: true`)
 
 ## Security Best Practices
 
