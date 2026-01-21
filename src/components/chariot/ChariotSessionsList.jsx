@@ -111,7 +111,7 @@ const ChariotSessionsList = () => {
                 {/* Actions */}
                 <button
                   onClick={() => handleViewSession(session.id)}
-                  className="btn btn-primary w-full text-sm sm:text-base py-2 sm:py-2.5"
+                  className="w-full inline-flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
                 >
                   <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
                   <span>View Attendance</span>
@@ -133,10 +133,10 @@ const ChariotSessionsList = () => {
                 </h3>
                 <button
                   onClick={() => setSelectedSession(null)}
-                  className="text-gray-400 hover:text-gray-500 flex-shrink-0"
+                  className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0 touch-manipulation"
                   aria-label="Close"
                 >
-                  <span className="text-2xl sm:text-3xl">&times;</span>
+                  <span className="text-xl sm:text-2xl">&times;</span>
                 </button>
               </div>
 
