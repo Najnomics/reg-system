@@ -14,16 +14,22 @@ import {
   UsersIcon,
   PlayIcon,
   EyeIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import QRCodeModal from '../../components/admin/QRCodeModal';
+import { apiCache } from '../../utils/cache';
 
 const SessionsPage = () => {
   const navigate = useNavigate();
-  const { sessions, fetchSessions, loading, showSuccess, showError } = useApp();
+  const { sessions, fetchSessions, loading, showSuccess, showError, setSessions } = useApp();
   const { userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     // Fetch sessions on mount - use cache for instant display, then refresh in background
@@ -58,22 +64,48 @@ const SessionsPage = () => {
     navigate(`/admin/sessions/${session.id}/chariot-attendance`);
   };
 
-  const handleDeleteSession = async (session) => {
+  const handleDeleteSession = (session) => {
     if (!isAdmin) return;
-    
-    const confirmMessage = session.attendanceCount > 0
-      ? `This session has ${session.attendanceCount} attendance record(s). It will be deactivated (not deleted) to preserve attendance data. Continue?`
-      : 'Are you sure you want to delete this session?';
-    
-    if (window.confirm(confirmMessage)) {
-      try {
-        await apiService.deleteSession(session.id);
-        showSuccess('Session deleted successfully!');
-        fetchSessions(true); // Force refresh the list
-      } catch (error) {
-        console.error('Failed to delete session:', error);
-        showError('Failed to delete session. Please try again.');
+    setSessionToDelete(session);
+    setDeleteConfirmText('');
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (deleteConfirmText.toLowerCase() !== 'delete') {
+      showError('Please type "delete" to confirm');
+      return;
+    }
+
+    if (!sessionToDelete) return;
+
+    try {
+      // Clear cache for sessions
+      apiCache.clearPattern('/sessions');
+      
+      // Delete session via API (this will also update context state)
+      await apiService.deleteSession(sessionToDelete.id);
+      
+      // Remove from local state immediately for instant UI update
+      if (setSessions) {
+        setSessions((prev) => {
+          const updated = prev.filter(s => s.id !== sessionToDelete.id);
+          return updated;
+        });
       }
+      
+      showSuccess('Session deleted successfully!');
+      
+      // Force refresh to ensure consistency with backend
+      fetchSessions(true);
+      
+      // Close modal
+      setDeleteModalOpen(false);
+      setDeleteConfirmText('');
+      setSessionToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      showError('Failed to delete session. Please try again.');
     }
   };
 
@@ -350,6 +382,91 @@ const SessionsPage = () => {
           session={selectedSession}
           onClose={() => setShowQRModal(false)}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && sessionToDelete && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-4 sm:p-6">
+              {/* Header */}
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900">
+                    Confirm Deletion
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500 break-words">
+                      You are about to delete <strong>{sessionToDelete.theme}</strong>. This action cannot be undone.
+                    </p>
+                    {sessionToDelete.attendanceCount > 0 && (
+                      <p className="text-sm text-yellow-600 mt-2">
+                        ⚠️ This session has {sessionToDelete.attendanceCount} attendance record(s). Attendance data will be preserved.
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-700 mt-3 font-medium">
+                      Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">delete</span> to confirm:
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setDeleteConfirmText('');
+                    setSessionToDelete(null);
+                  }}
+                  className="ml-4 flex-shrink-0 text-gray-400 hover:text-gray-500 touch-manipulation"
+                  aria-label="Close"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Confirmation Input */}
+              <div className="mt-4">
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type 'delete' to confirm"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-sm sm:text-base"
+                  autoFocus
+                />
+                {deleteConfirmText && deleteConfirmText.toLowerCase() !== 'delete' && (
+                  <p className="mt-2 text-xs sm:text-sm text-red-600">
+                    Please type exactly "delete" to confirm
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setDeleteConfirmText('');
+                    setSessionToDelete(null);
+                  }}
+                  className="w-full sm:w-auto inline-flex justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteSession}
+                  disabled={deleteConfirmText.toLowerCase() !== 'delete'}
+                  className="w-full sm:w-auto inline-flex justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                >
+                  Delete Session
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

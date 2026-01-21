@@ -420,6 +420,9 @@ class ApiService {
   }
 
   async deleteSession(id) {
+    // Clear cache for sessions when deleting
+    apiCache.clearPattern('/sessions');
+    
     return this.request(`/sessions/${id}`, {
       method: 'DELETE',
     });

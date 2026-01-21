@@ -266,9 +266,21 @@ export const AppProvider = ({ children }) => {
 
   const deleteSession = async (id) => {
     try {
+      // Clear cache for sessions
+      const { apiCache } = require('../utils/cache');
+      apiCache.clearPattern('/sessions');
+      
       await apiService.deleteSession(id);
-      setSessions(prev => prev.filter(s => s.id !== id));
-      showSuccess('Session deleted successfully');
+      
+      // Remove from state immediately
+      setSessions(prev => {
+        const updated = prev.filter(s => s.id !== id);
+        // Update cache
+        setSessionsCache({ data: updated, timestamp: Date.now() });
+        return updated;
+      });
+      
+      // Don't show success here - let the calling component handle it
     } catch (error) {
       console.error('Failed to delete session:', error);
       showError('Failed to delete session');
@@ -314,6 +326,7 @@ export const AppProvider = ({ children }) => {
     members,
     setMembers,
     sessions,
+    setSessions,
     loading,
     fetchMembers,
     fetchSessions,
