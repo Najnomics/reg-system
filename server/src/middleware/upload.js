@@ -11,12 +11,15 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
     'application/vnd.ms-excel', // .xls
     'text/csv', // .csv
+    'application/csv', // .csv
+    'text/plain', // some browsers send CSV as text/plain
+    'application/octet-stream', // some clients send CSV as octet-stream
   ];
 
   const allowedExtensions = ['.xlsx', '.xls', '.csv'];
   const fileExtension = path.extname(file.originalname).toLowerCase();
 
-  if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(fileExtension)) {
+  if (allowedExtensions.includes(fileExtension) && allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file format. Please upload Excel (.xlsx, .xls) or CSV files only.'), false);

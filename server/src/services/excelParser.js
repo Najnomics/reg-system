@@ -242,6 +242,9 @@ const validateFileFormat = (filename, mimetype) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-excel',
     'text/csv',
+    'application/csv',
+    'text/plain',
+    'application/octet-stream',
   ];
 
   const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
