@@ -356,6 +356,12 @@ const CompleteMembersPage = () => {
       return;
     }
 
+    const maxFileSize = 10 * 1024 * 1024;
+    if (file.size > maxFileSize) {
+      showError('File size must be less than 10MB.');
+      return;
+    }
+
     try {
       // Create FormData for multipart/form-data upload
       const formData = new FormData();

@@ -31,7 +31,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 1, // Only allow single file upload
   },
 });
@@ -46,7 +46,7 @@ const uploadMiddleware = (req, res, next) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({
           error: 'File too large',
-          message: 'File size must be less than 5MB',
+          message: 'File size must be less than 10MB',
         });
       }
       if (err.code === 'LIMIT_FILE_COUNT') {

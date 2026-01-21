@@ -481,38 +481,20 @@ const deleteSession = async (req, res) => {
       });
     }
 
-    // Check if session has attendance records
-    if (existingSession._count.attendance > 0) {
-      // Soft delete by setting isActive to false
-      await prisma.session.update({
-        where: { id },
-        data: { isActive: false },
-      });
+    // Hard delete session and related attendance records (cascades via Prisma schema)
+    await prisma.session.delete({
+      where: { id },
+    });
 
-      res.status(200).json({
-        success: true,
-        message: 'Session deactivated (attendance records preserved)',
-        data: {
-          sessionId: id,
-          theme: existingSession.theme,
-          attendanceCount: existingSession._count.attendance,
-        },
-      });
-    } else {
-      // Hard delete if no attendance records
-      await prisma.session.delete({
-        where: { id },
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Session deleted successfully',
-        data: {
-          sessionId: id,
-          theme: existingSession.theme,
-        },
-      });
-    }
+    res.status(200).json({
+      success: true,
+      message: 'Session deleted successfully',
+      data: {
+        sessionId: id,
+        theme: existingSession.theme,
+        attendanceCount: existingSession._count.attendance,
+      },
+    });
 
   } catch (error) {
     console.error('Delete session error:', error);

@@ -110,6 +110,9 @@ const SessionsPage = () => {
   };
 
   const getSessionStatus = (session) => {
+    if (session.isActive === false) {
+      return { status: 'inactive', label: 'Inactive', color: 'bg-red-100 text-red-800' };
+    }
     const now = new Date();
     const startTime = new Date(session.startTime);
     const endTime = session.endTime ? new Date(session.endTime) : null;

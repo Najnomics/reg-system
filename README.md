@@ -13,7 +13,7 @@ A comprehensive web-based attendance tracking system designed for churches and r
 - [Contributing](#-contributing)
 - [License](#-license)
 
-## 🎯 Overview
+## Overview
 
 The Church Attendance Management System streamlines the process of tracking member attendance across multiple church sessions. The system features a multi-role design:
 
@@ -28,7 +28,7 @@ The Church Attendance Management System streamlines the process of tracking memb
 3. **Attendance Check-in**: Members scan QR codes, answer location-verification questions, and enter their PINs
 4. **Reporting**: Admin and RegReps can view real-time attendance and export reports
 
-## ✨ Features
+## Features
 
 ### Admin Features
 
@@ -80,7 +80,7 @@ The Church Attendance Management System streamlines the process of tracking memb
 - Instant confirmation
 - No account required
 
-## 👥 User Roles
+## User Roles
 
 The system supports three user types:
 
@@ -115,7 +115,7 @@ The system supports three user types:
 - Input validation and sanitization
 - Row Level Security (RLS) enabled on database
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Frontend
 - **Framework**: React 19.x
@@ -151,7 +151,7 @@ The system supports three user types:
 - **Hosting (Frontend)**: Vercel, Netlify, GitHub Pages
 - **Email Service**: SendGrid (or any SMTP)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+ LTS
@@ -217,7 +217,7 @@ npm run dev
 
 **Note:** Default admin credentials depend on your seed script. Check `server/src/scripts/seed.js` for details.
 
-## 📚 Documentation
+##  Documentation
 
 Comprehensive documentation is available in the `docs/` folder:
 
@@ -245,7 +245,7 @@ Comprehensive documentation is available in the `docs/` folder:
 
 For detailed API documentation, see [docs/API.md](docs/API.md).
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Backend tests
@@ -255,7 +255,7 @@ cd server && npm test
 npm test
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -265,16 +265,16 @@ npm test
 
 See [docs/DEVELOPER.md](docs/DEVELOPER.md) for development guidelines.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- Built with ❤️ for the church community
+- Built with love for the church community
 - Special thanks to all contributors
 
-## 📞 Support
+## Support
 
 For support or questions:
 - Check the [documentation](docs/) folder
@@ -304,4 +304,4 @@ For support or questions:
 
 ---
 
-**Made with ❤️ for the church community**
+**Made with love for the church community**

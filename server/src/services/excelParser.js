@@ -40,8 +40,9 @@ const parseExcelFile = async (fileBuffer, filename) => {
     // Find column indexes
     const columnMapping = findColumnMapping(headers);
     
-    if (columnMapping.name === undefined || columnMapping.email === undefined) {
-      throw new Error('Required columns "name" and "email" not found in the file');
+    const hasNameColumn = columnMapping.name !== undefined || columnMapping.firstName !== undefined || columnMapping.lastName !== undefined;
+    if (!hasNameColumn || columnMapping.email === undefined) {
+      throw new Error('Required columns "name" (or "firstName"/"lastName") and "email" not found in the file');
     }
 
     // Process data rows (skip header row)
@@ -95,8 +96,12 @@ const findColumnMapping = (headers) => {
     const normalizedHeader = header.replace(/[^a-z0-9]/g, '');
     
     // Map common variations
-    if (['name', 'fullname', 'membername', 'firstname'].includes(normalizedHeader)) {
+    if (['name', 'fullname', 'membername'].includes(normalizedHeader)) {
       mapping.name = index;
+    } else if (['firstname'].includes(normalizedHeader)) {
+      mapping.firstName = index;
+    } else if (['lastname'].includes(normalizedHeader)) {
+      mapping.lastName = index;
     } else if (['email', 'emailaddress', 'mail'].includes(normalizedHeader)) {
       mapping.email = index;
     }
@@ -109,9 +114,18 @@ const findColumnMapping = (headers) => {
  * Process a single row of data
  */
 const processRow = async (row, columnMapping, rowNumber) => {
-  // Extract values from row
-  const name = row[columnMapping.name]?.toString().trim();
-  const email = row[columnMapping.email]?.toString().trim().toLowerCase();
+  const normalizeCell = (value) => (value === undefined || value === null ? '' : value.toString().trim());
+  const hasContent = Array.isArray(row) && row.some(cell => normalizeCell(cell) !== '');
+  if (!hasContent) {
+    return null;
+  }
+
+  const nameCell = columnMapping.name !== undefined ? normalizeCell(row[columnMapping.name]) : '';
+  const firstName = columnMapping.firstName !== undefined ? normalizeCell(row[columnMapping.firstName]) : '';
+  const lastName = columnMapping.lastName !== undefined ? normalizeCell(row[columnMapping.lastName]) : '';
+  const email = columnMapping.email !== undefined ? normalizeCell(row[columnMapping.email]).toLowerCase() : '';
+  const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  const name = nameCell || combinedName;
 
   // Validate required fields
   if (!name) {
@@ -135,13 +149,23 @@ const processRow = async (row, columnMapping, rowNumber) => {
   // Generate PIN for the member
   const { pin, pinHash } = await generateMemberPin();
 
-  return {
+  const member = {
     name,
     email,
     pin,
     pinHash,
     rowNumber,
   };
+
+  if (firstName) {
+    member.firstName = firstName;
+  }
+
+  if (lastName) {
+    member.lastName = lastName;
+  }
+
+  return member;
 };
 
 /**
