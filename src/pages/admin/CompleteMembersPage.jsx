@@ -130,7 +130,7 @@ const CompleteMembersPage = () => {
       setMembers(prev => [...prev, newMember]);
       
       // Show success message
-      showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully! PIN email has been sent.`);
+      showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully! You can send the PIN email manually using the "Resend PIN" button.`);
       
       // Close modal and reset
       setShowAddModal(false);
