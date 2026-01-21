@@ -1137,7 +1137,6 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
     firstName: member?.firstName || '',
     lastName: member?.lastName || '',
     email: member?.email || '',
-    phone: member?.phone || '',
     dateOfBirth: member?.dateOfBirth || '',
     address: member?.address || '',
     emergencyContact: member?.emergencyContact || '',
