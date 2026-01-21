@@ -65,7 +65,7 @@ const schemas = {
       'string.email': 'Email must be a valid email address',
       'any.required': 'Email is required',
     }),
-    phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).optional().allow('').messages({
+    phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).allow('', null).optional().messages({
       'string.pattern.base': 'Phone number format is invalid',
     }),
   }),
@@ -78,7 +78,7 @@ const schemas = {
     email: Joi.string().email().optional().messages({
       'string.email': 'Email must be a valid email address',
     }),
-    phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).optional().allow('').messages({
+    phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).allow('', null).optional().messages({
       'string.pattern.base': 'Phone number format is invalid',
     }),
     isActive: Joi.boolean().optional(),
