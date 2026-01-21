@@ -274,12 +274,6 @@ const uploadMembers = async (req, res) => {
     ];
 
     // Categorize errors for detailed reporting
-    // Ensure all error arrays are properly initialized
-    const parseErrors = Array.isArray(parseResult.errors) ? parseResult.errors : [];
-    const duplicateErrorsArray = Array.isArray(duplicateErrors) ? duplicateErrors : [];
-    const fileDuplicatesArray = Array.isArray(fileDuplicates) ? fileDuplicates : [];
-    const importErrorsArray = Array.isArray(importErrors) ? importErrors : [];
-    
     const retriedErrors = importErrorsArray.filter(err => err && err.retried === true);
     const permanentErrors = importErrorsArray.filter(err => err && err.type === 'permanent_error');
     const transientErrors = importErrorsArray.filter(err => err && err.permanent !== true && err.type === 'creation_error');
