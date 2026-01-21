@@ -23,7 +23,6 @@ const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const RegRepsPage = lazy(() => import('./pages/admin/RegRepsPage'));
 const ChariotsPage = lazy(() => import('./pages/admin/ChariotsPage'));
 const CheckInPage = lazy(() => import('./pages/public/CheckinPage'));
-const ChariotLoginPage = lazy(() => import('./pages/chariot/ChariotLoginPage'));
 const ChariotDashboard = lazy(() => import('./pages/chariot/ChariotDashboard'));
 
 // Loading component
@@ -46,7 +45,6 @@ function App() {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/admin/login" element={<WorkingLoginPage />} />
-                <Route path="/chariot/login" element={<ChariotLoginPage />} />
                 <Route path="/checkin/:sessionId" element={<CheckInPage />} />
                 
                 {/* Protected Admin Routes */}
