@@ -86,7 +86,6 @@ const uploadMembers = async (req, res) => {
     const successfulImports = [];
     const importErrors = [];
     const duplicateErrors = [];
-    const emailFailures = [];
     
     for (const memberData of parseResult.data) {
       try {
@@ -144,21 +143,8 @@ const uploadMembers = async (req, res) => {
           member: newMember,
         });
 
-        // Send PIN email to new member
-        try {
-          const emailService = require('../services/emailService');
-          await emailService.sendPin(newMember);
-        } catch (emailError) {
-          console.error(`Failed to send PIN email to ${newMember.email}:`, emailError);
-          emailFailures.push({
-            row: memberData.rowNumber,
-            email: memberData.email,
-            name: memberData.name,
-            error: 'Member created successfully but PIN email failed to send',
-            type: 'email_failure',
-            details: emailError.message
-          });
-        }
+        // PIN email sending is disabled - admins will send PINs manually via the admin panel
+        // Email can be sent manually using the "Resend PIN" feature (individual or bulk)
 
       } catch (error) {
         console.error(`Error creating member (row ${memberData.rowNumber}):`, error);
@@ -187,8 +173,7 @@ const uploadMembers = async (req, res) => {
       invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')).length,
       duplicateInFile: fileDuplicates.length,
       duplicateInDatabase: duplicateErrors.length,
-      creationErrors: importErrors.length,
-      emailFailures: emailFailures.length
+      creationErrors: importErrors.length
     };
 
     // Prepare detailed response
@@ -211,9 +196,6 @@ const uploadMembers = async (req, res) => {
           invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')),
           validationErrors: parseResult.errors.filter(err => !err.error.includes('Invalid email')),
           creationErrors: importErrors
-        },
-        warnings: {
-          emailFailures: emailFailures
         }
       },
     };
@@ -225,9 +207,6 @@ const uploadMembers = async (req, res) => {
       return res.status(400).json(response);
     } else if (allErrors.length > 0) {
       response.message += ` ${allErrors.length} rows had errors.`;
-      if (emailFailures.length > 0) {
-        response.message += ` ${emailFailures.length} PIN emails failed to send.`;
-      }
       return res.status(207).json(response); // 207 Multi-Status
     }
 

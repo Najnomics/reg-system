@@ -219,23 +219,13 @@ const createMember = async (req, res) => {
       },
     });
 
-    // Send PIN email to new member asynchronously (non-blocking)
-    // Don't await - let it send in the background
-    setImmediate(async () => {
-      try {
-        const emailService = require('../services/emailService');
-        await emailService.sendPin(member);
-        console.log(`✅ PIN email sent successfully to ${member.email}`);
-      } catch (emailError) {
-        console.error(`❌ Failed to send PIN email to ${member.email}:`, emailError);
-        // Email failure doesn't affect member creation
-      }
-    });
+    // PIN email sending is disabled - admins will send PINs manually via the admin panel
+    // Email can be sent manually using the "Resend PIN" feature
 
-    // Return success immediately without waiting for email
+    // Return success response
     res.status(201).json({
       success: true,
-      message: 'Member created successfully. PIN email is being sent.',
+      message: 'Member created successfully.',
       data: { member },
     });
 
