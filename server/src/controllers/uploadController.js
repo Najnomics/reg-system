@@ -5,7 +5,7 @@ const { parseExcelFile, generateTemplate, validateFileFormat } = require('../ser
  * Helper function to create a member with retry logic
  * Retries up to 3 times for transient errors
  */
-const createMemberWithRetry = async (memberData, maxRetries = 3) => {
+const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
   // Validate required fields
   if (!memberData || !memberData.name || !memberData.email) {
     return {
@@ -26,6 +26,15 @@ const createMemberWithRetry = async (memberData, maxRetries = 3) => {
     };
   }
 
+  if (!createdBy) {
+    return {
+      success: false,
+      error: 'Missing creator id for member creation',
+      attempts: 0,
+      permanent: true
+    };
+  }
+
   let lastError = null;
   let attempt = 0;
   
@@ -38,6 +47,7 @@ const createMemberWithRetry = async (memberData, maxRetries = 3) => {
           pin: memberData.pin,
           pinHash: memberData.pinHash,
           isActive: true,
+          createdBy,
         },
         select: {
           id: true,
@@ -104,6 +114,13 @@ const uploadMembers = async (req, res) => {
       return res.status(400).json({
         error: 'No file uploaded',
         message: 'Please select a file to upload',
+      });
+    }
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Admin authentication required',
       });
     }
 
@@ -211,7 +228,7 @@ const uploadMembers = async (req, res) => {
         }
 
         // Create new member with retry logic
-        const result = await createMemberWithRetry(memberData, 3);
+        const result = await createMemberWithRetry(memberData, req.user.id, 3);
         
         if (result.success) {
           successfulImports.push({

@@ -34,7 +34,6 @@ async function main() {
     const defaultSettings = [
       { key: 'church_name', value: 'Your Church Name' },
       { key: 'church_address', value: 'Your Church Address' },
-      { key: 'church_phone', value: '+1234567890' },
       { key: 'church_email', value: 'info@yourchurch.com' },
       { key: 'max_pin_attempts', value: '3' },
       { key: 'session_buffer_minutes', value: '15' },
@@ -57,19 +56,16 @@ async function main() {
         {
           name: 'John Doe',
           email: 'john@example.com',
-          phone: '+1234567890',
           pin: '12345',
         },
         {
           name: 'Jane Smith',
           email: 'jane@example.com',
-          phone: '+1987654321',
           pin: '54321',
         },
         {
           name: 'Bob Johnson',
           email: 'bob@example.com',
-          phone: '+1555666777',
           pin: '11111',
         },
       ];
@@ -81,7 +77,6 @@ async function main() {
           where: { email: memberData.email },
           update: {
             name: memberData.name,
-            phone: memberData.phone,
             pin: memberData.pin,
             pinHash,
             isActive: true,
@@ -89,7 +84,6 @@ async function main() {
           create: {
             name: memberData.name,
             email: memberData.email,
-            phone: memberData.phone,
             pin: memberData.pin,
             pinHash,
             isActive: true,

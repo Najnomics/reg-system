@@ -476,7 +476,6 @@ const searchMembers = async (req, res) => {
           id: true,
           name: true,
           email: true,
-          phone: true,
           pin: true,
           isActive: true,
           createdAt: true,

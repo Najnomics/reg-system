@@ -141,7 +141,6 @@ const schemas = {
     query: Joi.string().trim().min(1).max(100).optional().allow(''),
     name: Joi.string().trim().min(1).max(100).optional().allow(''),
     email: Joi.string().email().optional().allow(''),
-    phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).optional().allow(''),
     pin: Joi.string().pattern(/^\d{4}$/).optional().allow(''),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),

@@ -1140,7 +1140,6 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
     dateOfBirth: member?.dateOfBirth || '',
     address: member?.address || '',
     emergencyContact: member?.emergencyContact || '',
-    emergencyPhone: member?.emergencyPhone || '',
   });
 
   const [errors, setErrors] = useState({});

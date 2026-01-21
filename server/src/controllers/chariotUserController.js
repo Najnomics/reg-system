@@ -37,7 +37,6 @@ const getChariotMembers = async (req, res) => {
       where.OR = [
         { name: { contains: query, mode: 'insensitive' } },
         { email: { contains: query, mode: 'insensitive' } },
-        { phone: { contains: query, mode: 'insensitive' } },
       ];
     }
 
@@ -52,7 +51,6 @@ const getChariotMembers = async (req, res) => {
           id: true,
           name: true,
           email: true,
-          phone: true,
           pin: true,
           isActive: true,
           createdAt: true,
@@ -237,7 +235,6 @@ const getChariotSession = async (req, res) => {
               id: true,
               name: true,
               email: true,
-              phone: true,
             },
           },
         },
@@ -252,7 +249,6 @@ const getChariotSession = async (req, res) => {
           id: true,
           name: true,
           email: true,
-          phone: true,
         },
       }),
     ]);
@@ -272,7 +268,6 @@ const getChariotSession = async (req, res) => {
       id: a.member.id,
       name: a.member.name,
       email: a.member.email,
-      phone: a.member.phone,
       checkedInAt: a.checkedInAt,
       status: 'present',
     }));
@@ -283,7 +278,6 @@ const getChariotSession = async (req, res) => {
         id: m.id,
         name: m.name,
         email: m.email,
-        phone: m.phone,
         checkedInAt: null,
         status: 'absent',
       }));

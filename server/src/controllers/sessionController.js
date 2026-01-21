@@ -1068,7 +1068,6 @@ const getSessionChariotAttendance = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
-                phone: true,
                 isActive: true,
               },
             },
@@ -1101,7 +1100,6 @@ const getSessionChariotAttendance = async (req, res) => {
           id: cm.member.id,
           name: cm.member.name,
           email: cm.member.email,
-          phone: cm.member.phone,
           status: attendedMemberIds.has(cm.member.id) ? 'present' : 'absent',
           checkedInAt: attendanceMap.get(cm.member.id) || null,
         }));

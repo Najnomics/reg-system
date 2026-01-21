@@ -27,7 +27,6 @@ const getSessionReport = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
-                phone: true,
               },
             },
           },
@@ -137,7 +136,6 @@ const exportAttendance = async (req, res) => {
             id: true,
             name: true,
             email: true,
-            phone: true,
             isActive: true,
           },
         },
@@ -157,7 +155,6 @@ const exportAttendance = async (req, res) => {
       'Member ID': record.member.id,
       'Member Name': record.member.name,
       'Email': record.member.email,
-      'Phone': record.member.phone || '',
       'Member Status': record.member.isActive ? 'Active' : 'Inactive',
       'Check-in Time': new Date(record.checkedInAt).toLocaleString(),
       'Check-in Date': new Date(record.checkedInAt).toLocaleDateString(),
@@ -212,7 +209,6 @@ const exportAttendance = async (req, res) => {
         { width: 12 }, // Member ID
         { width: 25 }, // Member Name
         { width: 30 }, // Email
-        { width: 15 }, // Phone
         { width: 12 }, // Member Status
         { width: 20 }, // Check-in Time
         { width: 15 }, // Check-in Date

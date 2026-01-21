@@ -40,7 +40,7 @@ const parseExcelFile = async (fileBuffer, filename) => {
     // Find column indexes
     const columnMapping = findColumnMapping(headers);
     
-    if (!columnMapping.name || !columnMapping.email) {
+    if (columnMapping.name === undefined || columnMapping.email === undefined) {
       throw new Error('Required columns "name" and "email" not found in the file');
     }
 
@@ -62,7 +62,6 @@ const parseExcelFile = async (fileBuffer, filename) => {
           row: rowNumber,
           name: row[columnMapping.name]?.toString().trim() || 'Unknown',
           email: row[columnMapping.email]?.toString().trim() || 'Missing',
-          phone: columnMapping.phone ? row[columnMapping.phone]?.toString().trim() : '',
           error: error.message,
           type: error.message.includes('Invalid email') ? 'invalid_email' : 'validation_error',
           data: row,
@@ -151,10 +150,10 @@ const processRow = async (row, columnMapping, rowNumber) => {
 const generateTemplate = () => {
   // Create template data
   const templateData = [
-    ['name', 'email', 'phone'], // Headers
-    ['John Doe', 'john@example.com', '+1234567890'], // Sample row 1
-    ['Jane Smith', 'jane@example.com', '+1987654321'], // Sample row 2
-    ['Bob Johnson', 'bob@example.com', ''], // Sample row 3 (no phone)
+    ['name', 'email'], // Headers
+    ['John Doe', 'john@example.com'], // Sample row 1
+    ['Jane Smith', 'jane@example.com'], // Sample row 2
+    ['Bob Johnson', 'bob@example.com'], // Sample row 3
   ];
 
   // Create workbook and worksheet
@@ -165,7 +164,6 @@ const generateTemplate = () => {
   ws['!cols'] = [
     { width: 20 }, // name
     { width: 25 }, // email
-    { width: 15 }, // phone
   ];
 
   // Style the header row
