@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { parseExcelFile, generateTemplate, validateFileFormat } = require('../services/excelParser');
+const { randomUUID } = require('crypto');
 
 /**
  * Helper function to create a member with retry logic
@@ -42,6 +43,7 @@ const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
     try {
       const newMember = await prisma.member.create({
         data: {
+          id: randomUUID(),
           name: memberData.name.trim(),
           email: memberData.email.trim().toLowerCase(),
           pin: memberData.pin,
