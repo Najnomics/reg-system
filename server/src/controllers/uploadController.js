@@ -6,6 +6,26 @@ const { parseExcelFile, generateTemplate, validateFileFormat } = require('../ser
  * Retries up to 3 times for transient errors
  */
 const createMemberWithRetry = async (memberData, maxRetries = 3) => {
+  // Validate required fields
+  if (!memberData || !memberData.name || !memberData.email) {
+    return {
+      success: false,
+      error: 'Missing required fields: name and email are required',
+      attempts: 0,
+      permanent: true
+    };
+  }
+
+  // Validate pin and pinHash exist
+  if (!memberData.pin || !memberData.pinHash) {
+    return {
+      success: false,
+      error: 'Missing PIN data: pin and pinHash are required',
+      attempts: 0,
+      permanent: true
+    };
+  }
+
   let lastError = null;
   let attempt = 0;
   
@@ -13,9 +33,9 @@ const createMemberWithRetry = async (memberData, maxRetries = 3) => {
     try {
       const newMember = await prisma.member.create({
         data: {
-          name: memberData.name,
-          email: memberData.email,
-          phone: memberData.phone,
+          name: memberData.name.trim(),
+          email: memberData.email.trim().toLowerCase(),
+          phone: memberData.phone ? memberData.phone.trim() : null,
           pin: memberData.pin,
           pinHash: memberData.pinHash,
           isActive: true,
@@ -310,11 +330,21 @@ const uploadMembers = async (req, res) => {
 
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({
+    console.error('Error stack:', error.stack);
+    
+    // Provide more detailed error information
+    const errorResponse = {
       error: 'Internal server error',
       message: 'Failed to process uploaded file',
-      details: error.message,
-    });
+      details: error.message || 'Unknown error occurred',
+    };
+    
+    // Include stack trace in development
+    if (process.env.NODE_ENV !== 'production') {
+      errorResponse.stack = error.stack;
+    }
+    
+    res.status(500).json(errorResponse);
   }
 };
 

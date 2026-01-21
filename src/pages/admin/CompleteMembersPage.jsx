@@ -383,23 +383,37 @@ const CompleteMembersPage = () => {
         body: formData
       });
 
-      // Parse response
-      const result = await response.json();
+      // Parse response - handle both JSON and text responses
+      let result;
+      try {
+        const responseText = await response.text();
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        showError(`Upload failed: ${response.statusText}. Unable to parse server response.`);
+        return;
+      }
 
       if (!response.ok) {
         // Handle error response
         const errorMessage = result.message || result.error || `Upload failed: ${response.statusText}`;
-        const errorDetails = result.details || result.errors || [];
+        const errorDetails = Array.isArray(result.details) ? result.details : (Array.isArray(result.errors) ? result.errors : []);
         
         if (errorDetails.length > 0) {
           // Show detailed errors
-          const errorSummary = errorDetails.slice(0, 5).map(err => 
-            `Row ${err.row}: ${err.error || err.message}`
-          ).join('\n');
+          const errorSummary = errorDetails.slice(0, 5).map(err => {
+            if (typeof err === 'string') return err;
+            return `Row ${err.row || '?'}: ${err.error || err.message || err}`;
+          }).join('\n');
           showError(`${errorMessage}\n\nFirst few errors:\n${errorSummary}`);
         } else {
-          showError(errorMessage);
+          // Show backend error details if available
+          const backendError = result.details || result.error || errorMessage;
+          showError(`Upload failed: ${backendError}`);
         }
+        
+        // Log full error for debugging
+        console.error('Upload error response:', result);
         return;
       }
 
@@ -409,17 +423,18 @@ const CompleteMembersPage = () => {
       const totalRows = summary.totalRows || 0;
       const failed = summary.failed || 0;
       
+      // Ensure errorData is an object and all error arrays are arrays
       const errorData = result.data?.errors || {};
-      const allErrors = errorData.all || result.errors || [];
-      const retriedErrors = errorData.retriedErrors || [];
-      const permanentErrors = errorData.permanentErrors || [];
-      const transientErrors = errorData.transientErrors || [];
-      const duplicates = errorData.duplicateInDatabase || errorData.duplicates || [];
-      const duplicateInFile = errorData.duplicateInFile || [];
-      const validationErrors = errorData.validationErrors || [];
-      const invalidEmails = errorData.invalidEmails || [];
+      const allErrors = Array.isArray(errorData.all) ? errorData.all : (Array.isArray(result.errors) ? result.errors : []);
+      const retriedErrors = Array.isArray(errorData.retriedErrors) ? errorData.retriedErrors : [];
+      const permanentErrors = Array.isArray(errorData.permanentErrors) ? errorData.permanentErrors : [];
+      const transientErrors = Array.isArray(errorData.transientErrors) ? errorData.transientErrors : [];
+      const duplicates = Array.isArray(errorData.duplicateInDatabase) ? errorData.duplicateInDatabase : (Array.isArray(errorData.duplicates) ? errorData.duplicates : []);
+      const duplicateInFile = Array.isArray(errorData.duplicateInFile) ? errorData.duplicateInFile : [];
+      const validationErrors = Array.isArray(errorData.validationErrors) ? errorData.validationErrors : [];
+      const invalidEmails = Array.isArray(errorData.invalidEmails) ? errorData.invalidEmails : [];
       
-      const successfulWithRetries = result.data?.successfulWithRetries || [];
+      const successfulWithRetries = Array.isArray(result.data?.successfulWithRetries) ? result.data.successfulWithRetries : [];
       
       // Build detailed success message
       let successMessage = `Successfully uploaded ${successful} member(s)`;
