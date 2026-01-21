@@ -343,10 +343,101 @@ const CompleteMembersPage = () => {
     }
   }, [selectedMembers, filteredMembers]);
 
-  const handleBulkUpload = (file) => {
-    // Mock implementation
-    showSuccess(`Uploaded ${file.name} successfully! Processing members...`);
-    setShowUploadModal(false);
+  const handleBulkUpload = async (file) => {
+    if (!file) {
+      showError('Please select a file to upload');
+      return;
+    }
+
+    // Validate file type
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (!validExtensions.includes(fileExtension)) {
+      showError('Invalid file type. Please upload an Excel (.xlsx, .xls) or CSV file.');
+      return;
+    }
+
+    try {
+      // Create FormData for multipart/form-data upload
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Get auth token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showError('You are not authenticated. Please log in again.');
+        return;
+      }
+
+      // Show loading state
+      showSuccess(`Uploading ${file.name}...`);
+
+      // Make API call
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${API_BASE_URL}/members/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Don't set Content-Type header - browser will set it with boundary for FormData
+        },
+        body: formData
+      });
+
+      // Parse response
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Handle error response
+        const errorMessage = result.message || result.error || `Upload failed: ${response.statusText}`;
+        const errorDetails = result.details || result.errors || [];
+        
+        if (errorDetails.length > 0) {
+          // Show detailed errors
+          const errorSummary = errorDetails.slice(0, 5).map(err => 
+            `Row ${err.row}: ${err.error || err.message}`
+          ).join('\n');
+          showError(`${errorMessage}\n\nFirst few errors:\n${errorSummary}`);
+        } else {
+          showError(errorMessage);
+        }
+        return;
+      }
+
+      // Handle success response
+      const successful = result.data?.successful || result.successful || 0;
+      const errors = result.data?.errors || result.errors || [];
+      const duplicates = result.data?.duplicates || result.duplicates || [];
+      
+      let successMessage = `Successfully uploaded ${successful} member(s)`;
+      
+      if (errors.length > 0) {
+        successMessage += `, but ${errors.length} row(s) had errors`;
+      }
+      
+      if (duplicates.length > 0) {
+        successMessage += `, ${duplicates.length} duplicate(s) skipped`;
+      }
+
+      showSuccess(successMessage);
+      
+      // Close modal
+      setShowUploadModal(false);
+      
+      // Refresh members list
+      await fetchMembers(currentPage);
+      
+      // Log detailed results for debugging
+      if (errors.length > 0 || duplicates.length > 0) {
+        console.log('Upload results:', {
+          successful,
+          errors: errors.slice(0, 10),
+          duplicates: duplicates.slice(0, 10)
+        });
+      }
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      showError(`Failed to upload file: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const exportMembers = () => {
