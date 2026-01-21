@@ -260,25 +260,36 @@ const uploadMembers = async (req, res) => {
       }
     }
 
-    // Combine all types of errors
+    // Combine all types of errors - ensure all are arrays
+    const parseErrors = Array.isArray(parseResult.errors) ? parseResult.errors : [];
+    const duplicateErrorsArray = Array.isArray(duplicateErrors) ? duplicateErrors : [];
+    const fileDuplicatesArray = Array.isArray(fileDuplicates) ? fileDuplicates : [];
+    const importErrorsArray = Array.isArray(importErrors) ? importErrors : [];
+    
     const allErrors = [
-      ...parseResult.errors.map(err => ({...err, type: 'validation_error'})),
-      ...duplicateErrors,
-      ...fileDuplicates,
-      ...importErrors
+      ...parseErrors.map(err => ({...err, type: 'validation_error'})),
+      ...duplicateErrorsArray,
+      ...fileDuplicatesArray,
+      ...importErrorsArray
     ];
 
     // Categorize errors for detailed reporting
-    const retriedErrors = importErrors.filter(err => err.retried);
-    const permanentErrors = importErrors.filter(err => err.type === 'permanent_error');
-    const transientErrors = importErrors.filter(err => !err.permanent && err.type === 'creation_error');
+    // Ensure all error arrays are properly initialized
+    const parseErrors = Array.isArray(parseResult.errors) ? parseResult.errors : [];
+    const duplicateErrorsArray = Array.isArray(duplicateErrors) ? duplicateErrors : [];
+    const fileDuplicatesArray = Array.isArray(fileDuplicates) ? fileDuplicates : [];
+    const importErrorsArray = Array.isArray(importErrors) ? importErrors : [];
+    
+    const retriedErrors = importErrorsArray.filter(err => err && err.retried === true);
+    const permanentErrors = importErrorsArray.filter(err => err && err.type === 'permanent_error');
+    const transientErrors = importErrorsArray.filter(err => err && err.permanent !== true && err.type === 'creation_error');
     
     const errorSummary = {
-      validationErrors: parseResult.errors.length,
-      invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')).length,
-      duplicateInFile: fileDuplicates.length,
-      duplicateInDatabase: duplicateErrors.length,
-      creationErrors: importErrors.length,
+      validationErrors: parseErrors.length,
+      invalidEmails: parseErrors.filter(err => err && err.error && err.error.includes('Invalid email')).length,
+      duplicateInFile: fileDuplicatesArray.length,
+      duplicateInDatabase: duplicateErrorsArray.length,
+      creationErrors: importErrorsArray.length,
       retriedErrors: retriedErrors.length,
       permanentErrors: permanentErrors.length,
       transientErrors: transientErrors.length
@@ -296,19 +307,21 @@ const uploadMembers = async (req, res) => {
         errorBreakdown: errorSummary
       },
       data: {
-        importedMembers: successfulImports.map(item => item.member),
-        successfulWithRetries: successfulImports.filter(item => item.attempts > 1).map(item => ({
-          row: item.row,
-          member: item.member,
-          attempts: item.attempts
-        })),
+        importedMembers: Array.isArray(successfulImports) ? successfulImports.map(item => item.member) : [],
+        successfulWithRetries: Array.isArray(successfulImports) 
+          ? successfulImports.filter(item => item && item.attempts > 1).map(item => ({
+              row: item.row,
+              member: item.member,
+              attempts: item.attempts
+            }))
+          : [],
         errors: {
-          all: allErrors.slice(0, 100), // Show more errors for detailed feedback
-          duplicateInFile: fileDuplicates,
-          duplicateInDatabase: duplicateErrors,
-          invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')),
-          validationErrors: parseResult.errors.filter(err => !err.error.includes('Invalid email')),
-          creationErrors: importErrors,
+          all: Array.isArray(allErrors) ? allErrors.slice(0, 100) : [], // Show more errors for detailed feedback
+          duplicateInFile: fileDuplicatesArray,
+          duplicateInDatabase: duplicateErrorsArray,
+          invalidEmails: parseErrors.filter(err => err && err.error && err.error.includes('Invalid email')),
+          validationErrors: parseErrors.filter(err => err && err.error && !err.error.includes('Invalid email')),
+          creationErrors: importErrorsArray,
           retriedErrors: retriedErrors,
           permanentErrors: permanentErrors,
           transientErrors: transientErrors
