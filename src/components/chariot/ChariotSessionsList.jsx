@@ -55,25 +55,25 @@ const ChariotSessionsList = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {sessions.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <CalendarDaysIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 px-4">
+          <CalendarDaysIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No sessions</h3>
           <p className="mt-1 text-sm text-gray-500">No sessions found for your chariot members.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {sessions.map((session) => (
             <div key={session.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">
                       {session.theme || session.name || 'Untitled Session'}
                     </h3>
                     {session.description && (
-                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                      <p className="mt-1 text-xs sm:text-sm text-gray-600 line-clamp-2 break-words">
                         {session.description}
                       </p>
                     )}
@@ -81,26 +81,26 @@ const ChariotSessionsList = () => {
                 </div>
 
                 {/* Session Details */}
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2 mb-3 sm:mb-4">
                   {session.startTime && (
-                    <div className="text-sm">
+                    <div className="text-xs sm:text-sm">
                       <span className="text-gray-600">Date:</span>{' '}
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 break-words">
                         {formatDate(session.startTime)}
                       </span>
                     </div>
                   )}
                   {session.location && (
-                    <div className="text-sm">
+                    <div className="text-xs sm:text-sm">
                       <span className="text-gray-600">Location:</span>{' '}
-                      <span className="font-medium text-gray-900">{session.location}</span>
+                      <span className="font-medium text-gray-900 break-words">{session.location}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Attendance Stats */}
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                  <div className="text-sm">
+                <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                  <div className="text-xs sm:text-sm">
                     <span className="text-gray-600">Chariot Members Attendance:</span>{' '}
                     <span className="font-semibold text-blue-900">
                       {session._count?.attendance || session.attendance?.length || 0}
@@ -111,10 +111,10 @@ const ChariotSessionsList = () => {
                 {/* Actions */}
                 <button
                   onClick={() => handleViewSession(session.id)}
-                  className="btn btn-primary w-full"
+                  className="btn btn-primary w-full text-sm sm:text-base py-2 sm:py-2.5"
                 >
-                  <EyeIcon className="h-6 w-6 mr-2" />
-                  View Attendance
+                  <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                  <span>View Attendance</span>
                 </button>
               </div>
             </div>
@@ -124,55 +124,56 @@ const ChariotSessionsList = () => {
 
       {/* Session Detail Modal */}
       {selectedSession && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 break-words pr-2">
                   {selectedSession.theme || selectedSession.name || 'Session Details'}
                 </h3>
                 <button
                   onClick={() => setSelectedSession(null)}
-                  className="text-gray-400 hover:text-gray-500"
+                  className="text-gray-400 hover:text-gray-500 flex-shrink-0"
+                  aria-label="Close"
                 >
-                  <span className="text-2xl">&times;</span>
+                  <span className="text-2xl sm:text-3xl">&times;</span>
                 </button>
               </div>
 
               {/* Session Info */}
-              <div className="mb-6 space-y-2">
+              <div className="mb-4 sm:mb-6 space-y-2">
                 {selectedSession.description && (
-                  <p className="text-gray-600">{selectedSession.description}</p>
+                  <p className="text-sm sm:text-base text-gray-600 break-words">{selectedSession.description}</p>
                 )}
                 {selectedSession.startTime && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600 break-words">
                     <span className="font-medium">Date:</span> {formatDate(selectedSession.startTime)}
                   </p>
                 )}
                 {selectedSession.location && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600 break-words">
                     <span className="font-medium">Location:</span> {selectedSession.location}
                   </p>
                 )}
               </div>
 
               {/* Attendance Summary */}
-              <div className="mb-6 grid grid-cols-3 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Total Members</div>
-                  <div className="text-2xl font-bold text-gray-900">
+              <div className="mb-4 sm:mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs sm:text-sm text-gray-600">Total Members</div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900">
                     {selectedSession.totalCount || selectedSession.members?.length || 0}
                   </div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Present</div>
-                  <div className="text-2xl font-bold text-green-700">
+                <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs sm:text-sm text-gray-600">Present</div>
+                  <div className="text-xl sm:text-2xl font-bold text-green-700">
                     {selectedSession.presentCount || selectedSession.members?.filter(m => m.status === 'present').length || 0}
                   </div>
                 </div>
-                <div className="bg-red-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600">Absent</div>
-                  <div className="text-2xl font-bold text-red-700">
+                <div className="bg-red-50 p-3 sm:p-4 rounded-lg">
+                  <div className="text-xs sm:text-sm text-gray-600">Absent</div>
+                  <div className="text-xl sm:text-2xl font-bold text-red-700">
                     {selectedSession.absentCount || selectedSession.members?.filter(m => m.status === 'absent').length || 0}
                   </div>
                 </div>
@@ -180,24 +181,59 @@ const ChariotSessionsList = () => {
 
               {/* Attendance List */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                   Chariot Members ({selectedSession.totalCount || selectedSession.members?.length || 0})
                 </h4>
                 {selectedSession.members && selectedSession.members.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
+                    {/* Mobile Card View */}
+                    <div className="block sm:hidden space-y-3">
+                      {selectedSession.members.map((member) => (
+                        <div key={member.id} className={`p-3 rounded-lg border ${member.status === 'absent' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
+                              <p className="text-xs text-gray-600 truncate mt-1">{member.email}</p>
+                            </div>
+                            <div className="ml-2 flex-shrink-0">
+                              {member.status === 'present' ? (
+                                <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                                  Present
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">
+                                  Absent
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {member.checkedInAt && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Checked in: {new Date(member.checkedInAt).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Desktop Table View */}
+                    <table className="hidden sm:table min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Name
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Email
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Status
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Checked In At
                           </th>
                         </tr>
@@ -205,13 +241,13 @@ const ChariotSessionsList = () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {selectedSession.members.map((member) => (
                           <tr key={member.id} className={member.status === 'absent' ? 'bg-red-50' : ''}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {member.name}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                               {member.email}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                               {member.status === 'present' ? (
                                 <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
                                   Present
@@ -222,7 +258,7 @@ const ChariotSessionsList = () => {
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                               {member.checkedInAt
                                 ? new Date(member.checkedInAt).toLocaleString('en-US', {
                                     year: 'numeric',
