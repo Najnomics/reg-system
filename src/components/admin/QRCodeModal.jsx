@@ -85,10 +85,10 @@ const QRCodeModal = ({ session, onClose }) => {
         `}
       </style>
 
-      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-auto">
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 no-print">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate pr-2">
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-y-auto">
+          <div className="flex items-center justify-between p-3 sm:p-4 sm:p-6 border-b border-gray-200 no-print">
+            <h3 className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 break-words pr-2 min-w-0 flex-1">
               QR Code for {session.theme}
             </h3>
             <button
@@ -100,13 +100,13 @@ const QRCodeModal = ({ session, onClose }) => {
             </button>
           </div>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-3 sm:p-4 sm:p-6">
             <div className="print-area text-center">
               {/* Session Information */}
-              <div className="mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{session.theme}</h2>
+              <div className="mb-3 sm:mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-2 break-words">{session.theme}</h2>
                 {session.description && (
-                  <p className="text-sm sm:text-base text-gray-600 mb-2">{session.description}</p>
+                  <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-2 break-words">{session.description}</p>
                 )}
                 <div className="text-xs sm:text-sm text-gray-500 space-y-1">
                   <p>
@@ -116,7 +116,7 @@ const QRCodeModal = ({ session, onClose }) => {
                     <strong>Time:</strong> {format(new Date(session.startTime), 'h:mm a')} - {format(new Date(session.endTime), 'h:mm a')}
                   </p>
                   {session.location && (
-                    <p>
+                    <p className="break-words">
                       <strong>Location:</strong> {session.location}
                     </p>
                   )}
@@ -124,22 +124,22 @@ const QRCodeModal = ({ session, onClose }) => {
               </div>
 
               {/* QR Code */}
-              <div className="flex justify-center mb-4 sm:mb-6">
+              <div className="flex justify-center mb-3 sm:mb-4 sm:mb-6">
                 <div className="bg-white p-2 sm:p-4 rounded-lg shadow-sm border-2 border-gray-200">
                   {qrLoaded ? (
                     <QRCode
                       value={checkinUrl}
-                      size={Math.min(qrSize, window.innerWidth - 100)}
+                      size={Math.min(qrSize, Math.min(window.innerWidth - 60, 256))}
                       level="M"
                       includeMargin={true}
                     />
                   ) : (
                     <div 
                       className="bg-gray-100 animate-pulse rounded flex items-center justify-center"
-                      style={{ width: Math.min(qrSize, window.innerWidth - 100), height: Math.min(qrSize, window.innerWidth - 100) }}
+                      style={{ width: Math.min(qrSize, Math.min(window.innerWidth - 60, 256)), height: Math.min(qrSize, Math.min(window.innerWidth - 60, 256)) }}
                     >
-                      <div className="text-gray-400 text-center">
-                        <svg className="mx-auto h-6 w-6 sm:h-8 sm:w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="text-gray-400 text-center p-2">
+                        <svg className="mx-auto h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                         </svg>
                         <span className="text-xs">Generating QR Code...</span>
@@ -151,7 +151,7 @@ const QRCodeModal = ({ session, onClose }) => {
 
               {/* Instructions */}
               <div className="text-center space-y-2">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900">How to Check In</h3>
+                <h3 className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">How to Check In</h3>
                 <div className="text-xs sm:text-sm text-gray-600 space-y-1 max-w-md mx-auto">
                   <p>1. Scan the QR code with your phone camera</p>
                   <p>2. Answer the security question</p>
@@ -161,7 +161,7 @@ const QRCodeModal = ({ session, onClose }) => {
               </div>
 
               {/* URL for manual entry */}
-              <div className="mt-4 sm:mt-6 p-2 sm:p-3 bg-gray-50 rounded-md">
+              <div className="mt-3 sm:mt-4 sm:mt-6 p-2 sm:p-3 bg-gray-50 rounded-md">
                 <p className="text-xs text-gray-500 mb-1">Or visit:</p>
                 <p className="text-xs sm:text-sm font-mono text-gray-700 break-all">
                   {checkinUrl}
@@ -192,12 +192,12 @@ const QRCodeModal = ({ session, onClose }) => {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 px-4 sm:px-6 py-4 border-t border-gray-200 no-print">
+          <div className="flex flex-col gap-3 px-3 sm:px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 no-print">
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => handleDownload('png')}
                 disabled={downloading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 touch-manipulation"
+                className="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 touch-manipulation"
               >
                 {downloading ? 'Downloading...' : <><span className="hidden sm:inline">Download </span>PNG</>}
               </button>
@@ -205,16 +205,14 @@ const QRCodeModal = ({ session, onClose }) => {
               <button
                 onClick={() => handleDownload('pdf')}
                 disabled={downloading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 touch-manipulation"
+                className="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 touch-manipulation"
               >
                 {downloading ? 'Downloading...' : <><span className="hidden sm:inline">Download </span>PDF</>}
               </button>
-            </div>
 
-            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleShare}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+                className="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
               >
                 <ShareIcon className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Share</span>
@@ -222,19 +220,19 @@ const QRCodeModal = ({ session, onClose }) => {
 
               <button
                 onClick={handlePrint}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+                className="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
               >
                 <PrinterIcon className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Print</span>
               </button>
-
-              <button
-                onClick={onClose}
-                className="px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
-              >
-                Close
-              </button>
             </div>
+
+            <button
+              onClick={onClose}
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>

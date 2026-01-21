@@ -115,7 +115,7 @@ const SessionsPage = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -152,7 +152,7 @@ const SessionsPage = () => {
                   <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Total Sessions
                   </dt>
-                  <dd className="text-lg sm:text-xl lg:text-2xl font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-gray-900">
                     {sessions.length}
                   </dd>
                 </dl>
@@ -162,19 +162,19 @@ const SessionsPage = () => {
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-3 sm:p-4 lg:p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <PlayIcon className="h-5 w-5 text-green-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-2 sm:ml-3 lg:ml-5 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Active Sessions
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-gray-900">
                     {activeSessions.length}
                   </dd>
                 </dl>
@@ -184,19 +184,19 @@ const SessionsPage = () => {
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-3 sm:p-4 lg:p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <ClockIcon className="h-5 w-5 text-yellow-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-2 sm:ml-3 lg:ml-5 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Upcoming Sessions
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-gray-900">
                     {upcomingSessions.length}
                   </dd>
                 </dl>
@@ -206,19 +206,19 @@ const SessionsPage = () => {
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+          <div className="p-3 sm:p-4 lg:p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                  <UsersIcon className="h-5 w-5 text-purple-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                 </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-2 sm:ml-3 lg:ml-5 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Total Check-ins
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-gray-900">
                     {sessions.reduce((total, session) => total + (session.attendanceCount || 0), 0)}
                   </dd>
                 </dl>
@@ -229,9 +229,9 @@ const SessionsPage = () => {
       </div>
 
       {/* All Sessions */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">All Sessions</h3>
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-4 py-4 sm:py-5 sm:p-6">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">All Sessions</h3>
           {sessions.length === 0 ? (
             <div className="text-center py-8">
               <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />

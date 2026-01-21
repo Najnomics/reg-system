@@ -122,7 +122,7 @@ const ReportsPage = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -143,7 +143,7 @@ const ReportsPage = () => {
         </div>
 
         {/* Report Controls */}
-        <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+        <div className="bg-white shadow rounded-lg p-4 sm:p-6 overflow-hidden">
           <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Report Settings</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
@@ -291,7 +291,7 @@ const ReportsPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Recent Sessions */}
-          <div className="bg-white shadow rounded-lg">
+          <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-4 sm:py-5 sm:p-6">
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Recent Sessions</h3>
               <div className="space-y-3 sm:space-y-4">
@@ -302,13 +302,13 @@ const ReportsPage = () => {
                     <div key={session.id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-0">
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm sm:text-base font-medium text-gray-900 truncate">{session.theme || session.session?.theme}</h4>
+                          <h4 className="text-sm sm:text-base font-medium text-gray-900 break-words">{session.theme || session.session?.theme}</h4>
                           <div className="mt-1 flex items-center text-xs sm:text-sm text-gray-500">
                             <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
-                            <span className="truncate">{formatDate(session.date || session.startTime)} at {formatTime(session.date || session.startTime)}</span>
+                            <span className="break-words">{formatDate(session.date || session.startTime)} at {formatTime(session.date || session.startTime)}</span>
                           </div>
                         </div>
-                        <div className="text-left sm:text-right flex-shrink-0">
+                        <div className="text-left sm:text-right flex-shrink-0 mt-2 sm:mt-0">
                           <div className="text-lg sm:text-xl font-medium text-gray-900">
                             {session.attendanceCount || session.checkedInCount || 0}
                           </div>
@@ -323,34 +323,34 @@ const ReportsPage = () => {
           </div>
 
           {/* Member Activity */}
-          <div className="bg-white shadow rounded-lg">
+          <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-4 sm:py-5 sm:p-6">
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Member Activity</h3>
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex justify-between items-center p-3 sm:p-4 bg-green-50 rounded-lg">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 pr-2">
                     <div className="text-xs sm:text-sm font-medium text-green-800">Active Members</div>
                     <div className="text-xs text-green-600">Attended in last 30 days</div>
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold text-green-800 ml-3 flex-shrink-0">
+                  <div className="text-xl sm:text-2xl font-bold text-green-800 flex-shrink-0">
                     {activeMembersCount}
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-3 sm:p-4 bg-yellow-50 rounded-lg">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 pr-2">
                     <div className="text-xs sm:text-sm font-medium text-yellow-800">Inactive Members</div>
                     <div className="text-xs text-yellow-600">No recent attendance</div>
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold text-yellow-800 ml-3 flex-shrink-0">
+                  <div className="text-xl sm:text-2xl font-bold text-yellow-800 flex-shrink-0">
                     {inactiveMembersCount}
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-3 sm:p-4 bg-blue-50 rounded-lg">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 pr-2">
                     <div className="text-xs sm:text-sm font-medium text-blue-800">Engagement Rate</div>
                     <div className="text-xs text-blue-600">Overall participation</div>
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold text-blue-800 ml-3 flex-shrink-0">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-800 flex-shrink-0">
                     {analyticsData?.summary?.engagementRate || 0}%
                   </div>
                 </div>
@@ -360,7 +360,7 @@ const ReportsPage = () => {
         </div>
 
         {/* Attendance Trends */}
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="px-4 py-4 sm:py-5 sm:p-6">
             <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Attendance Trends</h3>
             {analyticsLoading ? (

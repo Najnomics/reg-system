@@ -105,7 +105,7 @@ const CreateSessionPage = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="flex flex-col gap-4">
         <button
           onClick={handleCancel}
@@ -124,7 +124,7 @@ const CreateSessionPage = () => {
         </div>
       </div>
 
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-4 py-4 sm:px-6 sm:py-5 lg:p-6">
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div>

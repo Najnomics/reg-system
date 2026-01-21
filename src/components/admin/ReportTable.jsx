@@ -25,8 +25,49 @@ const ReportTable = ({ data, loading }) => {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
+    <>
+      {/* Mobile Card View */}
+      <div className="block sm:hidden space-y-3">
+        {data.map((record, index) => (
+          <div key={record.id || index} className="bg-white border border-gray-200 rounded-lg p-3">
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs text-gray-500">Member</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {record.member?.firstName} {record.member?.lastName}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">{record.member?.email}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Session</p>
+                <p className="text-sm text-gray-900">{record.session?.theme || 'Unknown Session'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-gray-500">Check-in Time</p>
+                  <p className="text-sm text-gray-900">
+                    {record.checkedInAt ? format(new Date(record.checkedInAt), 'h:mm a') : '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Date</p>
+                  <p className="text-sm text-gray-900">
+                    {record.checkedInAt ? format(new Date(record.checkedInAt), 'MMM dd, yyyy') : '-'}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                  Present
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop Table View */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -113,7 +154,8 @@ const ReportTable = ({ data, loading }) => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -88,55 +88,57 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900">{currentChariot.name}</h3>
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-y-auto">
+        <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <div className="min-w-0 flex-1 pr-2">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 break-words">{currentChariot.name}</h3>
             {currentChariot.description && (
-              <p className="text-sm text-gray-600 mt-1">{currentChariot.description}</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{currentChariot.description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-gray-500 flex-shrink-0 touch-manipulation"
+            aria-label="Close"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Leader */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <UserIcon className="h-5 w-5 text-blue-600" />
-              <h4 className="text-sm font-semibold text-gray-900">Leader</h4>
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-900">Leader</h4>
             </div>
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="font-medium text-gray-900">{currentChariot.leader?.name}</p>
-              <p className="text-sm text-gray-600">{currentChariot.leader?.email}</p>
+            <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{currentChariot.leader?.name}</p>
+              <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChariot.leader?.email}</p>
               {currentChariot.leader?.phone && (
-                <p className="text-sm text-gray-600">{currentChariot.leader.phone}</p>
+                <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChariot.leader.phone}</p>
               )}
             </div>
           </div>
 
           {/* Assistants */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
               <div className="flex items-center gap-2">
-                <UsersIcon className="h-5 w-5 text-green-600" />
-                <h4 className="text-sm font-semibold text-gray-900">
+                <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+                <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
                   Assistants ({currentChariot.assistants?.length || 0})
                 </h4>
               </div>
               <button
                 onClick={() => handleAssign('assistants')}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 touch-manipulation w-full sm:w-auto"
                 disabled={loading}
               >
-                <PlusIcon className="h-4 w-4" />
-                Add Assistants
+                <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Add Assistants</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </div>
             {currentChariot.assistants && currentChariot.assistants.length > 0 ? (
@@ -144,43 +146,44 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                 {currentChariot.assistants.map((assistant) => (
                   <div
                     key={assistant.member.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
                   >
-                    <div>
-                      <p className="font-medium text-gray-900">{assistant.member.name}</p>
-                      <p className="text-sm text-gray-600">{assistant.member.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{assistant.member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{assistant.member.email}</p>
                     </div>
                     <button
                       onClick={() => handleRemoveAssistant(assistant.member.id)}
-                      className="px-2 py-1 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                       disabled={loading}
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">No assistants assigned</p>
+              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No assistants assigned</p>
             )}
           </div>
 
           {/* Members */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
               <div className="flex items-center gap-2">
-                <UserGroupIcon className="h-5 w-5 text-purple-600" />
-                <h4 className="text-sm font-semibold text-gray-900">
+                <UserGroupIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
+                <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
                   Members ({currentChariot.members?.length || 0})
                 </h4>
               </div>
               <button
                 onClick={() => handleAssign('members')}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 touch-manipulation w-full sm:w-auto"
                 disabled={loading}
               >
-                <PlusIcon className="h-4 w-4" />
-                Add Members
+                <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Add Members</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </div>
             {currentChariot.members && currentChariot.members.length > 0 ? (
@@ -188,33 +191,33 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                 {currentChariot.members.map((chariotMember) => (
                   <div
                     key={chariotMember.member.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
                   >
-                    <div>
-                      <p className="font-medium text-gray-900">{chariotMember.member.name}</p>
-                      <p className="text-sm text-gray-600">{chariotMember.member.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{chariotMember.member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{chariotMember.member.email}</p>
                       {chariotMember.member.pin && (
                         <p className="text-xs text-gray-500">PIN: {chariotMember.member.pin}</p>
                       )}
                     </div>
                     <button
                       onClick={() => handleRemoveMember(chariotMember.member.id)}
-                      className="px-2 py-1 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                       disabled={loading}
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">No members assigned</p>
+              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No members assigned</p>
             )}
           </div>
         </div>
 
-        <div className="flex justify-end p-6 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <div className="flex justify-end p-4 sm:p-6 border-t border-gray-200">
+          <button onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation">
             Close
           </button>
         </div>

@@ -168,69 +168,70 @@ const ChariotList = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Chariots</h2>
-          <p className="mt-1 text-sm text-gray-600">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Chariots</h2>
+          <p className="mt-1 text-xs sm:text-sm text-gray-600">
             Manage chariot groups, leaders, assistants, and members
           </p>
         </div>
         <button
           onClick={handleCreate}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2"
+          className="px-3 sm:px-4 py-2 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto"
         >
-          <PlusIcon className="h-5 w-5" />
-          Create Chariot
+          <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden sm:inline">Create Chariot</span>
+          <span className="sm:hidden">Create</span>
         </button>
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+      <div className="relative w-full">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
         <input
           type="text"
           placeholder="Search chariots by name or leader..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="input pl-10 w-full max-w-md"
+          className="input pl-9 sm:pl-10 w-full sm:max-w-md text-sm sm:text-base"
         />
       </div>
 
       {/* Chariots Grid */}
       {filteredChariots.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 px-4">
+          <UserGroupIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No chariots</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-xs sm:text-sm text-gray-500">
             {searchTerm ? 'No chariots match your search.' : 'Get started by creating a new chariot.'}
           </p>
           {!searchTerm && (
-            <div className="mt-6">
+            <div className="mt-4 sm:mt-6">
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
               >
-                <PlusIcon className="h-5 w-5 mr-2" />
+                <PlusIcon className="h-5 w-5 mr-2 inline" />
                 Create Chariot
               </button>
             </div>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredChariots.map((chariot) => (
-            <div key={chariot.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{chariot.name}</h3>
+            <div key={chariot.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{chariot.name}</h3>
                     {chariot.description && (
-                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">{chariot.description}</p>
+                      <p className="mt-1 text-xs sm:text-sm text-gray-600 line-clamp-2 break-words">{chariot.description}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                     {chariot.isActive ? (
                       <CheckCircleIcon className="h-5 w-5 text-green-500" />
                     ) : (
@@ -240,25 +241,25 @@ const ChariotList = () => {
                 </div>
 
                 {/* Leader */}
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-1">
-                    <UserIcon className="h-4 w-4 text-blue-600" />
+                    <UserIcon className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
                     <span className="text-xs font-medium text-blue-900">Leader</span>
                   </div>
-                  <p className="text-sm font-medium text-gray-900">{chariot.leader?.name}</p>
-                  <p className="text-xs text-gray-600">{chariot.leader?.email}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-900 break-words">{chariot.leader?.name}</p>
+                  <p className="text-xs text-gray-600 break-words truncate">{chariot.leader?.email}</p>
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
                   <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-base sm:text-lg font-semibold text-gray-900">
                       {chariot._count?.assistants || chariot.assistants?.length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Assistants</div>
                   </div>
                   <div className="text-center p-2 bg-gray-50 rounded">
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-base sm:text-lg font-semibold text-gray-900">
                       {chariot._count?.members || chariot.members?.length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Members</div>
@@ -269,21 +270,21 @@ const ChariotList = () => {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => handleView(chariot)}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center"
+                    className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center touch-manipulation"
                     title="View Details"
                   >
-                    <EyeIcon className="h-6 w-6" />
+                    <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </button>
                   <button
                     onClick={() => handleEdit(chariot)}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+                    className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center touch-manipulation"
                     title="Edit"
                   >
                     <PencilIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(chariot)}
-                    className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center justify-center"
+                    className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center justify-center touch-manipulation"
                     title="Delete"
                   >
                     <TrashIcon className="h-4 w-4" />
@@ -291,21 +292,23 @@ const ChariotList = () => {
                 </div>
 
                 {/* Quick Assign */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex gap-2">
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => handleAssign(chariot, 'assistants')}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1"
+                      className="px-2 sm:px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1 touch-manipulation"
                     >
-                      <UsersIcon className="h-3 w-3" />
-                      Add Assistants
+                      <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Add Assistants</span>
+                      <span className="sm:hidden">Assistants</span>
                     </button>
                     <button
                       onClick={() => handleAssign(chariot, 'members')}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1"
+                      className="px-2 sm:px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1 touch-manipulation"
                     >
-                      <UserGroupIcon className="h-3 w-3" />
-                      Add Members
+                      <UserGroupIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Add Members</span>
+                      <span className="sm:hidden">Members</span>
                     </button>
                   </div>
                 </div>

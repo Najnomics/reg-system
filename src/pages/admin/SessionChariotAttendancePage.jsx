@@ -116,45 +116,46 @@ const SessionChariotAttendancePage = () => {
   console.log('🎨 Rendering - Expanded chariots:', Array.from(expandedChariots));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
           <button
             onClick={() => navigate('/admin/sessions')}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-2 text-sm touch-manipulation"
           >
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            Back to Sessions
+            <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            <span className="hidden sm:inline">Back to Sessions</span>
+            <span className="sm:hidden">Back</span>
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">
             Chariot Attendance Overview
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-xs sm:text-sm text-gray-500 break-words">
             {session.theme || 'Session'} - {formatDateTime(session.startTime)}
           </p>
         </div>
       </div>
 
       {/* Overall Statistics */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Statistics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">Total Chariots</div>
-            <div className="text-2xl font-bold text-gray-900">{overallStats.totalChariots}</div>
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 overflow-hidden">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Overall Statistics</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+            <div className="text-xs sm:text-sm text-gray-600">Total Chariots</div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-900">{overallStats.totalChariots}</div>
           </div>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">Total Members</div>
-            <div className="text-2xl font-bold text-gray-900">{overallStats.totalMembers}</div>
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <div className="text-xs sm:text-sm text-gray-600">Total Members</div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-900">{overallStats.totalMembers}</div>
           </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">Present</div>
-            <div className="text-2xl font-bold text-green-700">{overallStats.totalPresent}</div>
+          <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+            <div className="text-xs sm:text-sm text-gray-600">Present</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-700">{overallStats.totalPresent}</div>
           </div>
-          <div className="bg-red-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">Absent</div>
-            <div className="text-2xl font-bold text-red-700">{overallStats.totalAbsent}</div>
+          <div className="bg-red-50 p-3 sm:p-4 rounded-lg">
+            <div className="text-xs sm:text-sm text-gray-600">Absent</div>
+            <div className="text-xl sm:text-2xl font-bold text-red-700">{overallStats.totalAbsent}</div>
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-gray-200">
@@ -166,9 +167,9 @@ const SessionChariotAttendancePage = () => {
       </div>
 
       {/* Session Info */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6 overflow-hidden">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Session Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div className="flex items-center text-sm">
             <CalendarIcon className="h-5 w-5 text-gray-400 mr-3" />
             <span className="font-medium text-gray-500">Start Time:</span>
@@ -204,110 +205,149 @@ const SessionChariotAttendancePage = () => {
               {/* Chariot Header */}
               <button
                 onClick={(e) => toggleChariot(chariot.id, e)}
-                className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="w-full px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-gray-50 transition-colors touch-manipulation"
               >
-                <div className="flex items-center space-x-4 flex-1">
-                  <div className="flex-shrink-0">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0 mt-1 sm:mt-0">
                     {isExpanded ? (
                       <ChevronUpIcon className="h-5 w-5 text-gray-400" />
                     ) : (
                       <ChevronDownIcon className="h-5 w-5 text-gray-400" />
                     )}
                   </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="text-lg font-semibold text-gray-900">{chariot.name}</h3>
+                  <div className="flex-1 text-left min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{chariot.name}</h3>
                     {chariot.description && (
-                      <p className="text-sm text-gray-500 mt-1">{chariot.description}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">{chariot.description}</p>
                     )}
                     {chariot.leader && (
-                      <p className="text-xs text-gray-400 mt-1">Leader: {chariot.leader.name}</p>
+                      <p className="text-xs text-gray-400 mt-1 break-words">Leader: {chariot.leader.name}</p>
                     )}
                   </div>
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500">Total</div>
-                      <div className="text-lg font-bold text-gray-900">{chariot.statistics.total}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500">Present</div>
-                      <div className="text-lg font-bold text-green-700">{chariot.statistics.present}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500">Absent</div>
-                      <div className="text-lg font-bold text-red-700">{chariot.statistics.absent}</div>
-                    </div>
-                    <div className="text-center min-w-[60px]">
-                      <div className="text-sm text-gray-500">Rate</div>
-                      <div className="text-lg font-bold text-indigo-600">{chariot.statistics.attendanceRate}%</div>
-                    </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2 sm:gap-4 sm:flex sm:items-center sm:space-x-4 sm:space-x-6 w-full sm:w-auto">
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-500">Total</div>
+                    <div className="text-base sm:text-lg font-bold text-gray-900">{chariot.statistics.total}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-500">Present</div>
+                    <div className="text-base sm:text-lg font-bold text-green-700">{chariot.statistics.present}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-500">Absent</div>
+                    <div className="text-base sm:text-lg font-bold text-red-700">{chariot.statistics.absent}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-500">Rate</div>
+                    <div className="text-base sm:text-lg font-bold text-indigo-600">{chariot.statistics.attendanceRate}%</div>
                   </div>
                 </div>
               </button>
 
               {/* Chariot Members (Expanded) */}
               {isExpanded && (
-                <div className="border-t border-gray-200 px-6 py-4">
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                <div className="border-t border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
+                  <div className="mb-3 sm:mb-4">
+                    <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">
                       Members ({chariot.members.length})
                     </h4>
                   </div>
                   {chariot.members.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Name
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Email
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Status
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Checked In At
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {chariot.members.map((member) => (
-                            <tr
-                              key={member.id}
-                              className={member.status === 'absent' ? 'bg-red-50' : ''}
-                            >
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {member.name}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                {member.email}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="block sm:hidden space-y-2">
+                        {chariot.members.map((member) => (
+                          <div
+                            key={member.id}
+                            className={`p-3 rounded-lg border ${
+                              member.status === 'absent' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
+                                <p className="text-xs text-gray-600 truncate mt-1">{member.email}</p>
+                              </div>
+                              <div className="ml-2 flex-shrink-0">
                                 {member.status === 'present' ? (
                                   <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                                    <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                    <CheckCircleIcon className="h-3 w-3 mr-1" />
                                     Present
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">
-                                    <XCircleIcon className="h-4 w-4 mr-1" />
+                                    <XCircleIcon className="h-3 w-3 mr-1" />
                                     Absent
                                   </span>
                                 )}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                {member.checkedInAt
-                                  ? formatTime(member.checkedInAt)
-                                  : '-'}
-                              </td>
+                              </div>
+                            </div>
+                            {member.checkedInAt && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Checked in: {formatTime(member.checkedInAt)}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop Table View */}
+                      <div className="hidden sm:block overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Name
+                              </th>
+                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Email
+                              </th>
+                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Checked In At
+                              </th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {chariot.members.map((member) => (
+                              <tr
+                                key={member.id}
+                                className={member.status === 'absent' ? 'bg-red-50' : ''}
+                              >
+                                <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {member.name}
+                                </td>
+                                <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-sm text-gray-600">
+                                  {member.email}
+                                </td>
+                                <td className="px-4 lg:px-6 py-3 whitespace-nowrap">
+                                  {member.status === 'present' ? (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                                      <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                      Present
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">
+                                      <XCircleIcon className="h-4 w-4 mr-1" />
+                                      Absent
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-sm text-gray-600">
+                                  {member.checkedInAt
+                                    ? formatTime(member.checkedInAt)
+                                    : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   ) : (
-                    <p className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">
                       No members in this chariot
                     </p>
                   )}
