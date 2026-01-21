@@ -404,21 +404,63 @@ const CompleteMembersPage = () => {
       }
 
       // Handle success response
-      const successful = result.data?.successful || result.successful || 0;
-      const errors = result.data?.errors || result.errors || [];
-      const duplicates = result.data?.duplicates || result.duplicates || [];
+      const summary = result.summary || {};
+      const successful = summary.imported || result.data?.successful || result.successful || 0;
+      const totalRows = summary.totalRows || 0;
+      const failed = summary.failed || 0;
       
+      const errorData = result.data?.errors || {};
+      const allErrors = errorData.all || result.errors || [];
+      const retriedErrors = errorData.retriedErrors || [];
+      const permanentErrors = errorData.permanentErrors || [];
+      const transientErrors = errorData.transientErrors || [];
+      const duplicates = errorData.duplicateInDatabase || errorData.duplicates || [];
+      const duplicateInFile = errorData.duplicateInFile || [];
+      const validationErrors = errorData.validationErrors || [];
+      const invalidEmails = errorData.invalidEmails || [];
+      
+      const successfulWithRetries = result.data?.successfulWithRetries || [];
+      
+      // Build detailed success message
       let successMessage = `Successfully uploaded ${successful} member(s)`;
       
-      if (errors.length > 0) {
-        successMessage += `, but ${errors.length} row(s) had errors`;
+      if (successfulWithRetries.length > 0) {
+        successMessage += ` (${successfulWithRetries.length} succeeded after retries)`;
       }
       
-      if (duplicates.length > 0) {
-        successMessage += `, ${duplicates.length} duplicate(s) skipped`;
+      if (failed > 0) {
+        successMessage += `\n\nFailed: ${failed} row(s)`;
+        
+        if (retriedErrors.length > 0) {
+          successMessage += `\n- ${retriedErrors.length} failed after retries`;
+        }
+        if (permanentErrors.length > 0) {
+          successMessage += `\n- ${permanentErrors.length} permanent errors (duplicates, validation)`;
+        }
+        if (transientErrors.length > 0) {
+          successMessage += `\n- ${transientErrors.length} transient errors (retries exhausted)`;
+        }
+        if (duplicates.length > 0) {
+          successMessage += `\n- ${duplicates.length} duplicate name(s) in database`;
+        }
+        if (duplicateInFile.length > 0) {
+          successMessage += `\n- ${duplicateInFile.length} duplicate name(s) in file`;
+        }
+        if (validationErrors.length > 0) {
+          successMessage += `\n- ${validationErrors.length} validation error(s)`;
+        }
+        if (invalidEmails.length > 0) {
+          successMessage += `\n- ${invalidEmails.length} invalid email(s)`;
+        }
       }
 
-      showSuccess(successMessage);
+      // Show success message (even with errors, if some succeeded)
+      if (successful > 0) {
+        showSuccess(successMessage);
+      } else {
+        // All failed
+        showError(`Upload failed: ${failed} row(s) had errors. See console for details.`);
+      }
       
       // Close modal
       setShowUploadModal(false);
@@ -427,12 +469,45 @@ const CompleteMembersPage = () => {
       await fetchMembers(currentPage);
       
       // Log detailed results for debugging
-      if (errors.length > 0 || duplicates.length > 0) {
-        console.log('Upload results:', {
-          successful,
-          errors: errors.slice(0, 10),
-          duplicates: duplicates.slice(0, 10)
-        });
+      if (failed > 0) {
+        console.group('📊 Bulk Upload Results');
+        console.log(`✅ Successful: ${successful}`);
+        console.log(`❌ Failed: ${failed}`);
+        
+        if (successfulWithRetries.length > 0) {
+          console.log(`🔄 Succeeded after retries:`, successfulWithRetries);
+        }
+        
+        if (retriedErrors.length > 0) {
+          console.log(`🔄 Failed after retries (${retriedErrors.length}):`, retriedErrors.slice(0, 10));
+        }
+        
+        if (permanentErrors.length > 0) {
+          console.log(`🚫 Permanent errors (${permanentErrors.length}):`, permanentErrors.slice(0, 10));
+        }
+        
+        if (transientErrors.length > 0) {
+          console.log(`⏱️ Transient errors (${transientErrors.length}):`, transientErrors.slice(0, 10));
+        }
+        
+        if (duplicates.length > 0) {
+          console.log(`🔁 Database duplicates (${duplicates.length}):`, duplicates.slice(0, 10));
+        }
+        
+        if (duplicateInFile.length > 0) {
+          console.log(`🔁 File duplicates (${duplicateInFile.length}):`, duplicateInFile.slice(0, 10));
+        }
+        
+        if (validationErrors.length > 0) {
+          console.log(`⚠️ Validation errors (${validationErrors.length}):`, validationErrors.slice(0, 10));
+        }
+        
+        if (invalidEmails.length > 0) {
+          console.log(`📧 Invalid emails (${invalidEmails.length}):`, invalidEmails.slice(0, 10));
+        }
+        
+        console.log('Full error details:', allErrors.slice(0, 20));
+        console.groupEnd();
       }
     } catch (error) {
       console.error('Bulk upload error:', error);

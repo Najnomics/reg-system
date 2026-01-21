@@ -2,6 +2,80 @@ const prisma = require('../config/database');
 const { parseExcelFile, generateTemplate, validateFileFormat } = require('../services/excelParser');
 
 /**
+ * Helper function to create a member with retry logic
+ * Retries up to 3 times for transient errors
+ */
+const createMemberWithRetry = async (memberData, maxRetries = 3) => {
+  let lastError = null;
+  let attempt = 0;
+  
+  while (attempt <= maxRetries) {
+    try {
+      const newMember = await prisma.member.create({
+        data: {
+          name: memberData.name,
+          email: memberData.email,
+          phone: memberData.phone,
+          pin: memberData.pin,
+          pinHash: memberData.pinHash,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          pin: true,
+          createdAt: true,
+        },
+      });
+      
+      return { success: true, member: newMember, attempts: attempt + 1 };
+    } catch (error) {
+      lastError = error;
+      attempt++;
+      
+      // Don't retry for permanent errors (duplicate name, validation errors)
+      const errorCode = error.code || '';
+      const errorMessage = error.message || '';
+      
+      // Permanent errors - don't retry
+      if (
+        errorCode === 'P2002' || // Unique constraint violation
+        errorMessage.includes('Unique constraint') ||
+        errorMessage.includes('already exists') ||
+        errorMessage.includes('duplicate') ||
+        errorMessage.includes('Invalid') ||
+        errorMessage.includes('required') ||
+        errorMessage.includes('validation')
+      ) {
+        return { 
+          success: false, 
+          error: errorMessage, 
+          attempts: attempt,
+          permanent: true 
+        };
+      }
+      
+      // Transient errors - retry with exponential backoff
+      if (attempt <= maxRetries) {
+        const delay = Math.min(100 * Math.pow(2, attempt - 1), 1000); // Max 1 second delay
+        await new Promise(resolve => setTimeout(resolve, delay));
+        console.log(`Retrying member creation (attempt ${attempt + 1}/${maxRetries + 1}) for row ${memberData.rowNumber}: ${memberData.name}`);
+      }
+    }
+  }
+  
+  // All retries exhausted
+  return { 
+    success: false, 
+    error: lastError?.message || 'Unknown error', 
+    attempts: attempt,
+    permanent: false 
+  };
+};
+
+/**
  * Upload and process Excel file with member data
  */
 const uploadMembers = async (req, res) => {
@@ -118,43 +192,50 @@ const uploadMembers = async (req, res) => {
           continue;
         }
 
-        // Create new member
-        const newMember = await prisma.member.create({
-          data: {
-            name: memberData.name,
+        // Create new member with retry logic
+        const result = await createMemberWithRetry(memberData, 3);
+        
+        if (result.success) {
+          successfulImports.push({
+            row: memberData.rowNumber,
+            member: result.member,
+            attempts: result.attempts,
+          });
+          
+          // Log if retry was needed
+          if (result.attempts > 1) {
+            console.log(`Member created after ${result.attempts} attempts (row ${memberData.rowNumber}): ${memberData.name}`);
+          }
+        } else {
+          // Member creation failed after retries
+          importErrors.push({
+            row: memberData.rowNumber,
             email: memberData.email,
-            phone: memberData.phone,
-            pin: memberData.pin,
-            pinHash: memberData.pinHash,
-            isActive: true,
-          },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            pin: true,
-            createdAt: true,
-          },
-        });
-
-        successfulImports.push({
-          row: memberData.rowNumber,
-          member: newMember,
-        });
+            name: memberData.name || 'Unknown',
+            error: result.error,
+            type: result.permanent ? 'permanent_error' : 'creation_error',
+            attempts: result.attempts,
+            retried: result.attempts > 1
+          });
+          
+          console.error(`Failed to create member after ${result.attempts} attempts (row ${memberData.rowNumber}):`, result.error);
+        }
 
         // PIN email sending is disabled - admins will send PINs manually via the admin panel
         // Email can be sent manually using the "Resend PIN" feature (individual or bulk)
 
       } catch (error) {
-        console.error(`Error creating member (row ${memberData.rowNumber}):`, error);
+        // This catch block handles unexpected errors outside the retry logic
+        console.error(`Unexpected error creating member (row ${memberData.rowNumber}):`, error);
         
         importErrors.push({
           row: memberData.rowNumber,
           email: memberData.email,
           name: memberData.name || 'Unknown',
           error: error.message,
-          type: 'creation_error'
+          type: 'unexpected_error',
+          attempts: 1,
+          retried: false
         });
       }
     }
@@ -168,12 +249,19 @@ const uploadMembers = async (req, res) => {
     ];
 
     // Categorize errors for detailed reporting
+    const retriedErrors = importErrors.filter(err => err.retried);
+    const permanentErrors = importErrors.filter(err => err.type === 'permanent_error');
+    const transientErrors = importErrors.filter(err => !err.permanent && err.type === 'creation_error');
+    
     const errorSummary = {
       validationErrors: parseResult.errors.length,
       invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')).length,
       duplicateInFile: fileDuplicates.length,
       duplicateInDatabase: duplicateErrors.length,
-      creationErrors: importErrors.length
+      creationErrors: importErrors.length,
+      retriedErrors: retriedErrors.length,
+      permanentErrors: permanentErrors.length,
+      transientErrors: transientErrors.length
     };
 
     // Prepare detailed response
@@ -189,13 +277,21 @@ const uploadMembers = async (req, res) => {
       },
       data: {
         importedMembers: successfulImports.map(item => item.member),
+        successfulWithRetries: successfulImports.filter(item => item.attempts > 1).map(item => ({
+          row: item.row,
+          member: item.member,
+          attempts: item.attempts
+        })),
         errors: {
-          all: allErrors.slice(0, 50), // Show more errors for detailed feedback
+          all: allErrors.slice(0, 100), // Show more errors for detailed feedback
           duplicateInFile: fileDuplicates,
           duplicateInDatabase: duplicateErrors,
           invalidEmails: parseResult.errors.filter(err => err.error.includes('Invalid email')),
           validationErrors: parseResult.errors.filter(err => !err.error.includes('Invalid email')),
-          creationErrors: importErrors
+          creationErrors: importErrors,
+          retriedErrors: retriedErrors,
+          permanentErrors: permanentErrors,
+          transientErrors: transientErrors
         }
       },
     };
