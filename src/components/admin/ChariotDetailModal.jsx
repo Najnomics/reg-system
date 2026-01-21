@@ -116,9 +116,6 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
             <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{currentChariot.leader?.name}</p>
               <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChariot.leader?.email}</p>
-              {currentChariot.leader?.phone && (
-                <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChariot.leader.phone}</p>
-              )}
             </div>
           </div>
 

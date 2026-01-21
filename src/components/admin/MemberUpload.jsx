@@ -434,7 +434,7 @@ const MemberUpload = ({ onClose, onSuccess }) => {
                       <div key={index} className="text-sm text-green-700 py-1 border-b border-green-100 last:border-b-0">
                         <div className="font-medium">{member.name} - {member.email}</div>
                         <div className="text-xs text-green-600 ml-2">
-                          PIN: {member.pin} | Phone: {member.phone || 'Not provided'}
+                          PIN: {member.pin}
                         </div>
                       </div>
                     ))}
