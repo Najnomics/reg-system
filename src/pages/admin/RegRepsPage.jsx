@@ -5,7 +5,7 @@ import RoleBasedRoute from '../../components/common/RoleBasedRoute';
 const RegRepsPage = () => {
   return (
     <RoleBasedRoute adminOnly={true}>
-      <div className="space-y-6">
+      <div className="w-full max-w-full overflow-x-hidden">
         <RegRepList />
       </div>
     </RoleBasedRoute>
