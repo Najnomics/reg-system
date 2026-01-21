@@ -86,8 +86,6 @@ const ChariotMembersList = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
                     <div>
-                      <span className="text-gray-500">Phone:</span>{' '}
-                      <span className="text-gray-900">{member.phone || '-'}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">PIN:</span>{' '}
@@ -116,7 +114,6 @@ const ChariotMembersList = () => {
                   Email
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Phone
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   PIN
@@ -129,7 +126,7 @@ const ChariotMembersList = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {members.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
                     No members found
                   </td>
                 </tr>
@@ -143,7 +140,6 @@ const ChariotMembersList = () => {
                       <div className="text-sm text-gray-600">{member.email}</div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{member.phone || '-'}</div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-mono text-gray-900">{member.pin}</div>

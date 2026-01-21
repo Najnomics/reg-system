@@ -8,7 +8,6 @@ import { useApp } from '../../contexts/SimpleAppContext';
 const schema = yup.object().shape({
   name: yup.string().required('Name is required').min(2, 'Name must be at least 2 characters'),
   email: yup.string().email('Invalid email').required('Email is required'),
-  phone: yup.string().nullable(),
   isActive: yup.boolean().default(true),
 });
 
@@ -28,7 +27,6 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
     defaultValues: {
       name: '',
       email: '',
-      phone: '',
       isActive: true,
     }
   });
@@ -38,7 +36,6 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
       reset({
         name: member.name || '',
         email: member.email || '',
-        phone: member.phone || '',
         isActive: member.isActive ?? true,
       });
     }
@@ -112,37 +109,20 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
             )}
           </div>
 
-          {/* Contact Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email Address *
-              </label>
-              <input
-                type="email"
-                id="email"
-                {...register('email')}
-                className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                {...register('phone')}
-                className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-              />
-              {errors.phone && (
-                <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
-              )}
-            </div>
+          {/* Email Field */}
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              id="email"
+              {...register('email')}
+              className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+            )}
           </div>
 
 

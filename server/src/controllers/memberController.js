@@ -6,7 +6,7 @@ const { generateMemberPin } = require('../utils/pinGenerator');
  */
 const getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email, phone } = req.query;
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -23,7 +23,6 @@ const getMembers = async (req, res) => {
       where.OR = [
         { name: { contains: query, mode: 'insensitive' } },
         { email: { contains: query, mode: 'insensitive' } },
-        { phone: { contains: query, mode: 'insensitive' } },
       ];
     } else {
       // Individual field filters
@@ -32,9 +31,6 @@ const getMembers = async (req, res) => {
       }
       if (email) {
         where.email = { contains: email, mode: 'insensitive' };
-      }
-      if (phone) {
-        where.phone = { contains: phone, mode: 'insensitive' };
       }
     }
 
@@ -50,7 +46,6 @@ const getMembers = async (req, res) => {
           id: true,
           name: true,
           email: true,
-          phone: true,
           pin: true,
           isActive: true,
           createdAt: true,
@@ -105,7 +100,6 @@ const getMember = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phone: true,
         pin: true,
         isActive: true,
         createdAt: true,
@@ -163,7 +157,7 @@ const createMember = async (req, res) => {
     console.log('Request user:', req.user ? { id: req.user.id, email: req.user.email, userType: req.user.userType } : 'MISSING');
     console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
     
-    const { name, email, phone } = req.body;
+    const { name, email } = req.body;
 
     // Check authentication
     if (!req.user || !req.user.id) {
@@ -201,7 +195,6 @@ const createMember = async (req, res) => {
         id: memberId,
         name: name.trim(),
         email: email.toLowerCase(),
-        phone: phone?.trim() || null,
         pin,
         pinHash,
         isActive: true,
@@ -211,7 +204,6 @@ const createMember = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phone: true,
         pin: true,
         isActive: true,
         createdAt: true,
@@ -256,7 +248,7 @@ const createMember = async (req, res) => {
 const updateMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, isActive } = req.body;
+    const { name, email, isActive } = req.body;
 
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
@@ -290,7 +282,6 @@ const updateMember = async (req, res) => {
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.toLowerCase();
-    if (phone !== undefined) updateData.phone = phone?.trim() || null;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     // Update member
@@ -301,7 +292,6 @@ const updateMember = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phone: true,
         pin: true,
         isActive: true,
         createdAt: true,
@@ -449,7 +439,7 @@ const bulkDeleteMembers = async (req, res) => {
  */
 const searchMembers = async (req, res) => {
   try {
-    const { query, name, email, phone, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc' } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -461,7 +451,6 @@ const searchMembers = async (req, res) => {
       where.OR = [
         { name: { contains: query, mode: 'insensitive' } },
         { email: { contains: query, mode: 'insensitive' } },
-        { phone: { contains: query, mode: 'insensitive' } },
       ];
     } else {
       // Individual field filters
@@ -470,9 +459,6 @@ const searchMembers = async (req, res) => {
       }
       if (email) {
         where.email = { contains: email, mode: 'insensitive' };
-      }
-      if (phone) {
-        where.phone = { contains: phone, mode: 'insensitive' };
       }
       if (pin) {
         where.pin = pin;
@@ -557,7 +543,6 @@ const toggleMemberStatus = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        phone: true,
         pin: true,
         isActive: true,
         createdAt: true,

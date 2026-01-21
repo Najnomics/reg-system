@@ -100,8 +100,6 @@ const findColumnMapping = (headers) => {
       mapping.name = index;
     } else if (['email', 'emailaddress', 'mail'].includes(normalizedHeader)) {
       mapping.email = index;
-    } else if (['phone', 'phonenumber', 'mobile', 'contact', 'telephone'].includes(normalizedHeader)) {
-      mapping.phone = index;
     }
   });
   
@@ -115,7 +113,6 @@ const processRow = async (row, columnMapping, rowNumber) => {
   // Extract values from row
   const name = row[columnMapping.name]?.toString().trim();
   const email = row[columnMapping.email]?.toString().trim().toLowerCase();
-  const phone = columnMapping.phone ? row[columnMapping.phone]?.toString().trim() : '';
 
   // Validate required fields
   if (!name) {
@@ -136,18 +133,12 @@ const processRow = async (row, columnMapping, rowNumber) => {
     throw new Error('Name must be between 2 and 100 characters');
   }
 
-  // Validate phone if provided
-  if (phone && !/^\+?[\d\s\-\(\)]+$/.test(phone)) {
-    throw new Error('Invalid phone number format');
-  }
-
   // Generate PIN for the member
   const { pin, pinHash } = await generateMemberPin();
 
   return {
     name,
     email,
-    phone: phone || null,
     pin,
     pinHash,
     rowNumber,

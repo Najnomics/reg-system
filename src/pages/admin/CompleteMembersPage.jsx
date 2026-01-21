@@ -119,8 +119,7 @@ const CompleteMembersPage = () => {
       // Transform frontend data format to match backend API
       const apiData = {
         name: `${memberData.firstName} ${memberData.lastName}`,
-        email: memberData.email,
-        phone: memberData.phone || null
+        email: memberData.email
       };
       
       const response = await apiService.createMember(apiData);
@@ -589,7 +588,7 @@ const CompleteMembersPage = () => {
               <input
                 type="text"
             className="block w-full pl-10 pr-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Search by name, email, phone, or PIN..."
+            placeholder="Search by name, email, or PIN..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -738,7 +737,6 @@ const CompleteMembersPage = () => {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Code</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -865,9 +863,6 @@ const CompleteMembersPage = () => {
                             {/* Details Section */}
                             <div className="space-y-1 pt-2 border-t border-gray-100">
                               <div className="text-xs text-gray-600">
-                                <span className="font-medium">Phone:</span> {member.phone || 'N/A'}
-                              </div>
-                              <div className="text-xs text-gray-600">
                                 <span className="font-medium">PIN:</span>{' '}
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                                   {member.pin || 'N/A'}
@@ -957,7 +952,6 @@ const CompleteMembersPage = () => {
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">{member.email}</div>
-                            <div className="text-sm text-gray-500">{member.phone || 'No phone'}</div>
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -1241,16 +1235,6 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Date of Birth</label>

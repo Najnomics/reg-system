@@ -110,7 +110,6 @@ const MemberList = ({ members, onEdit, loading }) => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div>
                   <div className="text-sm text-gray-900">{member.email}</div>
-                  <div className="text-sm text-gray-500">{member.phone}</div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">

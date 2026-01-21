@@ -35,7 +35,6 @@ const createMemberWithRetry = async (memberData, maxRetries = 3) => {
         data: {
           name: memberData.name.trim(),
           email: memberData.email.trim().toLowerCase(),
-          phone: memberData.phone ? memberData.phone.trim() : null,
           pin: memberData.pin,
           pinHash: memberData.pinHash,
           isActive: true,
@@ -44,7 +43,6 @@ const createMemberWithRetry = async (memberData, maxRetries = 3) => {
           id: true,
           name: true,
           email: true,
-          phone: true,
           pin: true,
           createdAt: true,
         },
@@ -367,10 +365,10 @@ const downloadTemplate = async (req, res) => {
     if (format === 'csv') {
       // Generate CSV template with proper formatting
       const csvRows = [
-        ['name', 'email', 'phone'], // Headers
-        ['John Doe', 'john@example.com', '+1234567890'], // Sample row 1
-        ['Jane Smith', 'jane@example.com', '+1987654321'], // Sample row 2
-        ['Bob Johnson', 'bob@example.com', ''], // Sample row 3 (no phone)
+        ['name', 'email'], // Headers
+        ['John Doe', 'john@example.com'], // Sample row 1
+        ['Jane Smith', 'jane@example.com'], // Sample row 2
+        ['Bob Johnson', 'bob@example.com'], // Sample row 3
       ];
       
       // Convert to CSV string with proper escaping

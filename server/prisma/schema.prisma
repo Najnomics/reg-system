@@ -44,7 +44,6 @@ model Member {
   firstName             String?
   lastName              String?
   email                 String              // Removed @unique to allow duplicate emails
-  phone                 String?
   pin                   String              @unique
   dateOfBirth           DateTime?
   gender                String?
