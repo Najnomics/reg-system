@@ -36,6 +36,17 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// Compression middleware - optimize response sizes
+app.use(compression({
+  level: 6, // Balance between compression and CPU usage
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+}));
+
 // Rate limiting - DISABLED to prevent React Strict Mode duplicate request errors
 // const limiter = rateLimit({
 //   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
@@ -52,8 +63,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Compression middleware
-app.use(compression());
+// Compression middleware - already added above, removing duplicate
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
@@ -80,6 +90,8 @@ app.use('/api/checkin', require('./routes/checkin'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reg-reps', require('./routes/regReps'));
+app.use('/api/chariots', require('./routes/chariots'));
+app.use('/api/chariot', require('./routes/chariotUsers'));
 
 // 404 handler
 app.use('*', (req, res) => {

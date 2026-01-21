@@ -20,6 +20,7 @@ model Admin {
   reg_reps       RegRep[]
   sessions       Session[]
   upload_history upload_history[]
+  chariots       Chariot[]
 
   @@map("admins")
 }
@@ -39,27 +40,33 @@ model RegRep {
 }
 
 model Member {
-  id             String       @id
-  firstName      String?
-  lastName       String?
-  email          String       @unique
-  phone          String?
-  pin            String       @unique
-  dateOfBirth    DateTime?
-  gender         String?
-  address        String?
-  membershipType String?
-  department     String?
-  position       String?
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  createdBy      String
-  name           String
-  pinHash        String?
-  attendance     attendance[]
-  admins         Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  id                    String              @id
+  firstName             String?
+  lastName              String?
+  email                 String              // Removed @unique to allow duplicate emails
+  phone                 String?
+  pin                   String              @unique
+  dateOfBirth           DateTime?
+  gender                String?
+  address               String?
+  membershipType        String?
+  department            String?
+  position              String?
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  createdBy             String
+  name                  String              @unique  // Name must be unique to prevent duplicate members
+  pinHash               String?
+  attendance            attendance[]
+  admins                Admin               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  chariotLeader         Chariot[]           @relation("ChariotLeader")
+  chariotAssistants     ChariotAssistant[]
+  chariotMembers        ChariotMember[]
 
+  @@index([isActive])
+  @@index([email])
+  @@index([name])
   @@map("members")
 }
 
@@ -85,6 +92,10 @@ model Session {
   attendance        attendance[]
   admins            Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
+  @@index([isActive])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([createdAt])
   @@map("sessions")
 }
 
@@ -100,6 +111,10 @@ model attendance {
   session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, sessionId])
+  @@index([memberId])
+  @@index([sessionId])
+  @@index([checkedInAt])
+  @@index([createdAt])
   @@map("attendances")
 }
 
@@ -113,4 +128,51 @@ model upload_history {
   createdAt    DateTime @default(now())
   uploadedBy   String
   admins       Admin    @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+}
+
+model Chariot {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  leaderId    String
+  leader      Member            @relation("ChariotLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String
+  admins      Admin             @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  assistants  ChariotAssistant[]
+  members     ChariotMember[]
+
+  @@index([leaderId])
+  @@index([isActive])
+  @@map("chariots")
+}
+
+model ChariotAssistant {
+  id        String   @id @default(uuid())
+  chariotId String
+  memberId  String
+  chariot   Chariot  @relation(fields: [chariotId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([chariotId, memberId])
+  @@index([chariotId])
+  @@index([memberId])
+  @@map("chariot_assistants")
+}
+
+model ChariotMember {
+  id        String   @id @default(uuid())
+  chariotId String
+  memberId  String
+  chariot   Chariot  @relation(fields: [chariotId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([chariotId, memberId])
+  @@index([chariotId])
+  @@index([memberId])
+  @@map("chariot_members")
 }

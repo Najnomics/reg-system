@@ -31,6 +31,16 @@ router.post('/login',
   authController.login
 );
 
+// Chariot leader/assistant login
+router.post('/login-chariot',
+  validate({
+    email: require('joi').string().email().required(),
+    password: require('joi').string().required(),
+    userType: require('joi').string().valid('chariot-leader', 'chariot-assistant').required(),
+  }),
+  authController.loginChariotUser
+);
+
 router.post('/logout', 
   authController.logout
 );

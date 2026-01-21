@@ -20,9 +20,8 @@ const CheckInPage = () => {
   const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [checkedInMember, setCheckedInMember] = useState(null);
   const [memberDetails, setMemberDetails] = useState(null);
-  const [step, setStep] = useState(1); // 1: Secret answer, 2: Member code
+  const [step, setStep] = useState(2); // 2: Member code (secret question step removed)
   const [formData, setFormData] = useState({
-    secretAnswer: '',
     memberCode: '',
   });
 
@@ -98,16 +97,14 @@ const CheckInPage = () => {
     }
   };
 
-  // Helper function to clear device authentication for this session
+  // Helper function to clear device authentication for this session (kept for backward compatibility but not used)
   const clearDeviceAuthentication = (sessionId) => {
     const key = `session_auth_${sessionId}`;
     localStorage.removeItem(key);
-    setStep(1);
     setFormData({
-      secretAnswer: '',
       memberCode: '',
     });
-    showSuccess('Device authentication cleared. Please answer the security question.');
+    showSuccess('Form reset.');
   };
 
   useEffect(() => {
@@ -135,12 +132,8 @@ const CheckInPage = () => {
           setSession(sessionData);
           sessionFetchedRef.current = true;
           
-          // Check if device is already authenticated for this session
-          if (isDeviceAuthenticated(sessionId)) {
-            console.log('Device already authenticated for this session, skipping secret question');
-            setStep(2); // Skip secret answer step
-            showSuccess('Welcome back! Device already authenticated for this session.');
-          }
+          // Secret question step removed - always go directly to member code entry
+          setStep(2);
         } else {
           console.log('No session data found in response:', response);
           setSession(null);
@@ -164,30 +157,7 @@ const CheckInPage = () => {
     });
   };
 
-  const handleSecretAnswerSubmit = async (e) => {
-    e.preventDefault();
-    setChecking(true);
-
-    try {
-      const response = await apiService.verifySecretAnswer(sessionId, formData.secretAnswer);
-      
-      if (response.correct) {
-        // Store device authentication for this session
-        storeDeviceAuthentication(sessionId);
-        console.log('Device authenticated for session', sessionId);
-        
-        setStep(2);
-        showSuccess('Answer verified! Please enter your member PIN.');
-      } else {
-        showError(response.message || 'Incorrect answer. Please try again.');
-      }
-    } catch (error) {
-      console.error('Secret answer verification error:', error);
-      showError(error.message || 'Failed to verify answer. Please try again.');
-    } finally {
-      setChecking(false);
-    }
-  };
+  // Secret answer submission removed - no longer required
 
   const handleMemberCodeSubmit = async (e) => {
     e.preventDefault();
@@ -352,72 +322,13 @@ const CheckInPage = () => {
             )}
           </div>
 
-          {/* Step 1: Security Question */}
-          {step === 1 && (
-            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                Step 1: Answer Security Question
-              </h3>
-              <div className="bg-blue-50 p-3 sm:p-4 rounded-md mb-3 sm:mb-4">
-                <p className="text-xs sm:text-sm font-medium text-blue-900 mb-1.5 sm:mb-2">
-                  Security Question:
-                </p>
-                <p className="text-sm sm:text-base text-blue-800 break-words">
-                  {session.secretQuestion}
-                </p>
-              </div>
-              <form onSubmit={handleSecretAnswerSubmit} className="space-y-3 sm:space-y-4">
-                <div>
-                  <label htmlFor="secretAnswer" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                    Your Answer
-                  </label>
-                  <input
-                    type="text"
-                    name="secretAnswer"
-                    id="secretAnswer"
-                    value={formData.secretAnswer}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter your answer"
-                    required
-                    autoComplete="off"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={checking || !formData.secretAnswer.trim()}
-                  className="w-full px-4 py-3 sm:py-2.5 border border-transparent rounded-md shadow-sm text-sm sm:text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                >
-                  {checking ? 'Verifying...' : 'Continue'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Step 2: Member Check-in */}
+          {/* Member Check-in */}
           {step === 2 && (
             <div className="space-y-6">
-              {/* Device Authentication Status */}
-              {isDeviceAuthenticated(sessionId) && (
-                <div className="bg-green-50 border border-green-200 rounded-md p-3 sm:p-4">
-                  <div className="flex">
-                    <CheckCircleIcon className="h-5 w-5 text-green-400 mt-0.5 mr-2 sm:mr-3 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-medium text-green-800">
-                        Device Authenticated
-                      </p>
-                      <p className="text-xs text-green-700 mt-1">
-                        This device has already answered the security question for this session.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
               {/* Member Code Check-in */}
               <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                  Step 2: Enter Your Member Code
+                  Enter Your Member Code
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                   Please enter the 4-digit member code that was sent to your email.
@@ -452,18 +363,6 @@ const CheckInPage = () => {
                 </form>
               </div>
 
-              {/* Back Button / Reset Authentication */}
-              <div className="text-center">
-                <button
-                  onClick={() => clearDeviceAuthentication(sessionId)}
-                  className="text-xs sm:text-sm text-indigo-600 hover:text-indigo-500 touch-manipulation"
-                >
-                  ← Reset Device Authentication
-                </button>
-                <p className="text-xs text-gray-500 mt-1 px-4">
-                  Clear this device's authentication for this session
-                </p>
-              </div>
             </div>
           )}
 

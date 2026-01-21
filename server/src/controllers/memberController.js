@@ -175,16 +175,16 @@ const createMember = async (req, res) => {
       });
     }
 
-    // Check if email already exists
+    // Check if name already exists (name must be unique)
     const existingMember = await prisma.member.findUnique({
-      where: { email: email.toLowerCase() },
-      select: { id: true },
+      where: { name: name.trim() },
+      select: { id: true, email: true },
     });
 
     if (existingMember) {
       return res.status(409).json({
-        error: 'Email already exists',
-        message: 'A member with this email address already exists',
+        error: 'Name already exists',
+        message: 'A member with this name already exists. Please use a different name.',
       });
     }
 
@@ -271,7 +271,7 @@ const updateMember = async (req, res) => {
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
       where: { id },
-      select: { id: true, email: true },
+      select: { id: true, email: true, name: true },
     });
 
     if (!existingMember) {
@@ -281,17 +281,17 @@ const updateMember = async (req, res) => {
       });
     }
 
-    // Check if email is being changed and if it conflicts
-    if (email && email.toLowerCase() !== existingMember.email) {
-      const emailConflict = await prisma.member.findUnique({
-        where: { email: email.toLowerCase() },
+    // Check if name is being changed and if it conflicts
+    if (name && name.trim() !== existingMember.name) {
+      const nameConflict = await prisma.member.findUnique({
+        where: { name: name.trim() },
         select: { id: true },
       });
 
-      if (emailConflict) {
+      if (nameConflict) {
         return res.status(409).json({
-          error: 'Email already exists',
-          message: 'A member with this email address already exists',
+          error: 'Name already exists',
+          message: 'A member with this name already exists. Please use a different name.',
         });
       }
     }

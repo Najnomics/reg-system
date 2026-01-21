@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,8 +26,14 @@ const SessionsPage = () => {
   const [selectedSession, setSelectedSession] = useState(null);
 
   useEffect(() => {
-    // Fetch sessions on mount
-    fetchSessions(true); // Force refresh to get latest data including secret question/answer
+    // Fetch sessions on mount - use cache for instant display, then refresh in background
+    if (sessions.length === 0) {
+      // If no cached data, fetch immediately
+      fetchSessions(false);
+    } else {
+      // If cached data exists, show it immediately and refresh in background
+      fetchSessions(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -46,6 +52,10 @@ const SessionsPage = () => {
 
   const handleViewAttendance = (session) => {
     navigate(`/admin/sessions/${session.id}/attendance`);
+  };
+
+  const handleViewChariotAttendance = (session) => {
+    navigate(`/admin/sessions/${session.id}/chariot-attendance`);
   };
 
   const handleDeleteSession = async (session) => {
@@ -277,23 +287,6 @@ const SessionsPage = () => {
                             {session.attendanceCount || 0} checked in
                           </div>
                         </div>
-                        {/* Always show secret question/answer section if available */}
-                        {(session.secretQuestion || session.secretAnswerPlain) && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            {session.secretQuestion && (
-                              <div className="text-sm mb-2">
-                                <span className="font-medium text-gray-700">Secret Question: </span>
-                                <span className="text-gray-600">{session.secretQuestion}</span>
-                              </div>
-                            )}
-                            {session.secretAnswerPlain && (
-                              <div className="text-sm">
-                                <span className="font-medium text-gray-700">Secret Answer: </span>
-                                <span className="text-gray-600 font-mono bg-gray-100 px-2 py-0.5 rounded">{session.secretAnswerPlain}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
@@ -303,6 +296,15 @@ const SessionsPage = () => {
                           <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                           <span className="hidden sm:inline">View Attendance</span>
                           <span className="sm:hidden">View</span>
+                        </button>
+                        <button
+                          onClick={() => handleViewChariotAttendance(session)}
+                          className="inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+                          title="View Chariot Attendance"
+                        >
+                          <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                          <span className="hidden sm:inline">Chariots</span>
+                          <span className="sm:hidden">Chariots</span>
                         </button>
                         <button
                           onClick={() => handleShowQRCode(session)}

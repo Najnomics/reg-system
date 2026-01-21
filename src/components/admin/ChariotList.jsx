@@ -1,0 +1,407 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  PlusIcon, 
+  PencilIcon, 
+  TrashIcon, 
+  EyeIcon,
+  UserGroupIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  MagnifyingGlassIcon,
+  UserIcon,
+  UsersIcon
+} from '@heroicons/react/24/outline';
+import { useApp } from '../../contexts/SimpleAppContext';
+import { apiService } from '../../services/apiService';
+import ChariotForm from './ChariotForm';
+import ChariotDetailModal from './ChariotDetailModal';
+import AssignMembersModal from './AssignMembersModal';
+
+const ChariotList = () => {
+  const { showError, showSuccess } = useApp();
+  const [chariots, setChariots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [editingChariot, setEditingChariot] = useState(null);
+  const [selectedChariot, setSelectedChariot] = useState(null);
+  const [assignType, setAssignType] = useState(null); // 'leader', 'assistants', 'members'
+  const [formLoading, setFormLoading] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [chariotToDelete, setChariotToDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  const loadChariots = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getChariots();
+      setChariots(response?.data?.chariots || []);
+    } catch (error) {
+      showError('Failed to load chariots');
+      console.error('Load chariots error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    loadChariots();
+  }, [loadChariots]);
+
+  const handleCreate = () => {
+    setEditingChariot(null);
+    setShowForm(true);
+  };
+
+  const handleEdit = (chariot) => {
+    setEditingChariot(chariot);
+    setShowForm(true);
+  };
+
+  const handleView = async (chariot) => {
+    try {
+      const response = await apiService.getChariot(chariot.id);
+      setSelectedChariot(response?.data?.chariot || chariot);
+      setShowDetailModal(true);
+    } catch (error) {
+      showError('Failed to load chariot details');
+      console.error('Load chariot error:', error);
+    }
+  };
+
+  const handleAssign = (chariot, type) => {
+    setSelectedChariot(chariot);
+    setAssignType(type);
+    setShowAssignModal(true);
+  };
+
+  const handleSubmit = async (data) => {
+    try {
+      setFormLoading(true);
+      let response;
+      
+      if (editingChariot) {
+        response = await apiService.updateChariot(editingChariot.id, data);
+      } else {
+        response = await apiService.createChariot(data);
+      }
+
+      showSuccess(`Chariot ${editingChariot ? 'updated' : 'created'} successfully`);
+      setShowForm(false);
+      setEditingChariot(null);
+      await loadChariots();
+    } catch (error) {
+      showError(error.message || `Failed to ${editingChariot ? 'update' : 'create'} chariot`);
+      console.error('Chariot form submit error:', error);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleDelete = (chariot) => {
+    setChariotToDelete(chariot);
+    setDeleteConfirmText('');
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirmText.toLowerCase() !== 'delete') {
+      showError('Please type "delete" to confirm');
+      return;
+    }
+
+    if (!chariotToDelete) return;
+
+    try {
+      await apiService.deleteChariot(chariotToDelete.id);
+      showSuccess('Chariot deleted successfully');
+      setDeleteModalOpen(false);
+      setChariotToDelete(null);
+      setDeleteConfirmText('');
+      await loadChariots();
+    } catch (error) {
+      showError('Failed to delete chariot');
+      console.error('Delete chariot error:', error);
+    }
+  };
+
+  const handleAssignSubmit = async (memberIds) => {
+    if (!selectedChariot || !assignType || memberIds.length === 0) return;
+
+    try {
+      if (assignType === 'assistants') {
+        await apiService.addChariotAssistants(selectedChariot.id, memberIds);
+        showSuccess(`Added ${memberIds.length} assistant(s) to chariot`);
+      } else if (assignType === 'members') {
+        await apiService.addChariotMembers(selectedChariot.id, memberIds);
+        showSuccess(`Added ${memberIds.length} member(s) to chariot`);
+      }
+      setShowAssignModal(false);
+      setSelectedChariot(null);
+      setAssignType(null);
+      await loadChariots();
+    } catch (error) {
+      showError(`Failed to assign ${assignType}`);
+      console.error('Assign error:', error);
+    }
+  };
+
+  // Memoize filtered chariots to avoid recalculating on every render
+  const filteredChariots = useMemo(() => {
+    if (!searchTerm.trim()) return chariots;
+    const term = searchTerm.toLowerCase();
+    return chariots.filter(chariot =>
+      chariot.name.toLowerCase().includes(term) ||
+      chariot.leader?.name?.toLowerCase().includes(term) ||
+      chariot.leader?.email?.toLowerCase().includes(term)
+    );
+  }, [chariots, searchTerm]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Chariots</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Manage chariot groups, leaders, assistants, and members
+          </p>
+        </div>
+        <button
+          onClick={handleCreate}
+          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2"
+        >
+          <PlusIcon className="h-5 w-5" />
+          Create Chariot
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search chariots by name or leader..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="input pl-10 w-full max-w-md"
+        />
+      </div>
+
+      {/* Chariots Grid */}
+      {filteredChariots.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+          <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No chariots</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchTerm ? 'No chariots match your search.' : 'Get started by creating a new chariot.'}
+          </p>
+          {!searchTerm && (
+            <div className="mt-6">
+              <button
+                onClick={handleCreate}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Chariot
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredChariots.map((chariot) => (
+            <div key={chariot.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">{chariot.name}</h3>
+                    {chariot.description && (
+                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">{chariot.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {chariot.isActive ? (
+                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <XCircleIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Leader */}
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <UserIcon className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-medium text-blue-900">Leader</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">{chariot.leader?.name}</p>
+                  <p className="text-xs text-gray-600">{chariot.leader?.email}</p>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center p-2 bg-gray-50 rounded">
+                    <div className="text-lg font-semibold text-gray-900">
+                      {chariot._count?.assistants || chariot.assistants?.length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Assistants</div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded">
+                    <div className="text-lg font-semibold text-gray-900">
+                      {chariot._count?.members || chariot.members?.length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Members</div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleView(chariot)}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center"
+                    title="View Details"
+                  >
+                    <EyeIcon className="h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={() => handleEdit(chariot)}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center"
+                    title="Edit"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(chariot)}
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center justify-center"
+                    title="Delete"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Quick Assign */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAssign(chariot, 'assistants')}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1"
+                    >
+                      <UsersIcon className="h-3 w-3" />
+                      Add Assistants
+                    </button>
+                    <button
+                      onClick={() => handleAssign(chariot, 'members')}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1"
+                    >
+                      <UserGroupIcon className="h-3 w-3" />
+                      Add Members
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modals */}
+      {showForm && (
+        <ChariotForm
+          chariot={editingChariot}
+          onSubmit={handleSubmit}
+          onClose={() => {
+            setShowForm(false);
+            setEditingChariot(null);
+          }}
+          loading={formLoading}
+        />
+      )}
+
+      {showDetailModal && selectedChariot && (
+        <ChariotDetailModal
+          chariot={selectedChariot}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedChariot(null);
+          }}
+          onRefresh={loadChariots}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && chariotToDelete && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Chariot</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to delete <strong>"{chariotToDelete.name}"</strong>? This action cannot be undone.
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                Type <strong>"delete"</strong> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type 'delete' to confirm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && deleteConfirmText.toLowerCase() === 'delete') {
+                    confirmDelete();
+                  }
+                }}
+              />
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setChariotToDelete(null);
+                    setDeleteConfirmText('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteConfirmText.toLowerCase() !== 'delete'}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignModal && selectedChariot && (
+        <AssignMembersModal
+          chariot={selectedChariot}
+          type={assignType}
+          onSubmit={handleAssignSubmit}
+          onClose={() => {
+            setShowAssignModal(false);
+            setSelectedChariot(null);
+            setAssignType(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ChariotList;

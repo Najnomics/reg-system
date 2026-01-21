@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { prefetcher } from '../../utils/prefetch';
 import {
   HomeIcon,
   UsersIcon,
@@ -12,6 +13,16 @@ import {
 } from '@heroicons/react/24/outline';
 
 const getNavigationItems = (userType) => {
+  // Chariot users navigation
+  if (userType === 'chariot-leader' || userType === 'chariot-assistant') {
+    return [
+      { name: 'Dashboard', href: '/chariot/dashboard', icon: HomeIcon },
+      { name: 'Members', href: '/chariot/members', icon: UsersIcon },
+      { name: 'Sessions', href: '/chariot/sessions', icon: CalendarDaysIcon },
+    ];
+  }
+
+  // Admin/Reg-rep navigation
   const baseNavigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
     { name: 'Members', href: '/admin/members', icon: UsersIcon, roles: ['admin', 'reg-rep'] },
@@ -22,6 +33,12 @@ const getNavigationItems = (userType) => {
   // Add admin-only items
   if (userType === 'admin') {
     baseNavigation.splice(4, 0, {
+      name: 'Chariots',
+      href: '/admin/chariots',
+      icon: UserGroupIcon,
+      roles: ['admin']
+    });
+    baseNavigation.splice(5, 0, {
       name: 'Reg-Reps',
       href: '/admin/reg-reps',
       icon: UserGroupIcon,
@@ -65,7 +82,10 @@ const Sidebar = () => {
               </div>
               <div className="ml-3">
                 <h1 className="text-white text-lg font-semibold">
-                  {userType === 'admin' ? 'Church Admin' : 'Church Portal'}
+                  {userType === 'admin' ? 'Church Admin' : 
+                   userType === 'chariot-leader' ? 'Chariot Leader' :
+                   userType === 'chariot-assistant' ? 'Chariot Assistant' :
+                   'Church Portal'}
                 </h1>
                 {userType === 'reg-rep' && (
                   <p className="text-xs text-gray-400">Registration Rep</p>

@@ -61,7 +61,13 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
       onSuccess();
     } catch (err) {
       console.error('Form submission error:', err);
-      setError(err.message);
+      // Check for duplicate name error
+      const errorMessage = err.message || '';
+      if (errorMessage.includes('Name already exists') || errorMessage.includes('name already exists')) {
+        setError('A user with this name already exists');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setSaving(false);
     }

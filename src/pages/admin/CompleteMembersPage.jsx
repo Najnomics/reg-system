@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/apiService';
+import { debounce } from '../../utils/debounce';
+import { TableRowSkeleton } from '../../components/common/SkeletonLoader';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -42,8 +44,8 @@ const CompleteMembersPage = () => {
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  // Fetch members with pagination
-  const fetchMembers = async (page = currentPage, forceRefresh = false) => {
+  // Fetch members with pagination - memoized
+  const fetchMembers = useCallback(async (page = currentPage, forceRefresh = false) => {
     try {
       setLoading(true);
       const response = await apiService.getMembers({
@@ -52,6 +54,7 @@ const CompleteMembersPage = () => {
         sortBy: sortBy === 'date' ? 'createdAt' : 'name',
         sortOrder,
         query: searchTerm.trim() || undefined,
+        forceRefresh,
       });
       
       if (response?.success && response?.data) {
@@ -67,24 +70,32 @@ const CompleteMembersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, sortBy, sortOrder, searchTerm, membersPerPage, showError]);
 
   useEffect(() => {
-    // Fetch members on mount
-    fetchMembers(1);
+    // Fetch members on mount - show cached data immediately if available
+    fetchMembers(1, false); // Use cache first for instant display
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refetch when search, sort, or page changes
-  useEffect(() => {
-    // Debounce search to avoid too many API calls
-    const timeoutId = setTimeout(() => {
-      fetchMembers(1); // Reset to page 1 when search/sort changes
-    }, searchTerm.trim() ? 500 : 0); // 500ms delay for search, immediate for sort
+  // Debounced search handler
+  const debouncedSearch = useMemo(
+    () => debounce((term) => {
+      if (term.trim() || !term) {
+        fetchMembers(1, true); // Reset to page 1, force refresh
+      }
+    }, 500),
+    [fetchMembers]
+  );
 
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, sortBy, sortOrder]);
+  // Refetch when search, sort changes
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      debouncedSearch(searchTerm);
+    } else {
+      fetchMembers(1, true);
+    }
+  }, [searchTerm, sortBy, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle page change
   useEffect(() => {
@@ -132,7 +143,9 @@ const CompleteMembersPage = () => {
       
       // Handle specific error cases
       const errorMessage = error.message || '';
-      if (errorMessage.includes('already exists') || errorMessage.includes('Email already exists')) {
+      if (errorMessage.includes('Name already exists') || errorMessage.includes('name already exists')) {
+        showError('A user with this name already exists');
+      } else if (errorMessage.includes('Email already exists')) {
         showError(`A member with email ${memberData.email} already exists. Please use a different email address.`);
       } else {
         showError(errorMessage || 'Failed to create member. Please try again.');
@@ -538,9 +551,22 @@ const CompleteMembersPage = () => {
               </h3>
               
               {loading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                  <p className="mt-2 text-sm text-gray-500">Loading members...</p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <TableRowSkeleton columns={6} rows={10} />
+                    </tbody>
+                  </table>
                 </div>
               ) : filteredMembers.length === 0 ? (
                 <div className="text-center py-8">

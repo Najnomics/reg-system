@@ -15,19 +15,20 @@ import {
   HashtagIcon,
   ArrowDownTrayIcon,
   DocumentIcon,
-  KeyIcon,
+  PlusCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const SessionAttendancePage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { showError } = useApp();
+  const { showError, showSuccess } = useApp();
   const { userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [loading, setLoading] = useState(true);
   const [sessionData, setSessionData] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'present', 'absent'
   const [exporting, setExporting] = useState(false);
+  const [markingPresent, setMarkingPresent] = useState({}); // Track which member is being marked
 
   useEffect(() => {
     fetchSessionAttendance();
@@ -39,8 +40,6 @@ const SessionAttendancePage = () => {
       const response = await apiService.getSessionAttendance(sessionId);
       console.log('Session attendance response:', response);
       console.log('Session data:', response.data?.session);
-      console.log('Secret question:', response.data?.session?.secretQuestion);
-      console.log('Secret answer:', response.data?.session?.secretAnswerPlain);
       console.log('Present members:', response.data?.attendance?.present?.length || 0);
       console.log('Absent members:', response.data?.attendance?.absent?.length || 0);
       setSessionData(response.data);
@@ -109,6 +108,23 @@ const SessionAttendancePage = () => {
       showError('Failed to export attendance as PDF');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleMarkPresent = async (memberId) => {
+    if (!isAdmin) return;
+    
+    try {
+      setMarkingPresent(prev => ({ ...prev, [memberId]: true }));
+      await apiService.markMemberPresent(sessionId, memberId);
+      showSuccess('Member marked as present successfully');
+      // Refresh attendance data
+      await fetchSessionAttendance();
+    } catch (error) {
+      console.error('Failed to mark member as present:', error);
+      showError(error.message || 'Failed to mark member as present');
+    } finally {
+      setMarkingPresent(prev => ({ ...prev, [memberId]: false }));
     }
   };
 
@@ -223,35 +239,6 @@ const SessionAttendancePage = () => {
                 <span className="ml-2 text-gray-900">{formatDateTime(session.endTime)}</span>
               </div>
             </div>
-            
-            {/* Secret Question and Answer Section */}
-            {session.secretQuestion && (
-              <div className="pt-4 border-t border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                  <KeyIcon className="h-5 w-5 text-indigo-500 mr-2" />
-                  Check-in Security
-                </h4>
-                <div className="space-y-3 bg-indigo-50 p-4 rounded-lg">
-                  <div>
-                    <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Question:</span>
-                    <p className="mt-1 text-sm text-gray-900 font-medium">{session.secretQuestion}</p>
-                  </div>
-                  {session.secretAnswerPlain ? (
-                    <div>
-                      <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Secret Answer:</span>
-                      <p className="mt-1 text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border border-indigo-200 font-semibold">{session.secretAnswerPlain}</p>
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                      <p className="text-xs text-yellow-800">
-                        <strong>Note:</strong> Secret answer not available. This session was created before the answer storage feature was added. 
-                        Please edit the session and update the secret answer to see it here.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
           
           <div className="space-y-4">
@@ -384,9 +371,21 @@ const SessionAttendancePage = () => {
                           <p className="text-xs text-gray-500">{formatTime(member.checkedInAt)}</p>
                         </div>
                       ) : (
-                        <div>
-                          <p className="text-sm font-medium text-red-600">Did not attend</p>
-                          <p className="text-xs text-gray-400">No check-in recorded</p>
+                        <div className="flex flex-col items-end gap-2">
+                          <div>
+                            <p className="text-sm font-medium text-red-600">Did not attend</p>
+                            <p className="text-xs text-gray-400">No check-in recorded</p>
+                          </div>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleMarkPresent(member.id)}
+                              disabled={markingPresent[member.id]}
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <PlusCircleIcon className="h-4 w-4" />
+                              {markingPresent[member.id] ? 'Marking...' : 'Mark Present'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

@@ -4,11 +4,12 @@ import { useApp } from '../../contexts/SimpleAppContext';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 // import AdminLayout from '../../components/admin/AdminLayout';
 import { apiService } from '../../services/apiService';
+import { apiCache } from '../../utils/cache';
 
 const CreateSessionPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showError, showSuccess } = useApp();
+  const { showError, showSuccess, fetchSessions } = useApp();
   const [loading, setLoading] = useState(false);
   
   const editingSession = location.state?.session;
@@ -18,8 +19,6 @@ const CreateSessionPage = () => {
     theme: '',
     startTime: '',
     endTime: '',
-    secretQuestion: '',
-    secretAnswer: '',
   });
 
   useEffect(() => {
@@ -28,8 +27,6 @@ const CreateSessionPage = () => {
         theme: editingSession.theme || '',
         startTime: editingSession.startTime ? new Date(editingSession.startTime).toISOString().slice(0, 16) : '',
         endTime: editingSession.endTime ? new Date(editingSession.endTime).toISOString().slice(0, 16) : '',
-        secretQuestion: editingSession.secretQuestion || '',
-        secretAnswer: '', // Don't populate for security
       });
     }
   }, [editingSession]);
@@ -65,38 +62,33 @@ const CreateSessionPage = () => {
         return;
       }
 
-      if (!formData.secretQuestion.trim()) {
-        showError('Security question is required');
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.secretAnswer.trim()) {
-        showError('Security answer is required');
-        setLoading(false);
-        return;
-      }
-
       const sessionData = {
         theme: formData.theme.trim(),
         startTime: new Date(formData.startTime).toISOString(),
         endTime: formData.endTime ? new Date(formData.endTime).toISOString() : null,
-        secretQuestion: formData.secretQuestion.trim(),
-        secretAnswer: formData.secretAnswer.trim()
       };
 
       console.log('CreateSessionPage: sessionData being sent:', sessionData);
 
+      let result;
       if (isEditing) {
         console.log('CreateSessionPage: Updating session', editingSession.id);
-        const result = await apiService.updateSession(editingSession.id, sessionData);
+        result = await apiService.updateSession(editingSession.id, sessionData);
         console.log('CreateSessionPage: Update result:', result);
         showSuccess('Session updated successfully');
       } else {
         console.log('CreateSessionPage: Creating new session');
-        const result = await apiService.createSession(sessionData);
+        result = await apiService.createSession(sessionData);
         console.log('CreateSessionPage: Create result:', result);
         showSuccess('Session created successfully');
+      }
+      
+      // Clear sessions cache to force refresh
+      apiCache.clearPattern('/sessions');
+      
+      // Optimistically update sessions list immediately
+      if (result?.data?.session) {
+        fetchSessions(true); // Force refresh sessions list
       }
       
       navigate('/admin/sessions');
@@ -180,44 +172,6 @@ const CreateSessionPage = () => {
                   className="mt-1 block w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 touch-manipulation"
                 />
               </div>
-            </div>
-
-            <div>
-              <label htmlFor="secretQuestion" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                Security Question *
-              </label>
-              <input
-                type="text"
-                name="secretQuestion"
-                id="secretQuestion"
-                required
-                value={formData.secretQuestion}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="e.g., What is today's date?"
-              />
-              <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                Question that members need to answer to check in
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="secretAnswer" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                Security Answer *
-              </label>
-              <input
-                type="text"
-                name="secretAnswer"
-                id="secretAnswer"
-                required
-                value={formData.secretAnswer}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Answer to the security question"
-              />
-              <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                Answer that members need to provide to check in
-              </p>
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">

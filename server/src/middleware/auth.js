@@ -221,6 +221,101 @@ const authenticateUser = async (req, res, next) => {
           },
         });
         if (user) user.userType = 'reg-rep';
+      } else if (decoded.userType === 'chariot-leader') {
+        // Verify member exists and is a leader of an active chariot
+        try {
+          const member = await prisma.member.findUnique({
+            where: { 
+              id: decoded.userId,
+              isActive: true,
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          });
+
+          if (member) {
+            // Check if member is a leader of any active chariot
+            const chariot = await prisma.chariot.findFirst({
+              where: {
+                leaderId: member.id,
+                isActive: true,
+              },
+              select: {
+                id: true,
+                name: true,
+              },
+            });
+
+            if (chariot) {
+              user = {
+                id: member.id,
+                email: member.email,
+                name: member.name,
+                userType: 'chariot-leader',
+                chariotId: chariot.id,
+                chariotName: chariot.name,
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Chariot leader verification error:', error);
+          // Don't throw, just leave user as null
+        }
+      } else if (decoded.userType === 'chariot-assistant') {
+        // Verify member exists and is an assistant of an active chariot
+        try {
+          const member = await prisma.member.findUnique({
+            where: { 
+              id: decoded.userId,
+              isActive: true,
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          });
+
+          if (member) {
+            // Check if member is an assistant of any active chariot
+            const chariotAssistants = await prisma.chariotAssistant.findMany({
+              where: {
+                memberId: member.id,
+                chariot: {
+                  isActive: true,
+                },
+              },
+              include: {
+                chariot: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            });
+
+            if (chariotAssistants.length > 0) {
+              const chariotIds = chariotAssistants.map(ca => ca.chariot.id);
+              const chariotNames = chariotAssistants.map(ca => ca.chariot.name);
+
+              user = {
+                id: member.id,
+                email: member.email,
+                name: member.name,
+                userType: 'chariot-assistant',
+                chariotIds,
+                chariotNames,
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Chariot assistant verification error:', error);
+          // Don't throw, just leave user as null
+        }
       }
 
       if (!user) {
@@ -316,20 +411,31 @@ const optionalAuth = async (req, res, next) => {
 };
 
 /**
- * Generate JWT token for admin or reg-rep
+ * Generate JWT token for admin, reg-rep, chariot-leader, or chariot-assistant
  */
 const generateToken = (user, userType) => {
   const payload = {
     userId: user.id,
     email: user.email,
     name: user.name,
-    userType: userType, // 'admin' or 'reg-rep'
+    userType: userType, // 'admin', 'reg-rep', 'chariot-leader', or 'chariot-assistant'
   };
+
+  let audience = 'church-user';
+  if (userType === 'admin') {
+    audience = 'church-admin';
+  } else if (userType === 'reg-rep') {
+    audience = 'church-reg-rep';
+  } else if (userType === 'chariot-leader') {
+    audience = 'church-chariot-leader';
+  } else if (userType === 'chariot-assistant') {
+    audience = 'church-chariot-assistant';
+  }
 
   const options = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     issuer: 'church-attendance-system',
-    audience: userType === 'admin' ? 'church-admin' : 'church-reg-rep',
+    audience,
   };
 
   return jwt.sign(payload, process.env.JWT_SECRET, options);
@@ -346,10 +452,348 @@ const verifyToken = (token) => {
   }
 };
 
+/**
+ * JWT Authentication middleware for chariot leader routes
+ */
+const authenticateChariotLeader = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Access token is required',
+      });
+    }
+
+    const token = authHeader.substring(7);
+    
+    if (!token) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Access token is required',
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      if (decoded.userType !== 'chariot-leader') {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Chariot leader access required',
+        });
+      }
+
+      // Verify member exists and is a leader of an active chariot
+      const member = await prisma.member.findUnique({
+        where: { 
+          id: decoded.userId,
+          isActive: true,
+        },
+        include: {
+          chariotLeader: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (!member || member.chariotLeader.length === 0) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'You are not assigned as a chariot leader',
+        });
+      }
+
+      req.user = {
+        id: member.id,
+        email: member.email,
+        name: member.name,
+        userType: 'chariot-leader',
+        chariotId: member.chariotLeader[0].id,
+        chariotName: member.chariotLeader[0].name,
+      };
+      next();
+
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          error: 'Token expired',
+          message: 'Access token has expired',
+        });
+      }
+      
+      if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          error: 'Invalid token',
+          message: 'Access token is invalid',
+        });
+      }
+
+      throw jwtError;
+    }
+
+  } catch (error) {
+    console.error('Chariot leader authentication error:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'Authentication failed',
+    });
+  }
+};
+
+/**
+ * JWT Authentication middleware for chariot assistant routes
+ */
+const authenticateChariotAssistant = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Access token is required',
+      });
+    }
+
+    const token = authHeader.substring(7);
+    
+    if (!token) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Access token is required',
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      if (decoded.userType !== 'chariot-assistant') {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Chariot assistant access required',
+        });
+      }
+
+      // Verify member exists and is an assistant of an active chariot
+      const member = await prisma.member.findUnique({
+        where: { 
+          id: decoded.userId,
+          isActive: true,
+        },
+        include: {
+          chariotAssistants: {
+            where: {
+              chariot: { isActive: true },
+            },
+            include: {
+              chariot: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!member || member.chariotAssistants.length === 0) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'You are not assigned as a chariot assistant',
+        });
+      }
+
+      // Get all chariot IDs the assistant belongs to
+      const chariotIds = member.chariotAssistants.map(ca => ca.chariot.id);
+      const chariotNames = member.chariotAssistants.map(ca => ca.chariot.name);
+
+      req.user = {
+        id: member.id,
+        email: member.email,
+        name: member.name,
+        userType: 'chariot-assistant',
+        chariotIds,
+        chariotNames,
+      };
+      next();
+
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          error: 'Token expired',
+          message: 'Access token has expired',
+        });
+      }
+      
+      if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          error: 'Invalid token',
+          message: 'Access token is invalid',
+        });
+      }
+
+      throw jwtError;
+    }
+
+  } catch (error) {
+    console.error('Chariot assistant authentication error:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'Authentication failed',
+    });
+  }
+};
+
+/**
+ * JWT Authentication middleware for routes accessible by chariot leader or assistant
+ */
+const authenticateChariotUser = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Access token is required',
+      });
+    }
+
+    const token = authHeader.substring(7);
+    
+    if (!token) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Access token is required',
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      if (decoded.userType === 'chariot-leader') {
+        // Use leader authentication logic
+        const member = await prisma.member.findUnique({
+          where: { 
+            id: decoded.userId,
+            isActive: true,
+          },
+          include: {
+            chariotLeader: {
+              where: { isActive: true },
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        if (!member || member.chariotLeader.length === 0) {
+          return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'You are not assigned as a chariot leader',
+          });
+        }
+
+        req.user = {
+          id: member.id,
+          email: member.email,
+          name: member.name,
+          userType: 'chariot-leader',
+          chariotId: member.chariotLeader[0].id,
+          chariotName: member.chariotLeader[0].name,
+        };
+      } else if (decoded.userType === 'chariot-assistant') {
+        // Use assistant authentication logic
+        const member = await prisma.member.findUnique({
+          where: { 
+            id: decoded.userId,
+            isActive: true,
+          },
+          include: {
+            chariotAssistants: {
+              where: {
+                chariot: { isActive: true },
+              },
+              include: {
+                chariot: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!member || member.chariotAssistants.length === 0) {
+          return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'You are not assigned as a chariot assistant',
+          });
+        }
+
+        const chariotIds = member.chariotAssistants.map(ca => ca.chariot.id);
+        const chariotNames = member.chariotAssistants.map(ca => ca.chariot.name);
+
+        req.user = {
+          id: member.id,
+          email: member.email,
+          name: member.name,
+          userType: 'chariot-assistant',
+          chariotIds,
+          chariotNames,
+        };
+      } else {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Chariot leader or assistant access required',
+        });
+      }
+
+      next();
+
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          error: 'Token expired',
+          message: 'Access token has expired',
+        });
+      }
+      
+      if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          error: 'Invalid token',
+          message: 'Access token is invalid',
+        });
+      }
+
+      throw jwtError;
+    }
+
+  } catch (error) {
+    console.error('Chariot user authentication error:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'Authentication failed',
+    });
+  }
+};
+
 module.exports = {
   authenticateAdmin,
   authenticateRegRep,
   authenticateUser,
+  authenticateChariotLeader,
+  authenticateChariotAssistant,
+  authenticateChariotUser,
   optionalAuth,
   generateToken,
   verifyToken,

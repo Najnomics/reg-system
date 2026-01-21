@@ -1,4 +1,6 @@
 import vercelEmailService from './vercelEmailService.js';
+import { apiCache } from '../utils/cache.js';
+import { requestBatcher } from '../utils/requestBatcher.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -9,8 +11,49 @@ if (import.meta.env.PROD) {
 }
 
 class ApiService {
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, useCache = false, useBatch = false) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const cacheKey = `${options.method || 'GET'}:${endpoint}`;
+    const isGetRequest = !options.method || options.method === 'GET';
+    
+    // Check cache for GET requests (stale-while-revalidate pattern)
+    if (useCache && isGetRequest) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) {
+        // If stale, return cached data but trigger background refresh
+        if (cached._stale) {
+          // Check if refresh is already pending
+          const pending = apiCache.getPending(cacheKey);
+          if (!pending) {
+            // Trigger background refresh without blocking
+            const refreshPromise = this._makeRequest(url, options, cacheKey, useCache, isGetRequest);
+            apiCache.setPending(cacheKey, refreshPromise);
+            refreshPromise.catch(() => {}); // Ignore errors in background refresh
+          }
+        }
+        // Return cached data (even if stale)
+        const { _stale, ...data } = cached;
+        return data;
+      }
+      
+      // Check if request is already pending (deduplication)
+      const pending = apiCache.getPending(cacheKey);
+      if (pending) {
+        return pending;
+      }
+    }
+    
+    // Batch GET requests to prevent duplicate calls
+    if (useBatch && isGetRequest) {
+      return requestBatcher.batch(cacheKey, async () => {
+        return this._makeRequest(url, options, cacheKey, useCache, isGetRequest);
+      });
+    }
+    
+    return this._makeRequest(url, options, cacheKey, useCache, isGetRequest);
+  }
+  
+  async _makeRequest(url, options, cacheKey, useCache, isGetRequest) {
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -29,11 +72,16 @@ class ApiService {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error(`API Error Response (${endpoint}):`, {
+        console.error(`API Error Response (${url}):`, {
           status: response.status,
           statusText: response.statusText,
           errorData: errorData,
         });
+        
+        // Check for duplicate name error (409 Conflict)
+        if (response.status === 409 && (errorData.message?.includes('Name already exists') || errorData.message?.includes('name already exists'))) {
+          throw new Error('A user with this name already exists');
+        }
         
         // Show validation details if available
         if (errorData.details && Array.isArray(errorData.details)) {
@@ -44,11 +92,23 @@ class ApiService {
         throw new Error(errorData.message || errorData.details || `HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Cache GET requests
+      if (useCache && isGetRequest) {
+        apiCache.set(cacheKey, data);
+      }
+      
+      return data;
     } catch (error) {
-      console.error(`API request failed: ${endpoint}`, error);
+      console.error(`API request failed: ${url}`, error);
       throw error;
     }
+  }
+  
+  // Clear cache for a specific endpoint pattern
+  clearCache(pattern) {
+    apiCache.clearPattern(pattern);
   }
 
   // Auth methods
@@ -79,9 +139,17 @@ class ApiService {
     if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     if (params.query) queryParams.append('query', params.query);
     
+    // Use cache for GET requests (cache for 30 seconds)
+    const cacheKey = `/members?${queryParams.toString()}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached && !params.forceRefresh) {
+      return cached;
+    }
+    
     const queryString = queryParams.toString();
     const endpoint = `/members${queryString ? `?${queryString}` : ''}`;
-    const response = await this.request(endpoint);
+    // Use batching and caching for better performance
+    const response = await this.request(endpoint, {}, true, true);
     
     // Transform backend 'pin' field to frontend 'memberCode' field
     if (response && response.data && response.data.members) {
@@ -219,11 +287,24 @@ class ApiService {
    */
   async resendPinToAll() {
     try {
-      // Fetch all active members
-      const membersResponse = await this.getMembers({ limit: 10000 }); // Get all members
-      const members = membersResponse.data?.members || [];
+      // Fetch all active members in batches (max limit is 100)
+      let allMembers = [];
+      let page = 1;
+      let hasMore = true;
       
-      const activeMembers = members.filter(m => m.isActive !== false);
+      while (hasMore) {
+        const response = await this.getMembers({ page, limit: 100 });
+        const pageMembers = response?.data?.members || [];
+        allMembers = [...allMembers, ...pageMembers];
+        
+        hasMore = pageMembers.length === 100 && (response?.data?.pagination?.hasNext || false);
+        page++;
+        
+        // Safety limit to prevent infinite loops
+        if (page > 100) break;
+      }
+      
+      const activeMembers = allMembers.filter(m => m.isActive !== false);
       const memberIds = activeMembers.map(m => m.id);
 
       console.log(`Resending PIN emails to ${activeMembers.length} active members...`);
@@ -252,8 +333,23 @@ class ApiService {
   }
 
   // Sessions methods
-  async getSessions() {
-    return this.request('/sessions');
+  async getSessions(params = {}) {
+    const cacheKey = `/sessions${params.page ? `?page=${params.page}` : ''}`;
+    if (!params.forceRefresh) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) return cached;
+    }
+    
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    // Use batching and caching for better performance
+    const result = await this.request(`/sessions${queryString ? `?${queryString}` : ''}`, {}, true, true);
+    return result;
   }
 
   async getSession(id) {
@@ -262,6 +358,17 @@ class ApiService {
 
   async getSessionAttendance(id) {
     return this.request(`/sessions/${id}/attendance?includeAbsent=true`);
+  }
+
+  async markMemberPresent(sessionId, memberId) {
+    return this.request(`/sessions/${sessionId}/attendance/mark-present`, {
+      method: 'POST',
+      body: JSON.stringify({ memberId }),
+    });
+  }
+
+  async getSessionChariotAttendance(sessionId) {
+    return this.request(`/sessions/${sessionId}/chariot-attendance`, {}, true, true);
   }
 
   async exportSessionAttendanceCSV(id) {
@@ -426,6 +533,108 @@ class ApiService {
     return this.request(`/reg-reps/${id}/reset-password`, {
       method: 'POST',
       body: JSON.stringify({ newPassword }),
+    });
+  }
+
+  // Chariot methods (admin only)
+  async getChariots(forceRefresh = false) {
+    const cacheKey = '/chariots';
+    if (!forceRefresh) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) return cached;
+    }
+    
+    // Use batching and caching for better performance
+    const result = await this.request('/chariots', {}, true, true);
+    return result;
+  }
+
+  async getChariot(id) {
+    return this.request(`/chariots/${id}`);
+  }
+
+  async createChariot(chariotData) {
+    return this.request('/chariots', {
+      method: 'POST',
+      body: JSON.stringify(chariotData),
+    });
+  }
+
+  async updateChariot(id, chariotData) {
+    return this.request(`/chariots/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(chariotData),
+    });
+  }
+
+  async deleteChariot(id) {
+    return this.request(`/chariots/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleChariotStatus(id) {
+    return this.request(`/chariots/${id}/toggle-status`, {
+      method: 'PATCH',
+    });
+  }
+
+  async addChariotAssistants(chariotId, memberIds) {
+    return this.request(`/chariots/${chariotId}/assistants`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async removeChariotAssistants(chariotId, memberIds) {
+    return this.request(`/chariots/${chariotId}/assistants`, {
+      method: 'DELETE',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async addChariotMembers(chariotId, memberIds) {
+    return this.request(`/chariots/${chariotId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async removeChariotMembers(chariotId, memberIds) {
+    return this.request(`/chariots/${chariotId}/members`, {
+      method: 'DELETE',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  // Chariot user methods (for leaders/assistants)
+  async getChariotMembers(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.query) queryParams.append('query', params.query);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/chariot/members${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getChariotSessions() {
+    return this.request('/chariot/sessions');
+  }
+
+  async getChariotSession(id) {
+    return this.request(`/chariot/sessions/${id}`);
+  }
+
+  async getChariotDashboardStats() {
+    return this.request('/chariot/dashboard/stats');
+  }
+
+  // Chariot authentication
+  async loginChariot(email, password, userType) {
+    return this.request('/auth/login-chariot', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, userType }),
     });
   }
 }

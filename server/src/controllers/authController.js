@@ -3,13 +3,13 @@ const prisma = require('../config/database');
 const { generateToken, verifyToken } = require('../middleware/auth');
 
 /**
- * Universal login controller for admin and reg-rep
+ * Universal login controller for admin, reg-rep, chariot leaders, and chariot assistants
  */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check both admin and reg-rep tables
+    // Check admin and reg-rep tables first
     const [admin, regRep] = await Promise.all([
       prisma.admin.findUnique({
         where: { email: email.toLowerCase() },
@@ -34,48 +34,206 @@ const login = async (req, res) => {
       })
     ]);
 
-    const user = admin || regRep;
-    const userType = admin ? 'admin' : 'reg-rep';
+    // If admin or reg-rep found, use existing logic
+    if (admin || regRep) {
+      const user = admin || regRep;
+      const userType = admin ? 'admin' : 'reg-rep';
 
-    if (!user) {
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(401).json({
+          error: 'Account disabled',
+          message: 'Your account has been disabled',
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      
+      if (!isValidPassword) {
+        return res.status(401).json({
+          error: 'Authentication failed',
+          message: 'Invalid email or password',
+        });
+      }
+
+      // Generate JWT token with user type
+      const token = generateToken(user, userType);
+
+      // Return success response (exclude password)
+      const { password: _, ...userData } = user;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: { ...userData, userType },
+        userType,
+        // Keep legacy format for backwards compatibility
+        ...(userType === 'admin' ? { admin: userData } : { regRep: userData })
+      });
+    }
+
+    // If not admin/reg-rep, check if it's a chariot leader or assistant
+    // Use findFirst instead of findUnique since emails can now be duplicate
+    // We'll check all members with this email and find one that is a leader/assistant
+    const membersWithEmail = await prisma.member.findMany({
+      where: { 
+        email: email.toLowerCase(),
+        isActive: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+      },
+    });
+
+    if (membersWithEmail.length === 0) {
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'Invalid email or password',
       });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
+    // Try to find a member who is a leader or assistant
+    // Check each member to see if they're a leader or assistant
+    let member = null;
+    let chariotAsLeader = null;
+    let chariotAssistants = [];
+    
+    for (const m of membersWithEmail) {
+      // Check if this member is a leader
+      const leaderCheck = await prisma.chariot.findFirst({
+        where: {
+          leaderId: m.id,
+          isActive: true,
+        },
+        select: { id: true, name: true },
+      });
+
+      // Check if this member is an assistant
+      const assistantCheck = await prisma.chariotAssistant.findMany({
+        where: {
+          memberId: m.id,
+          chariot: { isActive: true },
+        },
+        include: {
+          chariot: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (leaderCheck || assistantCheck.length > 0) {
+        member = m;
+        chariotAsLeader = leaderCheck;
+        chariotAssistants = assistantCheck;
+        break;
+      }
+    }
+
+    if (!member) {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'No chariot leader or assistant found with this email',
+      });
+    }
+
+    // Check if member is active
+    if (!member.isActive) {
       return res.status(401).json({
         error: 'Account disabled',
         message: 'Your account has been disabled',
       });
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    
-    if (!isValidPassword) {
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid email or password',
+    // Get preset passwords from environment variables
+    const leaderPassword = process.env.CHARIOT_LEADER_PASSWORD;
+    const assistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD;
+
+    if (!leaderPassword || !assistantPassword) {
+      return res.status(500).json({
+        error: 'Server configuration error',
+        message: 'Chariot passwords not configured. Please set CHARIOT_LEADER_PASSWORD and CHARIOT_ASSISTANT_PASSWORD environment variables.',
       });
     }
 
-    // Generate JWT token with user type
-    const token = generateToken(user, userType);
+    // Check if member is a chariot leader (we already found this above)
 
-    // Return success response (exclude password)
-    const { password: _, ...userData } = user;
+    if (chariotAsLeader) {
+      // Verify password matches leader password
+      if (password !== leaderPassword) {
+        return res.status(401).json({
+          error: 'Authentication failed',
+          message: 'Invalid email or password',
+        });
+      }
 
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: { ...userData, userType },
-      userType,
-      // Keep legacy format for backwards compatibility
-      ...(userType === 'admin' ? { admin: userData } : { regRep: userData })
+      // Generate JWT token
+      const token = generateToken(
+        { ...member, userType: 'chariot-leader' },
+        'chariot-leader'
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          ...member,
+          userType: 'chariot-leader',
+          chariotId: chariotAsLeader.id,
+          chariotName: chariotAsLeader.name,
+        },
+        userType: 'chariot-leader',
+      });
+    }
+
+    // Check if member is a chariot assistant (we already found this above)
+
+    if (chariotAssistants.length > 0) {
+      // Verify password matches assistant password
+      if (password !== assistantPassword) {
+        return res.status(401).json({
+          error: 'Authentication failed',
+          message: 'Invalid email or password',
+        });
+      }
+
+      // Generate JWT token (use first chariot for now, or could support multiple)
+      const firstChariot = chariotAssistants[0].chariot;
+      const token = generateToken(
+        { ...member, userType: 'chariot-assistant' },
+        'chariot-assistant'
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          ...member,
+          userType: 'chariot-assistant',
+          chariotId: firstChariot.id,
+          chariotName: firstChariot.name,
+          chariots: chariotAssistants.map(ca => ({
+            id: ca.chariot.id,
+            name: ca.chariot.name,
+          })),
+        },
+        userType: 'chariot-assistant',
+      });
+    }
+
+    // If member exists but is not assigned to any role, deny access
+    return res.status(401).json({
+      error: 'Authentication failed',
+      message: 'Invalid email or password',
     });
 
   } catch (error) {
@@ -230,8 +388,165 @@ const changePassword = async (req, res) => {
   }
 };
 
+/**
+ * Login controller for chariot leaders and assistants
+ * Uses preset passwords from environment variables
+ */
+const loginChariotUser = async (req, res) => {
+  try {
+    const { email, password, userType } = req.body; // userType: 'chariot-leader' or 'chariot-assistant'
+
+    if (!userType || !['chariot-leader', 'chariot-assistant'].includes(userType)) {
+      return res.status(400).json({
+        error: 'Invalid user type',
+        message: 'userType must be either "chariot-leader" or "chariot-assistant"',
+      });
+    }
+
+    // Get preset passwords from environment variables (required)
+    const leaderPassword = process.env.CHARIOT_LEADER_PASSWORD;
+    const assistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD;
+
+    if (!leaderPassword || !assistantPassword) {
+      return res.status(500).json({
+        error: 'Server configuration error',
+        message: 'Chariot passwords not configured. Please set CHARIOT_LEADER_PASSWORD and CHARIOT_ASSISTANT_PASSWORD environment variables.',
+      });
+    }
+
+    const expectedPassword = userType === 'chariot-leader' ? leaderPassword : assistantPassword;
+
+    // Verify password matches preset password
+    if (password !== expectedPassword) {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'Invalid password',
+      });
+    }
+
+    // Find member by email
+    const member = await prisma.member.findUnique({
+      where: { email: email.toLowerCase() },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+      },
+    });
+
+    if (!member) {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Check if member is active
+    if (!member.isActive) {
+      return res.status(401).json({
+        error: 'Account disabled',
+        message: 'Your account has been disabled',
+      });
+    }
+
+    // Verify member is assigned to the appropriate role
+    if (userType === 'chariot-leader') {
+      const chariot = await prisma.chariot.findFirst({
+        where: {
+          leaderId: member.id,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      if (!chariot) {
+        return res.status(401).json({
+          error: 'Access denied',
+          message: 'You are not assigned as a chariot leader',
+        });
+      }
+
+      // Generate JWT token
+      const token = generateToken(
+        { ...member, userType: 'chariot-leader' },
+        'chariot-leader'
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          ...member,
+          userType: 'chariot-leader',
+          chariotId: chariot.id,
+          chariotName: chariot.name,
+        },
+        userType: 'chariot-leader',
+      });
+    } else {
+      // userType === 'chariot-assistant'
+      const chariotAssistants = await prisma.chariotAssistant.findMany({
+        where: {
+          memberId: member.id,
+          chariot: { isActive: true },
+        },
+        include: {
+          chariot: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (chariotAssistants.length === 0) {
+        return res.status(401).json({
+          error: 'Access denied',
+          message: 'You are not assigned as a chariot assistant',
+        });
+      }
+
+      const chariotIds = chariotAssistants.map(ca => ca.chariot.id);
+      const chariotNames = chariotAssistants.map(ca => ca.chariot.name);
+
+      // Generate JWT token
+      const token = generateToken(
+        { ...member, userType: 'chariot-assistant' },
+        'chariot-assistant'
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          ...member,
+          userType: 'chariot-assistant',
+          chariotIds,
+          chariotNames,
+        },
+        userType: 'chariot-assistant',
+      });
+    }
+
+  } catch (error) {
+    console.error('Chariot user login error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Login failed',
+    });
+  }
+};
+
 module.exports = {
   login,
+  loginChariotUser,
   logout,
   verify,
   refresh,

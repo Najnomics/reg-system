@@ -98,15 +98,13 @@ const schemas = {
       'date.min': 'End time must be after start time',
       'any.required': 'End time is required',
     }),
-    secretQuestion: Joi.string().trim().min(5).max(500).required().messages({
+    secretQuestion: Joi.string().trim().min(5).max(500).optional().allow('').messages({
       'string.min': 'Secret question must be at least 5 characters long',
       'string.max': 'Secret question must not exceed 500 characters',
-      'any.required': 'Secret question is required',
     }),
-    secretAnswer: Joi.string().trim().min(1).max(100).required().messages({
-      'string.min': 'Secret answer is required',
+    secretAnswer: Joi.string().trim().min(1).max(100).optional().allow('').messages({
+      'string.min': 'Secret answer must be at least 1 character',
       'string.max': 'Secret answer must not exceed 100 characters',
-      'any.required': 'Secret answer is required',
     }),
   }),
 
@@ -172,6 +170,14 @@ const schemas = {
       'number.base': 'ID must be a number',
       'number.integer': 'ID must be an integer',
       'number.positive': 'ID must be positive',
+      'any.required': 'ID is required',
+    }),
+  }),
+  
+  // UUID parameter validation (for chariots and other UUID-based resources)
+  uuidParam: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      'string.guid': 'ID must be a valid UUID',
       'any.required': 'ID is required',
     }),
   }),
@@ -246,6 +252,14 @@ const schemas = {
       'string.min': 'Password must be at least 6 characters long',
       'string.max': 'Password must not exceed 50 characters',
       'any.required': 'New password is required',
+    }),
+  }),
+
+  // Mark member as present
+  markMemberPresent: Joi.object({
+    memberId: Joi.string().uuid().required().messages({
+      'string.guid': 'Member ID must be a valid UUID',
+      'any.required': 'Member ID is required',
     }),
   }),
 };

@@ -17,10 +17,11 @@ router.get('/stats',
   sessionController.getSessionStats
 );
 
-router.get('/:id',
-  authenticateUser,
+// Get chariot attendance overview for a session (admin only) - MUST be before /:id route
+router.get('/:id/chariot-attendance',
+  authenticateAdmin,
   validate(schemas.sessionId, 'params'),
-  sessionController.getSession
+  sessionController.getSessionChariotAttendance
 );
 
 router.get('/:id/attendance',
@@ -41,6 +42,14 @@ router.get('/:id/attendance/export/pdf',
   sessionController.exportSessionAttendancePDF
 );
 
+// Mark member as present (admin only)
+router.post('/:id/attendance/mark-present',
+  authenticateAdmin,
+  validate(schemas.sessionId, 'params'),
+  validate(schemas.markMemberPresent),
+  sessionController.markMemberPresent
+);
+
 router.get('/:id/qr-code',
   authenticateUser,
   validate(schemas.sessionId, 'params'),
@@ -51,6 +60,12 @@ router.get('/:id/print',
   authenticateUser,
   validate(schemas.sessionId, 'params'),
   sessionController.getPrintableQR
+);
+
+router.get('/:id',
+  authenticateUser,
+  validate(schemas.sessionId, 'params'),
+  sessionController.getSession
 );
 
 // Session management routes (admin only)

@@ -1,12 +1,13 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
 import { apiService } from '../services/apiService'
+import { dataPreloader } from '../utils/preloadData'
 
 const AuthContext = createContext()
 
 const initialState = {
   user: null,
   token: null,
-  userType: null, // 'admin' or 'reg-rep'
+  userType: null, // 'admin', 'reg-rep', 'chariot-leader', or 'chariot-assistant'
   isAuthenticated: false,
   isLoading: true,
   error: null,
@@ -105,6 +106,9 @@ export const AuthProvider = ({ children }) => {
             userType: response.userType,
           },
         })
+        
+        // Preload critical data when user is already authenticated
+        dataPreloader.preloadCriticalData().catch(() => {});
       } else {
         localStorage.removeItem('token')
         dispatch({ type: AuthActionTypes.SET_LOADING, payload: false })
@@ -127,6 +131,37 @@ export const AuthProvider = ({ children }) => {
         type: AuthActionTypes.LOGIN_SUCCESS,
         payload: {
           user: response.user || response.admin || response.regRep,
+          token: response.token,
+          userType: response.userType,
+        },
+      })
+
+      // Preload critical data immediately after login for faster navigation
+      dataPreloader.preloadCriticalData().catch(() => {});
+
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error.message || 'Login failed'
+      dispatch({
+        type: AuthActionTypes.LOGIN_FAILURE,
+        payload: errorMessage,
+      })
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  const loginChariot = async (email, password, userType) => {
+    try {
+      dispatch({ type: AuthActionTypes.LOGIN_START })
+      
+      const response = await apiService.loginChariot(email, password, userType)
+      
+      localStorage.setItem('token', response.token)
+
+      dispatch({
+        type: AuthActionTypes.LOGIN_SUCCESS,
+        payload: {
+          user: response.user,
           token: response.token,
           userType: response.userType,
         },
@@ -155,6 +190,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
+    loginChariot,
     logout,
     clearError,
     checkAuthStatus,

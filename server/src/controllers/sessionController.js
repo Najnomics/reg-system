@@ -216,8 +216,8 @@ const createSession = async (req, res) => {
       });
     }
 
-    // Validate required fields
-    if (!theme || !startTime || !endTime || !secretQuestion || !secretAnswer) {
+    // Validate required fields (secret question/answer are now optional)
+    if (!theme || !startTime || !endTime) {
       console.log('Missing required fields:', {
         theme: !!theme,
         startTime: !!startTime,
@@ -227,7 +227,7 @@ const createSession = async (req, res) => {
       });
       return res.status(400).json({
         error: 'Invalid input data',
-        message: 'All fields are required: theme, startTime, endTime, secretQuestion, secretAnswer',
+        message: 'Required fields: theme, startTime, endTime (secretQuestion and secretAnswer are optional)',
       });
     }
 
@@ -242,9 +242,13 @@ const createSession = async (req, res) => {
       });
     }
 
-    // Hash the secret answer
-    const hashedAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 12);
-    const plainAnswer = secretAnswer.trim(); // Store plain text for admin reference
+    // Hash secret answer if provided, otherwise use empty strings
+    const hashedAnswer = secretAnswer && secretAnswer.trim() 
+      ? await bcrypt.hash(secretAnswer.toLowerCase().trim(), 12)
+      : '';
+    const plainAnswer = secretAnswer && secretAnswer.trim() 
+      ? secretAnswer.trim() 
+      : ''; // Store plain text for admin reference
 
     // Generate UUID for session ID
     const { randomUUID } = require('crypto');
@@ -257,7 +261,7 @@ const createSession = async (req, res) => {
         theme: theme.trim(),
         startTime: start,
         endTime: end,
-        secretQuestion: secretQuestion.trim(),
+        secretQuestion: secretQuestion && secretQuestion.trim() ? secretQuestion.trim() : '',
         secretAnswer: hashedAnswer,
         secretAnswerPlain: plainAnswer, // Store plain text for admin reference
         isActive: true,
@@ -749,6 +753,7 @@ const getSessionAttendance = async (req, res) => {
     }
 
     // Get session details and attendance records in parallel
+    // Optimize: Only fetch what we need, use select to reduce data transfer
     const [session, attendanceRecords, totalMembersCount] = await Promise.all([
       prisma.session.findUnique({
         where: { id },
@@ -759,6 +764,7 @@ const getSessionAttendance = async (req, res) => {
         select: {
           id: true,
           checkedInAt: true,
+          memberId: true,
           member: {
             select: {
               id: true,
@@ -770,7 +776,10 @@ const getSessionAttendance = async (req, res) => {
         },
         orderBy: { checkedInAt: 'desc' },
       }),
-      prisma.member.count({ where: { isActive: true } }),
+      // Only count active members if we need absent list
+      includeAbsent === 'true' 
+        ? prisma.member.count({ where: { isActive: { not: false } } })
+        : Promise.resolve(0),
     ]);
 
     console.log('getSessionAttendance - Session returned from DB:', {
@@ -794,13 +803,18 @@ const getSessionAttendance = async (req, res) => {
     const attendedMemberIds = new Set(attendanceRecords.map(record => record.member.id));
 
     // Fetch absent members if explicitly requested
-    // For attendance details page, we always want to show absent members
+    // Optimize: Only fetch IDs first, then fetch details in batches if needed
     let allMembers = [];
-    if (includeAbsent === 'true') {
-      // If there are too many members, we'll still fetch but limit the query
-      const memberLimit = totalMembersCount > 5000 ? 5000 : undefined;
+    if (includeAbsent === 'true' && totalMembersCount > 0) {
+      // Use efficient query - only fetch what we need
+      // Limit to reasonable number to prevent timeout
+      const memberLimit = totalMembersCount > 1000 ? 1000 : undefined;
       allMembers = await prisma.member.findMany({
-        where: { isActive: true },
+        where: { 
+          isActive: { not: false },
+          // Exclude already attended members for efficiency
+          id: { notIn: Array.from(attendedMemberIds) },
+        },
         select: {
           id: true,
           name: true,
@@ -876,6 +890,269 @@ const getSessionAttendance = async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to retrieve session attendance',
+    });
+  }
+};
+
+/**
+ * Mark a member as present for a session (admin only)
+ */
+const markMemberPresent = async (req, res) => {
+  try {
+    const { id: sessionId } = req.params;
+    const { memberId } = req.body;
+
+    if (!memberId) {
+      return res.status(400).json({
+        error: 'Invalid input data',
+        message: 'Member ID is required',
+      });
+    }
+
+    // Verify session exists
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        theme: true,
+        isActive: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Session not found',
+        message: 'The requested session does not exist',
+      });
+    }
+
+    // Verify member exists
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+      },
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        error: 'Member not found',
+        message: 'The requested member does not exist',
+      });
+    }
+
+    if (!member.isActive) {
+      return res.status(400).json({
+        error: 'Member inactive',
+        message: 'Cannot mark inactive member as present',
+      });
+    }
+
+    // Check if already checked in
+    const existingAttendance = await prisma.attendance.findFirst({
+      where: {
+        sessionId: sessionId,
+        memberId: memberId,
+      },
+    });
+
+    if (existingAttendance) {
+      return res.status(200).json({
+        success: true,
+        message: 'Member is already marked as present',
+        data: {
+          attendance: {
+            id: existingAttendance.id,
+            checkedInAt: existingAttendance.checkedInAt,
+          },
+        },
+      });
+    }
+
+    // Generate UUID for attendance ID
+    const { randomUUID } = require('crypto');
+    const attendanceId = randomUUID();
+
+    // Create attendance record
+    const attendance = await prisma.attendance.create({
+      data: {
+        id: attendanceId,
+        sessionId: sessionId,
+        memberId: memberId,
+        checkedIn: true,
+        checkedInAt: new Date(), // Set explicit check-in time
+      },
+      include: {
+        member: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            pin: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `${member.name} has been marked as present`,
+      data: {
+        attendance: {
+          id: attendance.id,
+          checkedInAt: attendance.checkedInAt,
+          member: attendance.member,
+        },
+      },
+    });
+
+  } catch (error) {
+    console.error('Mark member present error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to mark member as present',
+    });
+  }
+};
+
+/**
+ * Get all chariots with their members' attendance status for a session (admin only)
+ */
+const getSessionChariotAttendance = async (req, res) => {
+  try {
+    const { id: sessionId } = req.params;
+
+    // Verify session exists
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        theme: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Session not found',
+        message: 'The requested session does not exist',
+      });
+    }
+
+    // Get all chariots with their members (include inactive for attendance reporting)
+    const chariots = await prisma.chariot.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        leader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        members: {
+          select: {
+            memberId: true,
+            member: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Get all attendance records for this session
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { sessionId: sessionId },
+      select: {
+        memberId: true,
+        checkedInAt: true,
+      },
+    });
+
+    // Create a set of member IDs who attended
+    const attendedMemberIds = new Set(attendanceRecords.map(a => a.memberId));
+    const attendanceMap = new Map(
+      attendanceRecords.map(a => [a.memberId, a.checkedInAt])
+    );
+
+    // Process each chariot and calculate attendance
+    const chariotAttendance = chariots.map(chariot => {
+      const chariotMembers = chariot.members
+        .filter(cm => cm.member.isActive !== false)
+        .map(cm => ({
+          id: cm.member.id,
+          name: cm.member.name,
+          email: cm.member.email,
+          phone: cm.member.phone,
+          status: attendedMemberIds.has(cm.member.id) ? 'present' : 'absent',
+          checkedInAt: attendanceMap.get(cm.member.id) || null,
+        }));
+
+      const presentCount = chariotMembers.filter(m => m.status === 'present').length;
+      const absentCount = chariotMembers.filter(m => m.status === 'absent').length;
+      const totalCount = chariotMembers.length;
+      const attendanceRate = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+
+      return {
+        id: chariot.id,
+        name: chariot.name,
+        description: chariot.description,
+        isActive: chariot.isActive,
+        leader: chariot.leader,
+        members: chariotMembers.sort((a, b) => a.name.localeCompare(b.name)),
+        statistics: {
+          total: totalCount,
+          present: presentCount,
+          absent: absentCount,
+          attendanceRate,
+        },
+      };
+    });
+
+    // Calculate overall statistics
+    const overallStats = {
+      totalChariots: chariotAttendance.length,
+      totalMembers: chariotAttendance.reduce((sum, c) => sum + c.statistics.total, 0),
+      totalPresent: chariotAttendance.reduce((sum, c) => sum + c.statistics.present, 0),
+      totalAbsent: chariotAttendance.reduce((sum, c) => sum + c.statistics.absent, 0),
+      overallAttendanceRate: 0,
+    };
+    overallStats.overallAttendanceRate = overallStats.totalMembers > 0
+      ? Math.round((overallStats.totalPresent / overallStats.totalMembers) * 100)
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        session,
+        chariots: chariotAttendance,
+        overallStats,
+      },
+    });
+
+  } catch (error) {
+    console.error('Get session chariot attendance error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to retrieve chariot attendance',
     });
   }
 };
@@ -1149,6 +1426,8 @@ module.exports = {
   getSessions,
   getSession,
   getSessionAttendance,
+  markMemberPresent,
+  getSessionChariotAttendance,
   exportSessionAttendanceCSV,
   exportSessionAttendancePDF,
   createSession,

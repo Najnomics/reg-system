@@ -39,12 +39,13 @@ const uploadMembers = async (req, res) => {
       });
     }
 
-    // Pre-check for duplicates in existing database
-    const emailsToCheck = parseResult.data.map(member => member.email);
+    // Pre-check for duplicate names in existing database
+    // Names must be unique - duplicate names are not allowed
+    const namesToCheck = parseResult.data.map(member => member.name.trim());
     const existingMembers = await prisma.member.findMany({
       where: {
-        email: {
-          in: emailsToCheck
+        name: {
+          in: namesToCheck
         }
       },
       select: {
@@ -55,28 +56,29 @@ const uploadMembers = async (req, res) => {
       }
     });
 
-    // Create lookup map for existing emails
-    const existingEmailMap = new Map();
+    // Create lookup map for existing names
+    const existingNameMap = new Map();
     existingMembers.forEach(member => {
-      existingEmailMap.set(member.email, member);
+      existingNameMap.set(member.name.toLowerCase(), member);
     });
 
-    // Check for duplicates within the uploaded file
-    const uploadedEmails = new Map();
+    // Check for duplicate names within the uploaded file
+    const uploadedNames = new Map();
     const fileDuplicates = [];
     
     parseResult.data.forEach(member => {
-      if (uploadedEmails.has(member.email)) {
+      const normalizedName = member.name.trim().toLowerCase();
+      if (uploadedNames.has(normalizedName)) {
         fileDuplicates.push({
           row: member.rowNumber,
-          email: member.email,
           name: member.name,
-          error: 'Duplicate email in upload file',
+          email: member.email,
+          error: 'Duplicate name in upload file',
           type: 'file_duplicate',
-          firstFoundAtRow: uploadedEmails.get(member.email).rowNumber
+          firstFoundAtRow: uploadedNames.get(normalizedName).rowNumber
         });
       } else {
-        uploadedEmails.set(member.email, member);
+        uploadedNames.set(normalizedName, member);
       }
     });
 
@@ -88,27 +90,29 @@ const uploadMembers = async (req, res) => {
     
     for (const memberData of parseResult.data) {
       try {
-        // Skip if this is a duplicate within the file
+        // Skip if this is a duplicate name within the file
+        const normalizedName = memberData.name.trim().toLowerCase();
         const isDuplicateInFile = fileDuplicates.some(dup => 
-          dup.row === memberData.rowNumber && dup.email === memberData.email
+          dup.row === memberData.rowNumber && dup.name.toLowerCase() === normalizedName
         );
         
         if (isDuplicateInFile) {
           continue; // Skip this row, already recorded in fileDuplicates
         }
 
-        // Check if email already exists in database
-        const existingMember = existingEmailMap.get(memberData.email);
+        // Check if name already exists in database
+        const existingMember = existingNameMap.get(normalizedName);
         if (existingMember) {
           duplicateErrors.push({
             row: memberData.rowNumber,
-            email: memberData.email,
             name: memberData.name,
-            error: `Email already exists in database`,
+            email: memberData.email,
+            error: `Name already exists in database`,
             type: 'database_duplicate',
             existingMember: {
               id: existingMember.id,
               name: existingMember.name,
+              email: existingMember.email,
               createdAt: existingMember.createdAt
             }
           });

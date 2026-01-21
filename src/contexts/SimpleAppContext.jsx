@@ -16,7 +16,7 @@ export const AppProvider = ({ children }) => {
   const [fetchingMembers, setFetchingMembers] = useState(false);
   const [fetchingSessions, setFetchingSessions] = useState(false);
   
-  const CACHE_DURATION = 5000; // 5 seconds cache for fresher data
+  const CACHE_DURATION = 30 * 1000; // 30 seconds cache - balance between freshness and performance
 
   const setSidebar = (open) => {
     setSidebarOpen(open);
@@ -61,18 +61,30 @@ export const AppProvider = ({ children }) => {
       return;
     }
     
-    // Check cache first
+    // Check cache first - use cached data immediately for instant UI update
     const now = Date.now();
     if (!forceRefresh && membersCache.data && membersCache.timestamp && (now - membersCache.timestamp) < CACHE_DURATION) {
       console.log('Using cached members data');
       setMembers(membersCache.data);
+      // Still fetch in background to update cache
+      setFetchingMembers(true);
+      apiService.getMembers({ forceRefresh: true }).then(response => {
+        const membersData = response?.data?.members || response?.members || [];
+        const activeMembers = Array.isArray(membersData) ? membersData.filter(member => member.isActive !== false) : [];
+        setMembers(activeMembers);
+        setMembersCache({ data: activeMembers, timestamp: Date.now() });
+        setFetchingMembers(false);
+      }).catch(() => {
+        setFetchingMembers(false);
+      });
       return;
     }
     
     try {
       setFetchingMembers(true);
       setLoading(true);
-      const response = await apiService.getMembers();
+      // Use pagination for faster initial load
+      const response = await apiService.getMembers({ page: 1, limit: 50 });
       console.log('fetchMembers response:', response);
       // Extract members array from API response
       const membersData = response?.data?.members || response?.members || [];
@@ -109,18 +121,17 @@ export const AppProvider = ({ children }) => {
     try {
       setFetchingSessions(true);
       setLoading(true);
-      const response = await apiService.getSessions();
+      // Use pagination to limit initial load
+      const response = await apiService.getSessions({ 
+        page: 1, 
+        limit: 50, // Limit initial load to 50 sessions
+        sortBy: 'startTime',
+        sortOrder: 'desc'
+      });
       console.log('fetchSessions response:', response);
       // Extract sessions array from API response
       const sessionsData = response?.data?.sessions || response?.sessions || [];
       const sessionsArray = Array.isArray(sessionsData) ? sessionsData : [];
-      console.log('Sessions array:', sessionsArray);
-      console.log('First session with secret fields:', sessionsArray[0] ? {
-        id: sessionsArray[0].id,
-        theme: sessionsArray[0].theme,
-        secretQuestion: sessionsArray[0].secretQuestion,
-        secretAnswerPlain: sessionsArray[0].secretAnswerPlain
-      } : 'No sessions');
       setSessions(sessionsArray);
       // Update cache
       setSessionsCache({ data: sessionsArray, timestamp: now });
@@ -167,7 +178,13 @@ export const AppProvider = ({ children }) => {
       return newMember;
     } catch (error) {
       console.error('Failed to create member:', error);
-      showError('Failed to create member');
+      // Check for duplicate name error
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('Name already exists') || errorMessage.includes('name already exists')) {
+        showError('A user with this name already exists');
+      } else {
+        showError('Failed to create member');
+      }
       throw error;
     }
   };
@@ -186,7 +203,13 @@ export const AppProvider = ({ children }) => {
       return updatedMember;
     } catch (error) {
       console.error('Failed to update member:', error);
-      showError('Failed to update member');
+      // Check for duplicate name error
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('Name already exists') || errorMessage.includes('name already exists') || errorMessage.includes('A user with this name already exists')) {
+        showError('A user with this name already exists');
+      } else {
+        showError('Failed to update member');
+      }
       throw error;
     }
   };
