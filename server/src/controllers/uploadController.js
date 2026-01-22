@@ -8,13 +8,13 @@ const { randomUUID } = require('crypto');
  */
 const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
   // Validate required fields
-  if (!memberData || !memberData.name || !memberData.email) {
-    return {
-      success: false,
-      error: 'Missing required fields: name and email are required',
-      attempts: 0,
-      permanent: true
-    };
+    if (!memberData || !memberData.name || !memberData.email) {
+      return {
+        success: false,
+        error: 'Missing required fields: name and email are required',
+        attempts: 0,
+        permanent: true
+      };
   }
 
   // Validate pin and pinHash exist
@@ -41,16 +41,26 @@ const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
   
   while (attempt <= maxRetries) {
     try {
+      const data = {
+        id: randomUUID(),
+        name: memberData.name.trim(),
+        email: memberData.email.trim().toLowerCase(),
+        pin: memberData.pin,
+        pinHash: memberData.pinHash,
+        isActive: true,
+        createdBy,
+      };
+
+      if (memberData.firstName) {
+        data.firstName = memberData.firstName.trim();
+      }
+
+      if (memberData.lastName) {
+        data.lastName = memberData.lastName.trim();
+      }
+
       const newMember = await prisma.member.create({
-        data: {
-          id: randomUUID(),
-          name: memberData.name.trim(),
-          email: memberData.email.trim().toLowerCase(),
-          pin: memberData.pin,
-          pinHash: memberData.pinHash,
-          isActive: true,
-          createdBy,
-        },
+        data,
         select: {
           id: true,
           name: true,

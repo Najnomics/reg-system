@@ -23,6 +23,7 @@ server/.env.development
 # Build outputs
 build/
 dist/
+dev-dist/
 .next/
 
 # IDE

@@ -43,12 +43,12 @@ const NotificationContainer = () => {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-4 max-w-sm w-full">
+    <div className="fixed top-4 left-0 right-0 z-50 px-4 flex flex-col gap-2 sm:gap-4 sm:left-auto sm:right-4 sm:px-0 sm:items-end">
       {notifications.map((notification) => (
         <div
           key={notification.id}
           className={`
-            border rounded-lg shadow-lg p-4 transition-all duration-300 transform
+            w-full max-w-full sm:max-w-sm border rounded-lg shadow-lg p-4 transition-all duration-300 transform
             ${getStyles(notification.type)}
           `}
         >
@@ -56,13 +56,13 @@ const NotificationContainer = () => {
             <div className="flex-shrink-0">
               {getIcon(notification.type)}
             </div>
-            <div className="ml-3 flex-1">
+            <div className="ml-3 min-w-0 flex-1">
               {notification.title && (
                 <h3 className="text-sm font-medium">
                   {notification.title}
                 </h3>
               )}
-              <div className="text-sm">
+              <div className="text-sm break-words">
                 {notification.message}
               </div>
               {notification.timestamp && (

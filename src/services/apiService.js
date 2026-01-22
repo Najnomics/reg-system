@@ -557,6 +557,7 @@ class ApiService {
   }
 
   async createChariot(chariotData) {
+    apiCache.clearPattern('/chariots');
     return this.request('/chariots', {
       method: 'POST',
       body: JSON.stringify(chariotData),
@@ -564,6 +565,7 @@ class ApiService {
   }
 
   async updateChariot(id, chariotData) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(chariotData),
@@ -571,18 +573,21 @@ class ApiService {
   }
 
   async deleteChariot(id) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${id}`, {
       method: 'DELETE',
     });
   }
 
   async toggleChariotStatus(id) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${id}/toggle-status`, {
       method: 'PATCH',
     });
   }
 
   async addChariotAssistants(chariotId, memberIds) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${chariotId}/assistants`, {
       method: 'POST',
       body: JSON.stringify({ memberIds }),
@@ -590,6 +595,7 @@ class ApiService {
   }
 
   async removeChariotAssistants(chariotId, memberIds) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${chariotId}/assistants`, {
       method: 'DELETE',
       body: JSON.stringify({ memberIds }),
@@ -597,6 +603,7 @@ class ApiService {
   }
 
   async addChariotMembers(chariotId, memberIds) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${chariotId}/members`, {
       method: 'POST',
       body: JSON.stringify({ memberIds }),
@@ -604,6 +611,7 @@ class ApiService {
   }
 
   async removeChariotMembers(chariotId, memberIds) {
+    apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${chariotId}/members`, {
       method: 'DELETE',
       body: JSON.stringify({ memberIds }),

@@ -8,11 +8,11 @@ const SimpleNotificationContainer = () => {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-4 left-0 right-0 z-50 px-4 flex flex-col gap-2 sm:gap-4 sm:left-auto sm:right-4 sm:px-0 sm:items-end">
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          className={`max-w-sm w-full shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 ${
+          className={`w-full max-w-full sm:max-w-sm shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 ${
             notification.type === 'error'
               ? 'bg-red-50 border-red-200'
               : notification.type === 'success'
@@ -37,14 +37,14 @@ const SimpleNotificationContainer = () => {
                   </svg>
                 )}
               </div>
-              <div className="ml-3 w-0 flex-1 pt-0.5">
+              <div className="ml-3 min-w-0 flex-1 pt-0.5">
                 <p className={`text-sm font-medium ${
                   notification.type === 'error'
                     ? 'text-red-800'
                     : notification.type === 'success'
                     ? 'text-green-800'
                     : 'text-blue-800'
-                }`}>
+                } break-words`}>
                   {notification.message}
                 </p>
               </div>

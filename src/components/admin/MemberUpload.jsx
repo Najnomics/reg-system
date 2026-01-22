@@ -18,7 +18,10 @@ const MemberUpload = ({ onClose, onSuccess }) => {
       const allowedTypes = [
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'application/vnd.ms-excel',
-        'text/csv'
+        'text/csv',
+        'application/csv',
+        'text/plain',
+        'application/octet-stream'
       ];
       
       if (!allowedTypes.includes(selectedFile.type)) {
