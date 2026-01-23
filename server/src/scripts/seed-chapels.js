@@ -28,7 +28,7 @@ const seedChapels = async () => {
 
   for (const name of chapelNames) {
     const trimmedName = name.trim();
-    const existing = await prisma.chapel.findUnique({
+    const existing = await prisma.chapel.findFirst({
       where: { name: trimmedName },
       select: { id: true },
     });
