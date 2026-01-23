@@ -753,6 +753,13 @@ const getSessionAttendance = async (req, res) => {
               name: true,
               email: true,
               pin: true,
+              chapelRole: true,
+              chapel: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -802,6 +809,13 @@ const getSessionAttendance = async (req, res) => {
           name: true,
           email: true,
           pin: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
         orderBy: { name: 'asc' },
         ...(memberLimit && { take: memberLimit }),
@@ -814,6 +828,8 @@ const getSessionAttendance = async (req, res) => {
       name: record.member.name,
       email: record.member.email,
       pin: record.member.pin,
+      chapelRole: record.member.chapelRole,
+      chapel: record.member.chapel,
       checkedInAt: record.checkedInAt,
       status: 'present',
     }));
@@ -827,6 +843,8 @@ const getSessionAttendance = async (req, res) => {
             name: member.name,
             email: member.email,
             pin: member.pin,
+            chapelRole: member.chapelRole,
+            chapel: member.chapel,
             checkedInAt: null,
             status: 'absent',
           }))

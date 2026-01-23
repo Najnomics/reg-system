@@ -33,8 +33,11 @@ const ChariotList = () => {
   const [assignType, setAssignType] = useState(null); // 'leader', 'assistants', 'members'
   const [formLoading, setFormLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState(null); // 'single' | 'bulk'
   const [chariotToDelete, setChariotToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [selectedChariots, setSelectedChariots] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   const loadChariots = useCallback(async () => {
     try {
@@ -106,6 +109,7 @@ const ChariotList = () => {
   const handleDelete = (chariot) => {
     setChariotToDelete(chariot);
     setDeleteConfirmText('');
+    setDeleteType('single');
     setDeleteModalOpen(true);
   };
 
@@ -115,19 +119,72 @@ const ChariotList = () => {
       return;
     }
 
-    if (!chariotToDelete) return;
-
     try {
-      await apiService.deleteChariot(chariotToDelete.id);
-      showSuccess('Chariot deleted successfully');
+      if (deleteType === 'bulk') {
+        const chariotIds = Array.from(selectedChariots);
+        if (chariotIds.length === 0) return;
+        const results = await Promise.allSettled(
+          chariotIds.map((chariotId) => apiService.deleteChariot(chariotId))
+        );
+        const failed = results.filter(result => result.status === 'rejected').length;
+        const successCount = chariotIds.length - failed;
+        if (failed === 0) {
+          showSuccess(`Deleted ${successCount} chariot(s) successfully`);
+        } else {
+          showError(`Deleted ${successCount} chariot(s); ${failed} failed. Check console for details.`);
+          results
+            .filter(result => result.status === 'rejected')
+            .forEach(result => console.error('Delete chariot error:', result.reason));
+        }
+        setSelectedChariots(new Set());
+        setSelectAll(false);
+      } else {
+        if (!chariotToDelete) return;
+        await apiService.deleteChariot(chariotToDelete.id);
+        showSuccess('Chariot deleted successfully');
+      }
       setDeleteModalOpen(false);
       setChariotToDelete(null);
+      setDeleteType(null);
       setDeleteConfirmText('');
       await loadChariots();
     } catch (error) {
       showError('Failed to delete chariot');
       console.error('Delete chariot error:', error);
     }
+  };
+
+  const handleSelectChariot = (chariotId) => {
+    setSelectedChariots(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(chariotId)) {
+        newSet.delete(chariotId);
+      } else {
+        newSet.add(chariotId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedChariots(new Set());
+      setSelectAll(false);
+    } else {
+      const allIds = new Set(filteredChariots.map(chariot => chariot.id));
+      setSelectedChariots(allIds);
+      setSelectAll(true);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedChariots.size === 0) {
+      showError('Please select at least one chariot to delete');
+      return;
+    }
+    setDeleteConfirmText('');
+    setDeleteType('bulk');
+    setDeleteModalOpen(true);
   };
 
   const handleAssignSubmit = async (memberIds) => {
@@ -161,6 +218,15 @@ const ChariotList = () => {
       chariot.leader?.email?.toLowerCase().includes(term)
     );
   }, [chariots, searchTerm]);
+
+  useEffect(() => {
+    if (filteredChariots.length > 0) {
+      const allSelected = filteredChariots.every(chariot => selectedChariots.has(chariot.id));
+      setSelectAll(allSelected);
+    } else {
+      setSelectAll(false);
+    }
+  }, [filteredChariots, selectedChariots]);
 
   if (loading) {
     return (
@@ -204,6 +270,29 @@ const ChariotList = () => {
         />
       </div>
 
+      {isAdmin && selectedChariots.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <label className="flex items-center text-sm font-medium text-blue-900">
+              <input
+                type="checkbox"
+                checked={selectAll}
+                onChange={handleSelectAll}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2"
+              />
+              {selectedChariots.size} chariot{selectedChariots.size !== 1 ? 's' : ''} selected
+            </label>
+            <button
+              onClick={handleBulkDelete}
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 touch-manipulation"
+            >
+              <TrashIcon className="h-4 w-4 mr-1.5" />
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Chariots Grid */}
       {filteredChariots.length === 0 ? (
         <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 px-4">
@@ -231,7 +320,17 @@ const ChariotList = () => {
               <div className="p-4 sm:p-6">
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{chariot.name}</h3>
+                    <div className="flex items-start gap-2">
+                      {isAdmin && (
+                        <input
+                          type="checkbox"
+                          checked={selectedChariots.has(chariot.id)}
+                          onChange={() => handleSelectChariot(chariot.id)}
+                          className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                      )}
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{chariot.name}</h3>
+                    </div>
                     {chariot.description && (
                       <p className="mt-1 text-xs sm:text-sm text-gray-600 line-clamp-2 break-words">{chariot.description}</p>
                     )}
@@ -354,13 +453,15 @@ const ChariotList = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteModalOpen && chariotToDelete && (
+      {deleteModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Chariot</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Are you sure you want to delete <strong>"{chariotToDelete.name}"</strong>? This action cannot be undone.
+                {deleteType === 'bulk'
+                  ? `Are you sure you want to delete ${selectedChariots.size} chariot(s)? This action cannot be undone.`
+                  : `Are you sure you want to delete "${chariotToDelete?.name || 'this chariot'}"? This action cannot be undone.`}
               </p>
               <p className="text-sm text-gray-600 mb-4">
                 Type <strong>"delete"</strong> to confirm:
@@ -383,6 +484,7 @@ const ChariotList = () => {
                   onClick={() => {
                     setDeleteModalOpen(false);
                     setChariotToDelete(null);
+                    setDeleteType(null);
                     setDeleteConfirmText('');
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"

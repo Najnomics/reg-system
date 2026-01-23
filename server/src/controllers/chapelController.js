@@ -246,7 +246,7 @@ const addMembers = async (req, res) => {
 
     const existingMembers = await prisma.member.findMany({
       where: { id: { in: memberIds } },
-      select: { id: true, chapelId: true },
+      select: { id: true, name: true, chapelId: true, chapelRole: true },
     });
 
     if (existingMembers.length !== memberIds.length) {
@@ -261,8 +261,19 @@ const addMembers = async (req, res) => {
       return res.status(409).json({
         error: 'Member already assigned',
         message: 'One or more members are already assigned to another chapel',
+        details: {
+          conflicts: alreadyAssigned.map(member => ({
+            id: member.id,
+            name: member.name,
+            chapelId: member.chapelId,
+          })),
+        },
       });
     }
+
+    const roleSwitches = existingMembers.filter(
+      member => member.chapelId === id && member.chapelRole && member.chapelRole !== role
+    ).length;
 
     await prisma.member.updateMany({
       where: { id: { in: memberIds } },
@@ -272,6 +283,9 @@ const addMembers = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Assigned ${memberIds.length} ${role === 'INVITEE' ? 'invitee(s)' : 'member(s)'} to chapel`,
+      data: {
+        roleSwitches,
+      },
     });
   } catch (error) {
     console.error('Assign members error:', error);

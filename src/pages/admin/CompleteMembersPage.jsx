@@ -812,10 +812,18 @@ const CompleteMembersPage = () => {
                         </label>
                       </div>
                     )}
-                    {filteredMembers.map((member) => (
+                    {filteredMembers.map((member) => {
+                      const isInvitee = member.chapelRole === 'INVITEE';
+                      return (
                       <div
                         key={member.id}
-                        className={`border rounded-lg p-4 ${selectedMembers.has(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}
+                        className={`border rounded-lg p-4 ${
+                          selectedMembers.has(member.id)
+                            ? 'bg-blue-50 border-blue-200'
+                            : isInvitee
+                              ? 'bg-yellow-50 border-yellow-200'
+                              : 'bg-white border-gray-200'
+                        }`}
                       >
                         <div className="flex items-start gap-3">
                           {/* Checkbox */}
@@ -912,7 +920,8 @@ const CompleteMembersPage = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Desktop Table View */}
@@ -954,8 +963,19 @@ const CompleteMembersPage = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredMembers.map((member) => (
-                          <tr key={member.id} className={`hover:bg-gray-50 ${selectedMembers.has(member.id) ? 'bg-blue-50' : ''}`}>
+                      {filteredMembers.map((member) => {
+                        const isInvitee = member.chapelRole === 'INVITEE';
+                        return (
+                          <tr
+                            key={member.id}
+                            className={`${
+                              selectedMembers.has(member.id)
+                                ? 'bg-blue-50 hover:bg-blue-100'
+                                : isInvitee
+                                  ? 'bg-yellow-50 hover:bg-yellow-100'
+                                  : 'hover:bg-gray-50'
+                            }`}
+                          >
                             {isAdmin && (
                               <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <input
@@ -1040,7 +1060,8 @@ const CompleteMembersPage = () => {
                               )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

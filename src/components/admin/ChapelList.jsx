@@ -32,8 +32,11 @@ const ChapelList = () => {
   const [assignType, setAssignType] = useState(null); // 'invitees' | 'members'
   const [formLoading, setFormLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState(null); // 'single' | 'bulk'
   const [chapelToDelete, setChapelToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [selectedChapels, setSelectedChapels] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   const loadChapels = useCallback(async () => {
     try {
@@ -103,6 +106,7 @@ const ChapelList = () => {
   const handleDelete = (chapel) => {
     setChapelToDelete(chapel);
     setDeleteConfirmText('');
+    setDeleteType('single');
     setDeleteModalOpen(true);
   };
 
@@ -112,19 +116,72 @@ const ChapelList = () => {
       return;
     }
 
-    if (!chapelToDelete) return;
-
     try {
-      await apiService.deleteChapel(chapelToDelete.id);
-      showSuccess('Chapel deleted successfully');
+      if (deleteType === 'bulk') {
+        const chapelIds = Array.from(selectedChapels);
+        if (chapelIds.length === 0) return;
+        const results = await Promise.allSettled(
+          chapelIds.map((chapelId) => apiService.deleteChapel(chapelId))
+        );
+        const failed = results.filter(result => result.status === 'rejected').length;
+        const successCount = chapelIds.length - failed;
+        if (failed === 0) {
+          showSuccess(`Deleted ${successCount} chapel(s) successfully`);
+        } else {
+          showError(`Deleted ${successCount} chapel(s); ${failed} failed. Check console for details.`);
+          results
+            .filter(result => result.status === 'rejected')
+            .forEach(result => console.error('Delete chapel error:', result.reason));
+        }
+        setSelectedChapels(new Set());
+        setSelectAll(false);
+      } else {
+        if (!chapelToDelete) return;
+        await apiService.deleteChapel(chapelToDelete.id);
+        showSuccess('Chapel deleted successfully');
+      }
       setDeleteModalOpen(false);
       setChapelToDelete(null);
+      setDeleteType(null);
       setDeleteConfirmText('');
       await loadChapels();
     } catch (error) {
       showError('Failed to delete chapel');
       console.error('Delete chapel error:', error);
     }
+  };
+
+  const handleSelectChapel = (chapelId) => {
+    setSelectedChapels(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(chapelId)) {
+        newSet.delete(chapelId);
+      } else {
+        newSet.add(chapelId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedChapels(new Set());
+      setSelectAll(false);
+    } else {
+      const allIds = new Set(filteredChapels.map(chapel => chapel.id));
+      setSelectedChapels(allIds);
+      setSelectAll(true);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedChapels.size === 0) {
+      showError('Please select at least one chapel to delete');
+      return;
+    }
+    setDeleteConfirmText('');
+    setDeleteType('bulk');
+    setDeleteModalOpen(true);
   };
 
   const handleAssignSubmit = async (memberIds) => {
@@ -151,6 +208,15 @@ const ChapelList = () => {
       chapel.name.toLowerCase().includes(term)
     );
   }, [chapels, searchTerm]);
+
+  useEffect(() => {
+    if (filteredChapels.length > 0) {
+      const allSelected = filteredChapels.every(chapel => selectedChapels.has(chapel.id));
+      setSelectAll(allSelected);
+    } else {
+      setSelectAll(false);
+    }
+  }, [filteredChapels, selectedChapels]);
 
   if (loading) {
     return (
@@ -192,6 +258,29 @@ const ChapelList = () => {
         />
       </div>
 
+      {isAdmin && selectedChapels.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <label className="flex items-center text-sm font-medium text-blue-900">
+              <input
+                type="checkbox"
+                checked={selectAll}
+                onChange={handleSelectAll}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2"
+              />
+              {selectedChapels.size} chapel{selectedChapels.size !== 1 ? 's' : ''} selected
+            </label>
+            <button
+              onClick={handleBulkDelete}
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 touch-manipulation"
+            >
+              <TrashIcon className="h-4 w-4 mr-1.5" />
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {filteredChapels.length === 0 ? (
         <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 px-4">
           <UserGroupIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
@@ -218,7 +307,17 @@ const ChapelList = () => {
               <div className="p-4 sm:p-6">
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{chapel.name}</h3>
+                    <div className="flex items-start gap-2">
+                      {isAdmin && (
+                        <input
+                          type="checkbox"
+                          checked={selectedChapels.has(chapel.id)}
+                          onChange={() => handleSelectChapel(chapel.id)}
+                          className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                      )}
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{chapel.name}</h3>
+                    </div>
                     {chapel.description && (
                       <p className="mt-1 text-xs sm:text-sm text-gray-600 line-clamp-2 break-words">{chapel.description}</p>
                     )}
@@ -338,13 +437,15 @@ const ChapelList = () => {
         />
       )}
 
-      {deleteModalOpen && chapelToDelete && (
+      {deleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-500 bg-opacity-75">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Chapel</h3>
               <p className="text-sm text-gray-600 mb-4">
-                You are about to delete <strong>{chapelToDelete.name}</strong>. This action cannot be undone.
+                {deleteType === 'bulk'
+                  ? `You are about to delete ${selectedChapels.size} chapel(s). This action cannot be undone.`
+                  : `You are about to delete ${chapelToDelete?.name || 'this chapel'}. This action cannot be undone.`}
               </p>
               <p className="text-sm text-gray-600 mb-2">Type <strong>delete</strong> to confirm:</p>
               <input
@@ -359,6 +460,7 @@ const ChapelList = () => {
                   onClick={() => {
                     setDeleteModalOpen(false);
                     setChapelToDelete(null);
+                    setDeleteType(null);
                     setDeleteConfirmText('');
                   }}
                   className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -367,7 +469,8 @@ const ChapelList = () => {
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700"
+                  disabled={deleteConfirmText.toLowerCase() !== 'delete'}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Delete
                 </button>
