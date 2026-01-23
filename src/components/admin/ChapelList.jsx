@@ -8,9 +8,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   MagnifyingGlassIcon,
-  UserIcon,
   UsersIcon,
-  UserPlusIcon,
 } from '@heroicons/react/24/outline';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -31,7 +29,7 @@ const ChapelList = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingChapel, setEditingChapel] = useState(null);
   const [selectedChapel, setSelectedChapel] = useState(null);
-  const [assignType, setAssignType] = useState(null); // 'workers' | 'members'
+  const [assignType, setAssignType] = useState(null); // 'invitees' | 'members'
   const [formLoading, setFormLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [chapelToDelete, setChapelToDelete] = useState(null);
@@ -133,13 +131,9 @@ const ChapelList = () => {
     if (!selectedChapel || !assignType || memberIds.length === 0) return;
 
     try {
-      if (assignType === 'workers') {
-        await apiService.addChapelWorkers(selectedChapel.id, memberIds);
-        showSuccess(`Added ${memberIds.length} worker(s) to chapel`);
-      } else if (assignType === 'members') {
-        await apiService.addChapelMembers(selectedChapel.id, memberIds);
-        showSuccess(`Added ${memberIds.length} member(s) to chapel`);
-      }
+      const role = assignType === 'invitees' ? 'INVITEE' : 'MEMBER';
+      await apiService.addChapelMembers(selectedChapel.id, memberIds, role);
+      showSuccess(`Added ${memberIds.length} ${assignType === 'invitees' ? 'invitee(s)' : 'member(s)'} to chapel`);
       setShowAssignModal(false);
       setSelectedChapel(null);
       setAssignType(null);
@@ -154,11 +148,7 @@ const ChapelList = () => {
     if (!searchTerm.trim()) return chapels;
     const term = searchTerm.toLowerCase();
     return chapels.filter(chapel =>
-      chapel.name.toLowerCase().includes(term) ||
-      chapel.leader?.name?.toLowerCase().includes(term) ||
-      chapel.leader?.email?.toLowerCase().includes(term) ||
-      chapel.subLeader?.name?.toLowerCase().includes(term) ||
-      chapel.subLeader?.email?.toLowerCase().includes(term)
+      chapel.name.toLowerCase().includes(term)
     );
   }, [chapels, searchTerm]);
 
@@ -176,7 +166,7 @@ const ChapelList = () => {
         <div className="min-w-0 flex-1">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Chapels</h2>
           <p className="mt-1 text-xs sm:text-sm text-gray-600">
-            Manage chapels, leaders, subleaders, workers, and members
+            Manage chapels, invitees, and members
           </p>
         </div>
         {isAdmin && (
@@ -195,7 +185,7 @@ const ChapelList = () => {
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search chapels by name or leader..."
+          placeholder="Search chapels by name..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="input pl-9 sm:pl-10 w-full sm:max-w-md text-sm sm:text-base"
@@ -242,36 +232,16 @@ const ChapelList = () => {
                   </div>
                 </div>
 
-                <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <UserIcon className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-xs font-medium text-blue-900">Leader</span>
-                  </div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-900 break-words">{chapel.leader?.name}</p>
-                  <p className="text-xs text-gray-600 break-words truncate">{chapel.leader?.email}</p>
-                </div>
-
-                <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-purple-50 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <UserPlusIcon className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
-                    <span className="text-xs font-medium text-purple-900">Subleader</span>
-                  </div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-900 break-words">{chapel.subLeader?.name || 'Not assigned'}</p>
-                  {chapel.subLeader?.email && (
-                    <p className="text-xs text-gray-600 break-words truncate">{chapel.subLeader.email}</p>
-                  )}
-                </div>
-
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
                   <div className="text-center p-2 bg-gray-50 rounded">
                     <div className="text-base sm:text-lg font-semibold text-gray-900">
-                      {chapel._count?.workers || chapel.workers?.length || 0}
+                      {chapel.members?.filter(member => member.chapelRole === 'INVITEE').length || 0}
                     </div>
-                    <div className="text-xs text-gray-600">Workers</div>
+                    <div className="text-xs text-gray-600">Invitees</div>
                   </div>
                   <div className="text-center p-2 bg-gray-50 rounded">
                     <div className="text-base sm:text-lg font-semibold text-gray-900">
-                      {chapel._count?.members || chapel.members?.length || 0}
+                      {chapel.members?.filter(member => member.chapelRole !== 'INVITEE').length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Members</div>
                   </div>
@@ -309,12 +279,12 @@ const ChapelList = () => {
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
-                        onClick={() => handleAssign(chapel, 'workers')}
+                        onClick={() => handleAssign(chapel, 'invitees')}
                         className="px-2 sm:px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1 touch-manipulation"
                       >
                         <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden sm:inline">Add Workers</span>
-                        <span className="sm:hidden">Workers</span>
+                        <span className="hidden sm:inline">Add Invitees</span>
+                        <span className="sm:hidden">Invitees</span>
                       </button>
                       <button
                         onClick={() => handleAssign(chapel, 'members')}

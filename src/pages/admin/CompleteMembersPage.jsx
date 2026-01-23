@@ -743,6 +743,7 @@ const CompleteMembersPage = () => {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chapel</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Code</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -827,6 +828,11 @@ const CompleteMembersPage = () => {
                                 <div className="text-xs text-gray-500 truncate mt-0.5">
                                   {member.email}
                                 </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {member.chapel
+                                  ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                                  : 'Chapel: Not assigned'}
+                              </div>
                               </div>
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
                                 member.isActive !== false 
@@ -911,6 +917,9 @@ const CompleteMembersPage = () => {
                           Contact
                         </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Chapel
+                        </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           PIN
                         </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -958,6 +967,13 @@ const CompleteMembersPage = () => {
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">{member.email}</div>
+                          </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {member.chapel
+                                ? `${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                                : 'Not assigned'}
+                            </div>
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

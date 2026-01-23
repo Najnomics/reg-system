@@ -50,6 +50,13 @@ const getMembers = async (req, res) => {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           _count: {
             select: { attendance: true },
           },
@@ -104,6 +111,13 @@ const getMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         attendance: {
           select: {
             id: true,
@@ -208,6 +222,13 @@ const createMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -296,6 +317,13 @@ const updateMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -479,6 +507,13 @@ const searchMembers = async (req, res) => {
           pin: true,
           isActive: true,
           createdAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           _count: {
             select: { attendance: true },
           },

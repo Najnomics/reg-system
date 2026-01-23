@@ -153,6 +153,11 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{assistant.member.name}</p>
                       <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{assistant.member.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {assistant.member.chapel
+                          ? `Chapel: ${assistant.member.chapel.name} (${assistant.member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                          : 'Chapel: Not assigned'}
+                      </p>
                     </div>
                     {isAdmin && (
                       <button
@@ -202,6 +207,11 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{chariotMember.member.name}</p>
                       <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{chariotMember.member.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {chariotMember.member.chapel
+                          ? `Chapel: ${chariotMember.member.chapel.name} (${chariotMember.member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                          : 'Chapel: Not assigned'}
+                      </p>
                       {chariotMember.member.pin && (
                         <p className="text-xs text-gray-500">PIN: {chariotMember.member.pin}</p>
                       )}

@@ -13,6 +13,13 @@ const getChariots = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         assistants: {
@@ -22,6 +29,13 @@ const getChariots = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -34,6 +48,13 @@ const getChariots = async (req, res) => {
                 name: true,
                 email: true,
                 pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -78,6 +99,13 @@ const getChariot = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         assistants: {
@@ -87,6 +115,13 @@ const getChariot = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -99,6 +134,13 @@ const getChariot = async (req, res) => {
                 name: true,
                 email: true,
                 pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -202,6 +244,13 @@ const createChariot = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -306,6 +355,13 @@ const updateChariot = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -478,6 +534,13 @@ const addAssistants = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -605,6 +668,13 @@ const addMembers = async (req, res) => {
                 name: true,
                 email: true,
                 pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },

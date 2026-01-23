@@ -166,6 +166,11 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
                     <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {member.chapel
+                        ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                        : 'Chapel: Not assigned'}
+                    </p>
                   </div>
                   {selectedMembers.has(member.id) && (
                     <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />

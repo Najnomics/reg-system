@@ -8,6 +8,11 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum ChapelRole {
+  INVITEE
+  MEMBER
+}
+
 model Admin {
   id             String           @id
   email          String           @unique
@@ -63,14 +68,15 @@ model Member {
   chariotLeader         Chariot[]           @relation("ChariotLeader")
   chariotAssistants     ChariotAssistant[]
   chariotMembers        ChariotMember[]
-  chapelLeader          Chapel[]            @relation("ChapelLeader")
-  chapelSubLeader       Chapel[]            @relation("ChapelSubLeader")
-  chapelWorkers         ChapelWorker[]
-  chapelMembers         ChapelMember[]
+  chapelId              String?
+  chapelRole            ChapelRole?
+  chapel                Chapel?             @relation(fields: [chapelId], references: [id], onDelete: SetNull)
 
   @@index([isActive])
   @@index([email])
   @@index([name])
+  @@index([chapelId])
+  @@index([chapelRole])
   @@map("members")
 }
 
@@ -185,48 +191,13 @@ model Chapel {
   id          String         @id @default(uuid())
   name        String
   description String?
-  leaderId    String
-  subLeaderId String?
-  leader      Member         @relation("ChapelLeader", fields: [leaderId], references: [id], onDelete: Cascade)
-  subLeader   Member?        @relation("ChapelSubLeader", fields: [subLeaderId], references: [id], onDelete: SetNull)
   isActive    Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   createdBy   String
   admins      Admin          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  workers     ChapelWorker[]
-  members     ChapelMember[]
+  members     Member[]
 
-  @@index([leaderId])
-  @@index([subLeaderId])
   @@index([isActive])
   @@map("chapels")
-}
-
-model ChapelWorker {
-  id       String   @id @default(uuid())
-  chapelId String
-  memberId String
-  chapel   Chapel   @relation(fields: [chapelId], references: [id], onDelete: Cascade)
-  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([chapelId, memberId])
-  @@index([chapelId])
-  @@index([memberId])
-  @@map("chapel_workers")
-}
-
-model ChapelMember {
-  id       String   @id @default(uuid())
-  chapelId String
-  memberId String
-  chapel   Chapel   @relation(fields: [chapelId], references: [id], onDelete: Cascade)
-  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([chapelId, memberId])
-  @@index([chapelId])
-  @@index([memberId])
-  @@map("chapel_members")
 }

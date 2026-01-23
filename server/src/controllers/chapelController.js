@@ -14,6 +14,7 @@ const getChapels = async (req, res) => {
             name: true,
             email: true,
             pin: true,
+            chapelRole: true,
           },
         },
         _count: {
@@ -63,6 +64,7 @@ const getChapel = async (req, res) => {
             name: true,
             email: true,
             pin: true,
+            chapelRole: true,
           },
         },
         _count: {
@@ -214,12 +216,19 @@ const deleteChapel = async (req, res) => {
 const addMembers = async (req, res) => {
   try {
     const { id } = req.params;
-    const { memberIds } = req.body;
+    const { memberIds, role = 'MEMBER' } = req.body;
 
     if (!Array.isArray(memberIds) || memberIds.length === 0) {
       return res.status(400).json({
         error: 'Invalid input',
         message: 'memberIds must be a non-empty array',
+      });
+    }
+
+    if (!['INVITEE', 'MEMBER'].includes(role)) {
+      return res.status(400).json({
+        error: 'Invalid role',
+        message: 'role must be INVITEE or MEMBER',
       });
     }
 
@@ -257,12 +266,12 @@ const addMembers = async (req, res) => {
 
     await prisma.member.updateMany({
       where: { id: { in: memberIds } },
-      data: { chapelId: id },
+      data: { chapelId: id, chapelRole: role },
     });
 
     res.status(200).json({
       success: true,
-      message: `Assigned ${memberIds.length} member(s) to chapel`,
+      message: `Assigned ${memberIds.length} ${role === 'INVITEE' ? 'invitee(s)' : 'member(s)'} to chapel`,
     });
   } catch (error) {
     console.error('Assign members error:', error);
@@ -290,7 +299,7 @@ const removeMembers = async (req, res) => {
 
     await prisma.member.updateMany({
       where: { id: { in: memberIds }, chapelId: id },
-      data: { chapelId: null },
+      data: { chapelId: null, chapelRole: null },
     });
 
     res.status(200).json({

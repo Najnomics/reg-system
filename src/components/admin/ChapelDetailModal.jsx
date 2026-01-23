@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { XMarkIcon, UserIcon, UsersIcon, UserGroupIcon, TrashIcon, PlusIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UsersIcon, UserGroupIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,7 +12,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [currentChapel, setCurrentChapel] = useState(chapel);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assignType, setAssignType] = useState(null); // 'workers' | 'members'
+  const [assignType, setAssignType] = useState(null); // 'invitees' | 'members'
 
   useEffect(() => {
     loadChapelData();
@@ -27,25 +27,8 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
     }
   };
 
-  const handleRemoveWorker = async (memberId) => {
-    if (!window.confirm('Are you sure you want to remove this worker?')) return;
-
-    try {
-      setLoading(true);
-      await apiService.removeChapelWorkers(currentChapel.id, [memberId]);
-      showSuccess('Worker removed successfully');
-      await loadChapelData();
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      showError('Failed to remove worker');
-      console.error('Remove worker error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRemoveMember = async (memberId) => {
-    if (!window.confirm('Are you sure you want to remove this member?')) return;
+    if (!window.confirm('Are you sure you want to remove this person from the chapel?')) return;
 
     try {
       setLoading(true);
@@ -71,13 +54,9 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
 
     try {
       setLoading(true);
-      if (assignType === 'workers') {
-        await apiService.addChapelWorkers(currentChapel.id, memberIds);
-        showSuccess('Workers assigned successfully');
-      } else if (assignType === 'members') {
-        await apiService.addChapelMembers(currentChapel.id, memberIds);
-        showSuccess('Members assigned successfully');
-      }
+      const role = assignType === 'invitees' ? 'INVITEE' : 'MEMBER';
+      await apiService.addChapelMembers(currentChapel.id, memberIds, role);
+      showSuccess(`${assignType === 'invitees' ? 'Invitees' : 'Members'} assigned successfully`);
       setShowAssignModal(false);
       setAssignType(null);
       await loadChapelData();
@@ -89,6 +68,9 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
       setLoading(false);
     }
   };
+
+  const invitees = (currentChapel.members || []).filter(member => member.chapelRole === 'INVITEE');
+  const chapelMembers = (currentChapel.members || []).filter(member => member.chapelRole !== 'INVITEE');
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
@@ -111,65 +93,39 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           <div>
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
-              <h4 className="text-xs sm:text-sm font-semibold text-gray-900">Leader</h4>
-            </div>
-            <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{currentChapel.leader?.name}</p>
-              <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChapel.leader?.email}</p>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <UserPlusIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
-              <h4 className="text-xs sm:text-sm font-semibold text-gray-900">Subleader</h4>
-            </div>
-            <div className="p-3 sm:p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-sm sm:text-base font-medium text-gray-900 break-words">
-                {currentChapel.subLeader?.name || 'Not assigned'}
-              </p>
-              {currentChapel.subLeader?.email && (
-                <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChapel.subLeader.email}</p>
-              )}
-            </div>
-          </div>
-
-          <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
               <div className="flex items-center gap-2">
                 <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
-                  Workers ({currentChapel.workers?.length || 0})
+                  Invitees ({invitees.length})
                 </h4>
               </div>
               {isAdmin && (
                 <button
-                  onClick={() => handleAssign('workers')}
+                  onClick={() => handleAssign('invitees')}
                   className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 touch-manipulation w-full sm:w-auto"
                   disabled={loading}
                 >
                   <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Add Workers</span>
+                  <span className="hidden sm:inline">Add Invitees</span>
                   <span className="sm:hidden">Add</span>
                 </button>
               )}
             </div>
-            {currentChapel.workers && currentChapel.workers.length > 0 ? (
+            {invitees.length > 0 ? (
               <div className="space-y-2">
-                {currentChapel.workers.map((worker) => (
+                {invitees.map((member) => (
                   <div
-                    key={worker.member.id}
+                    key={member.id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{worker.member.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{worker.member.email}</p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                     </div>
                     {isAdmin && (
                       <button
-                        onClick={() => handleRemoveWorker(worker.member.id)}
+                        onClick={() => handleRemoveMember(member.id)}
                         className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                         disabled={loading}
                       >
@@ -180,7 +136,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                 ))}
               </div>
             ) : (
-              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No workers assigned</p>
+              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No invitees assigned</p>
             )}
           </div>
 
@@ -189,7 +145,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
               <div className="flex items-center gap-2">
                 <UserGroupIcon className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 flex-shrink-0" />
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
-                  Members ({currentChapel.members?.length || 0})
+                  Members ({chapelMembers.length})
                 </h4>
               </div>
               {isAdmin && (
@@ -204,23 +160,23 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                 </button>
               )}
             </div>
-            {currentChapel.members && currentChapel.members.length > 0 ? (
+            {chapelMembers.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto">
-                {currentChapel.members.map((chapelMember) => (
+                {chapelMembers.map((member) => (
                   <div
-                    key={chapelMember.member.id}
+                    key={member.id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{chapelMember.member.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{chapelMember.member.email}</p>
-                      {chapelMember.member.pin && (
-                        <p className="text-xs text-gray-500">PIN: {chapelMember.member.pin}</p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
+                      {member.pin && (
+                        <p className="text-xs text-gray-500">PIN: {member.pin}</p>
                       )}
                     </div>
                     {isAdmin && (
                       <button
-                        onClick={() => handleRemoveMember(chapelMember.member.id)}
+                        onClick={() => handleRemoveMember(member.id)}
                         className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                         disabled={loading}
                       >

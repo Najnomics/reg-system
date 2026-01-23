@@ -655,27 +655,11 @@ class ApiService {
     });
   }
 
-  async addChapelWorkers(chapelId, memberIds) {
-    apiCache.clearPattern('/chapels');
-    return this.request(`/chapels/${chapelId}/workers`, {
-      method: 'POST',
-      body: JSON.stringify({ memberIds }),
-    });
-  }
-
-  async removeChapelWorkers(chapelId, memberIds) {
-    apiCache.clearPattern('/chapels');
-    return this.request(`/chapels/${chapelId}/workers`, {
-      method: 'DELETE',
-      body: JSON.stringify({ memberIds }),
-    });
-  }
-
-  async addChapelMembers(chapelId, memberIds) {
+  async addChapelMembers(chapelId, memberIds, role) {
     apiCache.clearPattern('/chapels');
     return this.request(`/chapels/${chapelId}/members`, {
       method: 'POST',
-      body: JSON.stringify({ memberIds }),
+      body: JSON.stringify({ memberIds, role }),
     });
   }
 

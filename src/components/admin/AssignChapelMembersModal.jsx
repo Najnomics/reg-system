@@ -16,53 +16,31 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
   const loadMembers = async () => {
     try {
       setLoadingMembers(true);
-      const [membersResponse, chapelsResponse] = await Promise.all([
-        (async () => {
-          let allMembersList = [];
-          let page = 1;
-          let hasMore = true;
+      const membersResponse = await (async () => {
+        let allMembersList = [];
+        let page = 1;
+        let hasMore = true;
 
-          while (hasMore) {
-            const response = await apiService.getMembers({ page, limit: 100 });
-            const pageMembers = response?.data?.members || [];
-            allMembersList = [...allMembersList, ...pageMembers];
+        while (hasMore) {
+          const response = await apiService.getMembers({ page, limit: 100 });
+          const pageMembers = response?.data?.members || [];
+          allMembersList = [...allMembersList, ...pageMembers];
 
-            hasMore = pageMembers.length === 100 && (response?.data?.pagination?.hasNext || false);
-            page++;
+          hasMore = pageMembers.length === 100 && (response?.data?.pagination?.hasNext || false);
+          page++;
 
-            if (page > 50) break;
-          }
-
-          return allMembersList;
-        })(),
-        apiService.getChapels().catch(() => ({ data: { chapels: [] } })),
-      ]);
-
-      const excludedIds = new Set();
-
-      if (chapel.leaderId) excludedIds.add(chapel.leaderId);
-      if (chapel.subLeaderId) excludedIds.add(chapel.subLeaderId);
-
-      if (type === 'workers' && chapel.workers) {
-        chapel.workers.forEach(w => excludedIds.add(w.memberId));
-      }
-      if (type === 'members' && chapel.members) {
-        chapel.members.forEach(m => excludedIds.add(m.memberId));
-      }
-
-      chapelsResponse?.data?.chapels?.forEach(existingChapel => {
-        if (existingChapel.id === chapel.id) return;
-
-        if (type === 'workers') {
-          if (existingChapel.leaderId) excludedIds.add(existingChapel.leaderId);
-          if (existingChapel.subLeaderId) excludedIds.add(existingChapel.subLeaderId);
-          if (existingChapel.workers) {
-            existingChapel.workers.forEach(w => excludedIds.add(w.memberId));
-          }
+          if (page > 50) break;
         }
+
+        return allMembersList;
+      })();
+
+      const eligibleMembers = membersResponse.filter(member => {
+        if (!member.chapel) return true;
+        return member.chapel.id === chapel.id;
       });
 
-      setMembers(membersResponse.filter(m => !excludedIds.has(m.id)));
+      setMembers(eligibleMembers);
     } catch (error) {
       console.error('Failed to load members:', error);
     } finally {
@@ -92,10 +70,10 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
     member.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const title = type === 'workers' ? 'Assign Workers' : 'Assign Members';
-  const description = type === 'workers'
-    ? 'Select members to assign as workers to this chapel'
-    : 'Select members to assign to this chapel';
+  const title = type === 'invitees' ? 'Assign Invitees' : 'Assign Members';
+  const description = type === 'invitees'
+    ? 'Select people to mark as invitees for this chapel'
+    : 'Select people to assign as chapel members';
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
@@ -160,6 +138,11 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
                     <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
+                    {member.chapel?.id === chapel.id && member.chapelRole && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Current: {member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'}
+                      </p>
+                    )}
                   </div>
                   {selectedMembers.has(member.id) && (
                     <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
@@ -179,7 +162,7 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
             className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             disabled={loading || selectedMembers.size === 0}
           >
-            {loading ? 'Assigning...' : `Assign ${selectedMembers.size} Member(s)`}
+            {loading ? 'Assigning...' : `Assign ${selectedMembers.size} ${type === 'invitees' ? 'Invitee(s)' : 'Member(s)'}`}
           </button>
         </div>
       </div>
