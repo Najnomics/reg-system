@@ -25,6 +25,7 @@ const SessionsPage = () => {
   const { sessions, fetchSessions, loading, showSuccess, showError, setSessions } = useApp();
   const { userType } = useAuth();
   const isAdmin = userType === 'admin';
+  const canViewChariotAttendance = isAdmin || userType === 'pastoral';
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -332,7 +333,7 @@ const SessionsPage = () => {
                           <span className="hidden sm:inline">View Attendance</span>
                           <span className="sm:hidden">View</span>
                         </button>
-                        {isAdmin && (
+                        {canViewChariotAttendance && (
                           <button
                             onClick={() => handleViewChariotAttendance(session)}
                             className="inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"

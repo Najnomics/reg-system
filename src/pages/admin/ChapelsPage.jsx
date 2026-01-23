@@ -1,14 +1,14 @@
-import ChariotList from '../../components/admin/ChariotList';
+import ChapelList from '../../components/admin/ChapelList';
 import RoleBasedRoute from '../../components/common/RoleBasedRoute';
 
-const ChariotsPage = () => {
+const ChapelsPage = () => {
   return (
     <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
       <div className="space-y-6">
-        <ChariotList />
+        <ChapelList />
       </div>
     </RoleBasedRoute>
   );
 };
 
-export default ChariotsPage;
+export default ChapelsPage;

@@ -221,6 +221,18 @@ const authenticateUser = async (req, res, next) => {
           },
         });
         if (user) user.userType = 'reg-rep';
+      } else if (decoded.userType === 'pastoral') {
+        const pastoralEmail = process.env.PASTORAL_EMAIL?.toLowerCase();
+        const pastoralName = process.env.PASTORAL_NAME || 'Pastoral Team';
+
+        if (pastoralEmail && decoded.email?.toLowerCase() === pastoralEmail) {
+          user = {
+            id: decoded.userId || 'pastoral',
+            email: pastoralEmail,
+            name: pastoralName,
+            userType: 'pastoral',
+          };
+        }
       } else if (decoded.userType === 'chariot-leader') {
         // Verify member exists and is a leader of an active chariot
         try {
@@ -411,14 +423,14 @@ const optionalAuth = async (req, res, next) => {
 };
 
 /**
- * Generate JWT token for admin, reg-rep, chariot-leader, or chariot-assistant
+ * Generate JWT token for admin, reg-rep, pastoral, chariot-leader, or chariot-assistant
  */
 const generateToken = (user, userType) => {
   const payload = {
     userId: user.id,
     email: user.email,
     name: user.name,
-    userType: userType, // 'admin', 'reg-rep', 'chariot-leader', or 'chariot-assistant'
+    userType: userType, // 'admin', 'reg-rep', 'pastoral', 'chariot-leader', or 'chariot-assistant'
   };
 
   let audience = 'church-user';
@@ -426,6 +438,8 @@ const generateToken = (user, userType) => {
     audience = 'church-admin';
   } else if (userType === 'reg-rep') {
     audience = 'church-reg-rep';
+  } else if (userType === 'pastoral') {
+    audience = 'church-pastoral';
   } else if (userType === 'chariot-leader') {
     audience = 'church-chariot-leader';
   } else if (userType === 'chariot-assistant') {

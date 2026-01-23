@@ -17,9 +17,19 @@ router.get('/stats',
   sessionController.getSessionStats
 );
 
-// Get chariot attendance overview for a session (admin only) - MUST be before /:id route
+// Get chariot attendance overview for a session (admin or pastoral) - MUST be before /:id route
 router.get('/:id/chariot-attendance',
-  authenticateAdmin,
+  authenticateUser,
+  (req, res, next) => {
+    const allowedRoles = ['admin', 'pastoral'];
+    if (!req.user || !allowedRoles.includes(req.user.userType)) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'You do not have permission to access chariot attendance',
+      });
+    }
+    next();
+  },
   validate(schemas.sessionId, 'params'),
   sessionController.getSessionChariotAttendance
 );

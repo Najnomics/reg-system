@@ -618,6 +618,75 @@ class ApiService {
     });
   }
 
+  // Chapel methods (admin only for write, pastoral read)
+  async getChapels(forceRefresh = false) {
+    const cacheKey = '/chapels';
+    if (!forceRefresh) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) return cached;
+    }
+    return this.request('/chapels', {}, true, true);
+  }
+
+  async getChapel(id) {
+    return this.request(`/chapels/${id}`);
+  }
+
+  async createChapel(chapelData) {
+    apiCache.clearPattern('/chapels');
+    return this.request('/chapels', {
+      method: 'POST',
+      body: JSON.stringify(chapelData),
+    });
+  }
+
+  async updateChapel(id, chapelData) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(chapelData),
+    });
+  }
+
+  async deleteChapel(id) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addChapelWorkers(chapelId, memberIds) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/workers`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async removeChapelWorkers(chapelId, memberIds) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/workers`, {
+      method: 'DELETE',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async addChapelMembers(chapelId, memberIds) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async removeChapelMembers(chapelId, memberIds) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/members`, {
+      method: 'DELETE',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
   // Chariot user methods (for leaders/assistants)
   async getChariotMembers(params = {}) {
     const queryParams = new URLSearchParams();

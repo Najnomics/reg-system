@@ -2,38 +2,38 @@ const express = require('express');
 const Joi = require('joi');
 const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
-const chariotController = require('../controllers/chariotController');
+const chapelController = require('../controllers/chapelController');
 
 const router = express.Router();
 
-const allowChariotRead = (req, res, next) => {
+const allowChapelRead = (req, res, next) => {
   const allowedRoles = ['admin', 'pastoral'];
   if (!req.user || !allowedRoles.includes(req.user.userType)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You do not have permission to access chariot data',
+      message: 'You do not have permission to access chapel data',
     });
   }
   next();
 };
 
-// Get all chariots
-router.get('/', authenticateUser, allowChariotRead, chariotController.getChariots);
+// Get all chapels
+router.get('/', authenticateUser, allowChapelRead, chapelController.getChapels);
 
-// Get a single chariot
-router.get('/:id', authenticateUser, allowChariotRead, validate(schemas.uuidParam, 'params'), chariotController.getChariot);
+// Get a single chapel
+router.get('/:id', authenticateUser, allowChapelRead, validate(schemas.uuidParam, 'params'), chapelController.getChapel);
 
 // Write routes require admin authentication
 router.use(authenticateAdmin);
 
-// Create a new chariot
+// Create a new chapel
 router.post(
   '/',
   validate(Joi.object({
     name: Joi.string().trim().min(1).max(100).required().messages({
-      'string.min': 'Chariot name must be at least 1 character',
-      'string.max': 'Chariot name must not exceed 100 characters',
-      'any.required': 'Chariot name is required',
+      'string.min': 'Chapel name must be at least 1 character',
+      'string.max': 'Chapel name must not exceed 100 characters',
+      'any.required': 'Chapel name is required',
     }),
     description: Joi.string().trim().max(500).optional().allow('').messages({
       'string.max': 'Description must not exceed 500 characters',
@@ -42,18 +42,21 @@ router.post(
       'string.guid': 'Leader ID must be a valid UUID',
       'any.required': 'Leader ID is required',
     }),
+    subLeaderId: Joi.string().uuid().optional().allow('').messages({
+      'string.guid': 'Subleader ID must be a valid UUID',
+    }),
   })),
-  chariotController.createChariot
+  chapelController.createChapel
 );
 
-// Update a chariot
+// Update a chapel
 router.patch(
   '/:id',
   validate(schemas.uuidParam, 'params'),
   validate(Joi.object({
     name: Joi.string().trim().min(1).max(100).optional().messages({
-      'string.min': 'Chariot name must be at least 1 character',
-      'string.max': 'Chariot name must not exceed 100 characters',
+      'string.min': 'Chapel name must be at least 1 character',
+      'string.max': 'Chapel name must not exceed 100 characters',
     }),
     description: Joi.string().trim().max(500).optional().allow('').messages({
       'string.max': 'Description must not exceed 500 characters',
@@ -61,16 +64,19 @@ router.patch(
     leaderId: Joi.string().uuid().optional().messages({
       'string.guid': 'Leader ID must be a valid UUID',
     }),
+    subLeaderId: Joi.string().uuid().optional().allow('', null).messages({
+      'string.guid': 'Subleader ID must be a valid UUID',
+    }),
   })),
-  chariotController.updateChariot
+  chapelController.updateChapel
 );
 
-// Delete a chariot
-router.delete('/:id', validate(schemas.uuidParam, 'params'), chariotController.deleteChariot);
+// Delete a chapel
+router.delete('/:id', validate(schemas.uuidParam, 'params'), chapelController.deleteChapel);
 
-// Add assistants to chariot
+// Add workers to chapel
 router.post(
-  '/:id/assistants',
+  '/:id/workers',
   validate(schemas.uuidParam, 'params'),
   validate(Joi.object({
     memberIds: Joi.array().items(Joi.string().uuid()).min(1).required().messages({
@@ -78,12 +84,12 @@ router.post(
       'any.required': 'Member IDs are required',
     }),
   })),
-  chariotController.addAssistants
+  chapelController.addWorkers
 );
 
-// Remove assistants from chariot
+// Remove workers from chapel
 router.delete(
-  '/:id/assistants',
+  '/:id/workers',
   validate(schemas.uuidParam, 'params'),
   validate(Joi.object({
     memberIds: Joi.array().items(Joi.string().uuid()).min(1).required().messages({
@@ -91,10 +97,10 @@ router.delete(
       'any.required': 'Member IDs are required',
     }),
   })),
-  chariotController.removeAssistants
+  chapelController.removeWorkers
 );
 
-// Add members to chariot
+// Add members to chapel
 router.post(
   '/:id/members',
   validate(schemas.uuidParam, 'params'),
@@ -104,10 +110,10 @@ router.post(
       'any.required': 'Member IDs are required',
     }),
   })),
-  chariotController.addMembers
+  chapelController.addMembers
 );
 
-// Remove members from chariot
+// Remove members from chapel
 router.delete(
   '/:id/members',
   validate(schemas.uuidParam, 'params'),
@@ -117,7 +123,7 @@ router.delete(
       'any.required': 'Member IDs are required',
     }),
   })),
-  chariotController.removeMembers
+  chapelController.removeMembers
 );
 
 module.exports = router;

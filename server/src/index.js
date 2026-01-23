@@ -92,6 +92,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reg-reps', require('./routes/regReps'));
 app.use('/api/chariots', require('./routes/chariots'));
 app.use('/api/chariot', require('./routes/chariotUsers'));
+app.use('/api/chapels', require('./routes/chapels'));
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -47,6 +47,9 @@ class DataPreloader {
       case '/admin/chariots':
         prefetcher.prefetchChariots();
         break;
+      case '/admin/chapels':
+        prefetcher.prefetchChapels();
+        break;
       default:
         break;
     }
