@@ -38,13 +38,6 @@ router.post(
     description: Joi.string().trim().max(500).optional().allow('').messages({
       'string.max': 'Description must not exceed 500 characters',
     }),
-    leaderId: Joi.string().uuid().required().messages({
-      'string.guid': 'Leader ID must be a valid UUID',
-      'any.required': 'Leader ID is required',
-    }),
-    subLeaderId: Joi.string().uuid().optional().allow('').messages({
-      'string.guid': 'Subleader ID must be a valid UUID',
-    }),
   })),
   chapelController.createChapel
 );
@@ -61,44 +54,12 @@ router.patch(
     description: Joi.string().trim().max(500).optional().allow('').messages({
       'string.max': 'Description must not exceed 500 characters',
     }),
-    leaderId: Joi.string().uuid().optional().messages({
-      'string.guid': 'Leader ID must be a valid UUID',
-    }),
-    subLeaderId: Joi.string().uuid().optional().allow('', null).messages({
-      'string.guid': 'Subleader ID must be a valid UUID',
-    }),
   })),
   chapelController.updateChapel
 );
 
 // Delete a chapel
 router.delete('/:id', validate(schemas.uuidParam, 'params'), chapelController.deleteChapel);
-
-// Add workers to chapel
-router.post(
-  '/:id/workers',
-  validate(schemas.uuidParam, 'params'),
-  validate(Joi.object({
-    memberIds: Joi.array().items(Joi.string().uuid()).min(1).required().messages({
-      'array.min': 'At least one member ID is required',
-      'any.required': 'Member IDs are required',
-    }),
-  })),
-  chapelController.addWorkers
-);
-
-// Remove workers from chapel
-router.delete(
-  '/:id/workers',
-  validate(schemas.uuidParam, 'params'),
-  validate(Joi.object({
-    memberIds: Joi.array().items(Joi.string().uuid()).min(1).required().messages({
-      'array.min': 'At least one member ID is required',
-      'any.required': 'Member IDs are required',
-    }),
-  })),
-  chapelController.removeWorkers
-);
 
 // Add members to chapel
 router.post(
