@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { XMarkIcon, MagnifyingGlassIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 
-const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
+const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
   const [members, setMembers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,56 +16,31 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
   const loadMembers = async () => {
     try {
       setLoadingMembers(true);
-      // Fetch members and chariots in parallel
-      const [membersResponse, chariotsResponse] = await Promise.all([
-        (async () => {
-          // Fetch members in batches (max limit is 100)
-          let allMembersList = [];
-          let page = 1;
-          let hasMore = true;
-          
-          while (hasMore) {
-            const response = await apiService.getMembers({ page, limit: 100 });
-            const pageMembers = response?.data?.members || [];
-            allMembersList = [...allMembersList, ...pageMembers];
-            
-            hasMore = pageMembers.length === 100 && (response?.data?.pagination?.hasNext || false);
-            page++;
-            
-            // Safety limit to prevent infinite loops
-            if (page > 50) break;
-          }
-          
-          return allMembersList;
-        })(),
-        apiService.getChariots().catch(() => ({ data: { chariots: [] } })),
-      ]);
+      const membersResponse = await (async () => {
+        let allMembersList = [];
+        let page = 1;
+        let hasMore = true;
 
-      // Filter out members who are already leaders or assistants of other chariots
-      const excludedIds = new Set();
-      
-      // Exclude current chariot's leader and existing assistants/members
-      if (chariot.leaderId) excludedIds.add(chariot.leaderId);
-      if (type === 'assistants' && chariot.assistants) {
-        chariot.assistants.forEach(a => excludedIds.add(a.memberId));
-      }
-      if (type === 'members' && chariot.members) {
-        chariot.members.forEach(m => excludedIds.add(m.memberId));
-      }
+        while (hasMore) {
+          const response = await apiService.getMembers({ page, limit: 100 });
+          const pageMembers = response?.data?.members || [];
+          allMembersList = [...allMembersList, ...pageMembers];
 
-      // Exclude leaders and assistants of OTHER chariots
-      chariotsResponse?.data?.chariots?.forEach(ch => {
-        // Exclude leaders of other chariots
-        if (ch.leaderId && ch.id !== chariot.id) {
-          excludedIds.add(ch.leaderId);
+          hasMore = pageMembers.length === 100 && (response?.data?.pagination?.hasNext || false);
+          page++;
+
+          if (page > 50) break;
         }
-        // Exclude assistants of other chariots (only if assigning assistants)
-        if (type === 'assistants' && ch.assistants && ch.id !== chariot.id) {
-          ch.assistants.forEach(a => excludedIds.add(a.memberId));
-        }
+
+        return allMembersList;
+      })();
+
+      const eligibleMembers = membersResponse.filter(member => {
+        if (!member.chapel) return true;
+        return member.chapel.id === chapel.id;
       });
-      
-      setMembers(membersResponse.filter(m => !excludedIds.has(m.id)));
+
+      setMembers(eligibleMembers);
     } catch (error) {
       console.error('Failed to load members:', error);
     } finally {
@@ -95,10 +70,10 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
     member.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const title = type === 'assistants' ? 'Assign Assistants' : 'Assign Members';
-  const description = type === 'assistants' 
-    ? 'Select members to assign as assistants to this chariot'
-    : 'Select members to assign to this chariot';
+  const title = type === 'invitees' ? 'Assign Invitees' : 'Assign Members';
+  const description = type === 'invitees'
+    ? 'Select people to mark as invitees for this chapel'
+    : 'Select people to assign as chapel members';
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
@@ -108,7 +83,7 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
             <h3 className="text-base sm:text-lg font-medium text-gray-900 break-words">{title}</h3>
             <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{description}</p>
             <p className="text-xs sm:text-sm font-medium text-gray-900 mt-2 break-words">
-              Chariot: {chariot.name}
+              Chapel: {chapel.name}
             </p>
           </div>
           <button
@@ -121,7 +96,6 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
         </div>
 
         <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
-          {/* Search */}
           <div className="relative mb-3 sm:mb-4">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
             <input
@@ -133,7 +107,6 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
             />
           </div>
 
-          {/* Selected count */}
           {selectedMembers.size > 0 && (
             <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-xs sm:text-sm font-medium text-blue-900">
@@ -142,7 +115,6 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
             </div>
           )}
 
-          {/* Members list */}
           {loadingMembers ? (
             <div className="flex items-center justify-center py-8 sm:py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -166,11 +138,11 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
                     <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {member.chapel
-                        ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
-                        : 'Chapel: Not assigned'}
-                    </p>
+                    {member.chapel?.id === chapel.id && member.chapelRole && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Current: {member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'}
+                      </p>
+                    )}
                   </div>
                   {selectedMembers.has(member.id) && (
                     <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
@@ -190,7 +162,7 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
             className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             disabled={loading || selectedMembers.size === 0}
           >
-            {loading ? 'Assigning...' : `Assign ${selectedMembers.size} Member(s)`}
+            {loading ? 'Assigning...' : `Assign ${selectedMembers.size} ${type === 'invitees' ? 'Invitee(s)' : 'Member(s)'}`}
           </button>
         </div>
       </div>
@@ -198,4 +170,4 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
   );
 };
 
-export default AssignMembersModal;
+export default AssignChapelMembersModal;

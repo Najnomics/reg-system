@@ -1,57 +1,40 @@
 import { useState, useEffect } from 'react';
-import { XMarkIcon, UserIcon, UsersIcon, UserGroupIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UsersIcon, UserGroupIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import AssignMembersModal from './AssignMembersModal';
+import AssignChapelMembersModal from './AssignChapelMembersModal';
 
-const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
+const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
   const { showError, showSuccess } = useApp();
   const { userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [loading, setLoading] = useState(false);
-  const [currentChariot, setCurrentChariot] = useState(chariot);
+  const [currentChapel, setCurrentChapel] = useState(chapel);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assignType, setAssignType] = useState(null); // 'assistants' or 'members'
+  const [assignType, setAssignType] = useState(null); // 'invitees' | 'members'
 
   useEffect(() => {
-    loadChariotData();
-  }, [chariot.id]);
+    loadChapelData();
+  }, [chapel.id]);
 
-  const loadChariotData = async () => {
+  const loadChapelData = async () => {
     try {
-      const response = await apiService.getChariot(chariot.id);
-      setCurrentChariot(response?.data?.chariot || chariot);
+      const response = await apiService.getChapel(chapel.id);
+      setCurrentChapel(response?.data?.chapel || chapel);
     } catch (error) {
-      console.error('Failed to load chariot:', error);
-    }
-  };
-
-  const handleRemoveAssistant = async (memberId) => {
-    if (!window.confirm('Are you sure you want to remove this assistant?')) return;
-    
-    try {
-      setLoading(true);
-      await apiService.removeChariotAssistants(currentChariot.id, [memberId]);
-      showSuccess('Assistant removed successfully');
-      await loadChariotData();
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      showError('Failed to remove assistant');
-      console.error('Remove assistant error:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load chapel:', error);
     }
   };
 
   const handleRemoveMember = async (memberId) => {
-    if (!window.confirm('Are you sure you want to remove this member?')) return;
-    
+    if (!window.confirm('Are you sure you want to remove this person from the chapel?')) return;
+
     try {
       setLoading(true);
-      await apiService.removeChariotMembers(currentChariot.id, [memberId]);
+      await apiService.removeChapelMembers(currentChapel.id, [memberId]);
       showSuccess('Member removed successfully');
-      await loadChariotData();
+      await loadChapelData();
       if (onRefresh) onRefresh();
     } catch (error) {
       showError('Failed to remove member');
@@ -68,19 +51,15 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
 
   const handleAssignSubmit = async (memberIds) => {
     if (!assignType || memberIds.length === 0) return;
-    
+
     try {
       setLoading(true);
-      if (assignType === 'assistants') {
-        await apiService.addChariotAssistants(currentChariot.id, memberIds);
-        showSuccess('Assistants assigned successfully');
-      } else if (assignType === 'members') {
-        await apiService.addChariotMembers(currentChariot.id, memberIds);
-        showSuccess('Members assigned successfully');
-      }
+      const role = assignType === 'invitees' ? 'INVITEE' : 'MEMBER';
+      await apiService.addChapelMembers(currentChapel.id, memberIds, role);
+      showSuccess(`${assignType === 'invitees' ? 'Invitees' : 'Members'} assigned successfully`);
       setShowAssignModal(false);
       setAssignType(null);
-      await loadChariotData();
+      await loadChapelData();
       if (onRefresh) onRefresh();
     } catch (error) {
       showError(error.message || `Failed to assign ${assignType}`);
@@ -90,14 +69,17 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
     }
   };
 
+  const invitees = (currentChapel.members || []).filter(member => member.chapelRole === 'INVITEE');
+  const chapelMembers = (currentChapel.members || []).filter(member => member.chapelRole !== 'INVITEE');
+
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-y-auto">
         <div className="flex items-start sm:items-center justify-between p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="min-w-0 flex-1 pr-2">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 break-words">{currentChariot.name}</h3>
-            {currentChariot.description && (
-              <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{currentChariot.description}</p>
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 break-words">{currentChapel.name}</h3>
+            {currentChapel.description && (
+              <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{currentChapel.description}</p>
             )}
           </div>
           <button
@@ -110,58 +92,40 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
         </div>
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {/* Leader */}
-          <div>
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
-              <h4 className="text-xs sm:text-sm font-semibold text-gray-900">Leader</h4>
-            </div>
-            <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{currentChariot.leader?.name}</p>
-              <p className="text-xs sm:text-sm text-gray-600 break-words">{currentChariot.leader?.email}</p>
-            </div>
-          </div>
-
-          {/* Assistants */}
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
               <div className="flex items-center gap-2">
                 <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
-                  Assistants ({currentChariot.assistants?.length || 0})
+                  Invitees ({invitees.length})
                 </h4>
               </div>
               {isAdmin && (
                 <button
-                  onClick={() => handleAssign('assistants')}
+                  onClick={() => handleAssign('invitees')}
                   className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 touch-manipulation w-full sm:w-auto"
                   disabled={loading}
                 >
                   <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Add Assistants</span>
+                  <span className="hidden sm:inline">Add Invitees</span>
                   <span className="sm:hidden">Add</span>
                 </button>
               )}
             </div>
-            {currentChariot.assistants && currentChariot.assistants.length > 0 ? (
+            {invitees.length > 0 ? (
               <div className="space-y-2">
-                {currentChariot.assistants.map((assistant) => (
+                {invitees.map((member) => (
                   <div
-                    key={assistant.member.id}
+                    key={member.id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{assistant.member.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{assistant.member.email}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {assistant.member.chapel
-                          ? `Chapel: ${assistant.member.chapel.name} (${assistant.member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
-                          : 'Chapel: Not assigned'}
-                      </p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                     </div>
                     {isAdmin && (
                       <button
-                        onClick={() => handleRemoveAssistant(assistant.member.id)}
+                        onClick={() => handleRemoveMember(member.id)}
                         className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                         disabled={loading}
                       >
@@ -172,17 +136,16 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                 ))}
               </div>
             ) : (
-              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No assistants assigned</p>
+              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No invitees assigned</p>
             )}
           </div>
 
-          {/* Members */}
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
               <div className="flex items-center gap-2">
-                <UserGroupIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
+                <UserGroupIcon className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 flex-shrink-0" />
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
-                  Members ({currentChariot.members?.length || 0})
+                  Members ({chapelMembers.length})
                 </h4>
               </div>
               {isAdmin && (
@@ -197,28 +160,23 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                 </button>
               )}
             </div>
-            {currentChariot.members && currentChariot.members.length > 0 ? (
+            {chapelMembers.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto">
-                {currentChariot.members.map((chariotMember) => (
+                {chapelMembers.map((member) => (
                   <div
-                    key={chariotMember.member.id}
+                    key={member.id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{chariotMember.member.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{chariotMember.member.email}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {chariotMember.member.chapel
-                          ? `Chapel: ${chariotMember.member.chapel.name} (${chariotMember.member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
-                          : 'Chapel: Not assigned'}
-                      </p>
-                      {chariotMember.member.pin && (
-                        <p className="text-xs text-gray-500">PIN: {chariotMember.member.pin}</p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
+                      {member.pin && (
+                        <p className="text-xs text-gray-500">PIN: {member.pin}</p>
                       )}
                     </div>
                     {isAdmin && (
                       <button
-                        onClick={() => handleRemoveMember(chariotMember.member.id)}
+                        onClick={() => handleRemoveMember(member.id)}
                         className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                         disabled={loading}
                       >
@@ -241,10 +199,9 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
         </div>
       </div>
 
-      {/* Assign Members Modal */}
       {showAssignModal && (
-        <AssignMembersModal
-          chariot={currentChariot}
+        <AssignChapelMembersModal
+          chapel={currentChapel}
           type={assignType}
           onSubmit={handleAssignSubmit}
           onClose={() => {
@@ -257,4 +214,4 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
   );
 };
 
-export default ChariotDetailModal;
+export default ChapelDetailModal;

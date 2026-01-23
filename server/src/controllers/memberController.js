@@ -6,7 +6,7 @@ const { generateMemberPin } = require('../utils/pinGenerator');
  */
 const getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email } = req.query;
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email, chapelRole } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -34,6 +34,12 @@ const getMembers = async (req, res) => {
       }
     }
 
+    if (chapelRole === 'UNASSIGNED') {
+      where.chapelId = null;
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER') {
+      where.chapelRole = chapelRole;
+    }
+
     // Get members and total count in parallel
     // Only count if we're on the first page to improve performance
     const [members, total] = await Promise.all([
@@ -50,6 +56,13 @@ const getMembers = async (req, res) => {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           _count: {
             select: { attendance: true },
           },
@@ -104,6 +117,13 @@ const getMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         attendance: {
           select: {
             id: true,
@@ -208,6 +228,13 @@ const createMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -296,6 +323,13 @@ const updateMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -439,7 +473,7 @@ const bulkDeleteMembers = async (req, res) => {
  */
 const searchMembers = async (req, res) => {
   try {
-    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', chapelRole } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -465,6 +499,12 @@ const searchMembers = async (req, res) => {
       }
     }
 
+    if (chapelRole === 'UNASSIGNED') {
+      where.chapelId = null;
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER') {
+      where.chapelRole = chapelRole;
+    }
+
     // Get members and total count
     const [members, total] = await Promise.all([
       prisma.member.findMany({
@@ -479,6 +519,13 @@ const searchMembers = async (req, res) => {
           pin: true,
           isActive: true,
           createdAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           _count: {
             select: { attendance: true },
           },

@@ -26,6 +26,7 @@ const CompleteMembersPage = () => {
   const { logout, userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
+  const [chapelRoleFilter, setChapelRoleFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -48,12 +49,20 @@ const CompleteMembersPage = () => {
   const fetchMembers = useCallback(async (page = currentPage, forceRefresh = false) => {
     try {
       setLoading(true);
+      const chapelRoleParam = chapelRoleFilter === 'invitee'
+        ? 'INVITEE'
+        : chapelRoleFilter === 'member'
+          ? 'MEMBER'
+          : chapelRoleFilter === 'unassigned'
+            ? 'UNASSIGNED'
+            : undefined;
       const response = await apiService.getMembers({
         page,
         limit: membersPerPage,
         sortBy: sortBy === 'date' ? 'createdAt' : 'name',
         sortOrder,
         query: searchTerm.trim() || undefined,
+        chapelRole: chapelRoleParam,
         forceRefresh,
       });
       
@@ -70,7 +79,7 @@ const CompleteMembersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, sortOrder, searchTerm, membersPerPage, showError]);
+  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, membersPerPage, showError]);
 
   useEffect(() => {
     // Fetch members on mount - show cached data immediately if available
@@ -95,7 +104,7 @@ const CompleteMembersPage = () => {
     } else {
       fetchMembers(1, true);
     }
-  }, [searchTerm, sortBy, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle page change
   useEffect(() => {
@@ -600,8 +609,19 @@ const CompleteMembersPage = () => {
               />
             </div>
         
-        {/* Sort Controls */}
-        <div className="flex gap-2">
+        {/* Filters and Sort Controls */}
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={chapelRoleFilter}
+            onChange={(e) => setChapelRoleFilter(e.target.value)}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Chapel Roles</option>
+            <option value="invitee">Invitees</option>
+            <option value="member">Members</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+
           {/* Sort By Dropdown */}
           <select
             value={sortBy}
@@ -743,6 +763,7 @@ const CompleteMembersPage = () => {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chapel</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Code</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -791,10 +812,18 @@ const CompleteMembersPage = () => {
                         </label>
                       </div>
                     )}
-                    {filteredMembers.map((member) => (
+                    {filteredMembers.map((member) => {
+                      const isInvitee = member.chapelRole === 'INVITEE';
+                      return (
                       <div
                         key={member.id}
-                        className={`border rounded-lg p-4 ${selectedMembers.has(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}
+                        className={`border rounded-lg p-4 ${
+                          selectedMembers.has(member.id)
+                            ? 'bg-blue-50 border-blue-200'
+                            : isInvitee
+                              ? 'bg-yellow-50 border-yellow-200'
+                              : 'bg-white border-gray-200'
+                        }`}
                       >
                         <div className="flex items-start gap-3">
                           {/* Checkbox */}
@@ -827,6 +856,11 @@ const CompleteMembersPage = () => {
                                 <div className="text-xs text-gray-500 truncate mt-0.5">
                                   {member.email}
                                 </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {member.chapel
+                                  ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                                  : 'Chapel: Not assigned'}
+                              </div>
                               </div>
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
                                 member.isActive !== false 
@@ -886,7 +920,8 @@ const CompleteMembersPage = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Desktop Table View */}
@@ -911,6 +946,9 @@ const CompleteMembersPage = () => {
                           Contact
                         </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Chapel
+                        </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           PIN
                         </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -925,8 +963,19 @@ const CompleteMembersPage = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredMembers.map((member) => (
-                          <tr key={member.id} className={`hover:bg-gray-50 ${selectedMembers.has(member.id) ? 'bg-blue-50' : ''}`}>
+                      {filteredMembers.map((member) => {
+                        const isInvitee = member.chapelRole === 'INVITEE';
+                        return (
+                          <tr
+                            key={member.id}
+                            className={`${
+                              selectedMembers.has(member.id)
+                                ? 'bg-blue-50 hover:bg-blue-100'
+                                : isInvitee
+                                  ? 'bg-yellow-50 hover:bg-yellow-100'
+                                  : 'hover:bg-gray-50'
+                            }`}
+                          >
                             {isAdmin && (
                               <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <input
@@ -958,6 +1007,13 @@ const CompleteMembersPage = () => {
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">{member.email}</div>
+                          </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {member.chapel
+                                ? `${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                                : 'Not assigned'}
+                            </div>
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -1004,7 +1060,8 @@ const CompleteMembersPage = () => {
                               )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

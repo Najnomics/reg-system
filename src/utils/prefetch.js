@@ -63,6 +63,15 @@ class Prefetcher {
   }
 
   /**
+   * Prefetch chapels data
+   */
+  prefetchChapels() {
+    this.prefetch('/chapels', () => {
+      apiService.getChapels();
+    });
+  }
+
+  /**
    * Clear prefetch cache
    */
   clear() {

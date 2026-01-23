@@ -360,6 +360,11 @@ const SessionAttendancePage = () => {
                             PIN: {member.pin}
                           </div>
                         </div>
+                        <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                          {member.chapel?.name
+                            ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                            : 'Chapel: Not assigned'}
+                        </div>
                       </div>
                     </div>
                     

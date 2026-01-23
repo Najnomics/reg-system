@@ -55,6 +55,13 @@ const getChariotMembers = async (req, res) => {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           _count: {
             select: { attendance: true },
           },

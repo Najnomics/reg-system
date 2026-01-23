@@ -22,6 +22,7 @@ const SessionChariotAttendancePage = lazy(() => import('./pages/admin/SessionCha
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const RegRepsPage = lazy(() => import('./pages/admin/RegRepsPage'));
 const ChariotsPage = lazy(() => import('./pages/admin/ChariotsPage'));
+const ChapelsPage = lazy(() => import('./pages/admin/ChapelsPage'));
 const CheckInPage = lazy(() => import('./pages/public/CheckinPage'));
 const ChariotDashboard = lazy(() => import('./pages/chariot/ChariotDashboard'));
 
@@ -71,8 +72,13 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   <Route path="chariots" element={
-                    <RoleBasedRoute adminOnly={true}>
+                    <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
                       <ChariotsPage />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="chapels" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
+                      <ChapelsPage />
                     </RoleBasedRoute>
                   } />
                 </Route>

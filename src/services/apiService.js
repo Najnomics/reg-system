@@ -138,6 +138,7 @@ class ApiService {
     if (params.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     if (params.query) queryParams.append('query', params.query);
+    if (params.chapelRole) queryParams.append('chapelRole', params.chapelRole);
     
     // Use cache for GET requests (cache for 30 seconds)
     const cacheKey = `/members?${queryParams.toString()}`;
@@ -613,6 +614,59 @@ class ApiService {
   async removeChariotMembers(chariotId, memberIds) {
     apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${chariotId}/members`, {
+      method: 'DELETE',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  // Chapel methods (admin only for write, pastoral read)
+  async getChapels(forceRefresh = false) {
+    const cacheKey = '/chapels';
+    if (!forceRefresh) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) return cached;
+    }
+    return this.request('/chapels', {}, true, true);
+  }
+
+  async getChapel(id) {
+    return this.request(`/chapels/${id}`);
+  }
+
+  async createChapel(chapelData) {
+    apiCache.clearPattern('/chapels');
+    return this.request('/chapels', {
+      method: 'POST',
+      body: JSON.stringify(chapelData),
+    });
+  }
+
+  async updateChapel(id, chapelData) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(chapelData),
+    });
+  }
+
+  async deleteChapel(id) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addChapelMembers(chapelId, memberIds, role) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds, role }),
+    });
+  }
+
+  async removeChapelMembers(chapelId, memberIds) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/members`, {
       method: 'DELETE',
       body: JSON.stringify({ memberIds }),
     });

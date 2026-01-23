@@ -25,9 +25,9 @@ const getNavigationItems = (userType) => {
   // Admin/Reg-rep navigation
   const baseNavigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
-    { name: 'Members', href: '/admin/members', icon: UsersIcon, roles: ['admin', 'reg-rep'] },
-    { name: 'Sessions', href: '/admin/sessions', icon: CalendarDaysIcon, roles: ['admin', 'reg-rep'] },
-    { name: 'Reports', href: '/admin/reports', icon: DocumentChartBarIcon, roles: ['admin', 'reg-rep'] },
+    { name: 'Members', href: '/admin/members', icon: UsersIcon, roles: ['admin', 'reg-rep', 'pastoral'] },
+    { name: 'Sessions', href: '/admin/sessions', icon: CalendarDaysIcon, roles: ['admin', 'reg-rep', 'pastoral'] },
+    { name: 'Reports', href: '/admin/reports', icon: DocumentChartBarIcon, roles: ['admin', 'reg-rep', 'pastoral'] },
   ];
 
   // Add admin-only items
@@ -39,10 +39,31 @@ const getNavigationItems = (userType) => {
       roles: ['admin']
     });
     baseNavigation.splice(5, 0, {
+      name: 'Chapels',
+      href: '/admin/chapels',
+      icon: UserGroupIcon,
+      roles: ['admin']
+    });
+    baseNavigation.push({
       name: 'Reg-Reps',
       href: '/admin/reg-reps',
       icon: UserGroupIcon,
       roles: ['admin']
+    });
+  }
+
+  if (userType === 'pastoral') {
+    baseNavigation.splice(4, 0, {
+      name: 'Chariots',
+      href: '/admin/chariots',
+      icon: UserGroupIcon,
+      roles: ['pastoral']
+    });
+    baseNavigation.splice(5, 0, {
+      name: 'Chapels',
+      href: '/admin/chapels',
+      icon: UserGroupIcon,
+      roles: ['pastoral']
     });
   }
 
@@ -83,6 +104,7 @@ const Sidebar = () => {
               <div className="ml-3">
                 <h1 className="text-white text-lg font-semibold">
                   {userType === 'admin' ? 'Church Admin' : 
+                   userType === 'pastoral' ? 'Pastoral Team' :
                    userType === 'chariot-leader' ? 'Chariot Leader' :
                    userType === 'chariot-assistant' ? 'Chariot Assistant' :
                    'Church Portal'}

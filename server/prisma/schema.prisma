@@ -8,6 +8,11 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum ChapelRole {
+  INVITEE
+  MEMBER
+}
+
 model Admin {
   id             String           @id
   email          String           @unique
@@ -21,6 +26,7 @@ model Admin {
   sessions       Session[]
   upload_history upload_history[]
   chariots       Chariot[]
+  chapels        Chapel[]
 
   @@map("admins")
 }
@@ -62,10 +68,15 @@ model Member {
   chariotLeader         Chariot[]           @relation("ChariotLeader")
   chariotAssistants     ChariotAssistant[]
   chariotMembers        ChariotMember[]
+  chapelId              String?
+  chapelRole            ChapelRole?
+  chapel                Chapel?             @relation(fields: [chapelId], references: [id], onDelete: SetNull)
 
   @@index([isActive])
   @@index([email])
   @@index([name])
+  @@index([chapelId])
+  @@index([chapelRole])
   @@map("members")
 }
 
@@ -174,4 +185,19 @@ model ChariotMember {
   @@index([chariotId])
   @@index([memberId])
   @@map("chariot_members")
+}
+
+model Chapel {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  createdBy   String
+  admins      Admin          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  members     Member[]
+
+  @@index([isActive])
+  @@map("chapels")
 }
