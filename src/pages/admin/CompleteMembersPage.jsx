@@ -26,6 +26,7 @@ const CompleteMembersPage = () => {
   const { logout, userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
+  const [chapelRoleFilter, setChapelRoleFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -48,12 +49,20 @@ const CompleteMembersPage = () => {
   const fetchMembers = useCallback(async (page = currentPage, forceRefresh = false) => {
     try {
       setLoading(true);
+      const chapelRoleParam = chapelRoleFilter === 'invitee'
+        ? 'INVITEE'
+        : chapelRoleFilter === 'member'
+          ? 'MEMBER'
+          : chapelRoleFilter === 'unassigned'
+            ? 'UNASSIGNED'
+            : undefined;
       const response = await apiService.getMembers({
         page,
         limit: membersPerPage,
         sortBy: sortBy === 'date' ? 'createdAt' : 'name',
         sortOrder,
         query: searchTerm.trim() || undefined,
+        chapelRole: chapelRoleParam,
         forceRefresh,
       });
       
@@ -70,7 +79,7 @@ const CompleteMembersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, sortOrder, searchTerm, membersPerPage, showError]);
+  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, membersPerPage, showError]);
 
   useEffect(() => {
     // Fetch members on mount - show cached data immediately if available
@@ -95,7 +104,7 @@ const CompleteMembersPage = () => {
     } else {
       fetchMembers(1, true);
     }
-  }, [searchTerm, sortBy, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle page change
   useEffect(() => {
@@ -600,8 +609,19 @@ const CompleteMembersPage = () => {
               />
             </div>
         
-        {/* Sort Controls */}
-        <div className="flex gap-2">
+        {/* Filters and Sort Controls */}
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={chapelRoleFilter}
+            onChange={(e) => setChapelRoleFilter(e.target.value)}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Chapel Roles</option>
+            <option value="invitee">Invitees</option>
+            <option value="member">Members</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+
           {/* Sort By Dropdown */}
           <select
             value={sortBy}

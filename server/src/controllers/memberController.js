@@ -6,7 +6,7 @@ const { generateMemberPin } = require('../utils/pinGenerator');
  */
 const getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email } = req.query;
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email, chapelRole } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -32,6 +32,12 @@ const getMembers = async (req, res) => {
       if (email) {
         where.email = { contains: email, mode: 'insensitive' };
       }
+    }
+
+    if (chapelRole === 'UNASSIGNED') {
+      where.chapelId = null;
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER') {
+      where.chapelRole = chapelRole;
     }
 
     // Get members and total count in parallel
@@ -467,7 +473,7 @@ const bulkDeleteMembers = async (req, res) => {
  */
 const searchMembers = async (req, res) => {
   try {
-    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', chapelRole } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -491,6 +497,12 @@ const searchMembers = async (req, res) => {
       if (pin) {
         where.pin = pin;
       }
+    }
+
+    if (chapelRole === 'UNASSIGNED') {
+      where.chapelId = null;
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER') {
+      where.chapelRole = chapelRole;
     }
 
     // Get members and total count

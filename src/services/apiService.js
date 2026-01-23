@@ -138,6 +138,7 @@ class ApiService {
     if (params.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     if (params.query) queryParams.append('query', params.query);
+    if (params.chapelRole) queryParams.append('chapelRole', params.chapelRole);
     
     // Use cache for GET requests (cache for 30 seconds)
     const cacheKey = `/members?${queryParams.toString()}`;
