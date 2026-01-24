@@ -186,28 +186,32 @@ export default async function handler(req, res) {
       });
     }
 
-    const databaseUrl = getDatabaseUrl();
-    if (!databaseUrl) {
-      return res.status(500).json({
-        error: 'Database not configured',
-        message: 'Set DIRECT_URL or DATABASE_URL in Vercel environment variables to fetch chariot details.',
-      });
-    }
-
-    // Fetch member chariot details from database
-    console.log(`🔍 Fetching chariot details for member: ${memberId || memberEmail}`);
-    console.log(`   Database URL configured: ${databaseUrl ? 'YES' : 'NO'}`);
+    // Check if payload already contains chariot details (from frontend)
+    const hasPayloadChariotData = payloadChariotName || payloadRoleLabel || payloadLeaderName;
+    
     let chariotDetails = null;
-    try {
-      chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail, databaseUrl);
-      if (chariotDetails) {
-        console.log(`✅ Fetched chariot details: ${chariotDetails.chariotName}, Role: ${chariotDetails.roleLabel}`);
+    
+    // Only fetch from database if payload doesn't have chariot data
+    if (!hasPayloadChariotData) {
+      const databaseUrl = getDatabaseUrl();
+      if (databaseUrl) {
+        console.log(`🔍 Payload missing chariot data, fetching from database for member: ${memberId || memberEmail}`);
+        try {
+          chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail, databaseUrl);
+          if (chariotDetails) {
+            console.log(`✅ Fetched chariot details from DB: ${chariotDetails.chariotName}, Role: ${chariotDetails.roleLabel}`);
+          } else {
+            console.warn(`⚠️ Could not fetch chariot details from database`);
+          }
+        } catch (dbError) {
+          console.error(`❌ Database fetch error (using defaults):`, dbError.message);
+          // Continue without chariot details - email will still be sent
+        }
       } else {
-        console.warn(`⚠️ Could not fetch chariot details for member: ${memberId || memberEmail}`);
+        console.log(`⚠️ No database URL configured and no payload chariot data - using defaults`);
       }
-    } catch (dbError) {
-      console.error(`❌ Database fetch error (continuing with fallback):`, dbError.message);
-      // Continue without chariot details - email will still be sent
+    } else {
+      console.log(`✅ Using chariot data from frontend payload`);
     }
 
     const resolvedChariotName = payloadChariotName || chariotDetails?.chariotName || 'Not assigned';
