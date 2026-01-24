@@ -1,19 +1,39 @@
 const express = require('express');
 const Joi = require('joi');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const chariotController = require('../controllers/chariotController');
 
 const router = express.Router();
 
-// All routes require admin authentication
-router.use(authenticateAdmin);
+const allowChariotRead = (req, res, next) => {
+  const allowedRoles = ['admin', 'pastoral'];
+  if (!req.user || !allowedRoles.includes(req.user.userType)) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'You do not have permission to access chariot data',
+    });
+  }
+  next();
+};
 
 // Get all chariots
-router.get('/', chariotController.getChariots);
+router.get('/', authenticateUser, allowChariotRead, chariotController.getChariots);
+
+// Export all chariots as PDF
+router.get('/export/pdf', authenticateUser, allowChariotRead, chariotController.exportChariotsPDF);
+
+// Export all chariots as CSV
+router.get('/export/csv', authenticateUser, allowChariotRead, chariotController.exportChariotsCSV);
+
+// Assign unassigned members to chariots (admin only)
+router.post('/assign-unassigned', authenticateAdmin, chariotController.assignUnassignedMembersToChariots);
 
 // Get a single chariot
-router.get('/:id', validate(schemas.uuidParam, 'params'), chariotController.getChariot);
+router.get('/:id', authenticateUser, allowChariotRead, validate(schemas.uuidParam, 'params'), chariotController.getChariot);
+
+// Write routes require admin authentication
+router.use(authenticateAdmin);
 
 // Create a new chariot
 router.post(

@@ -19,6 +19,7 @@ import {
   ChevronRightIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 
 const CompleteMembersPage = () => {
@@ -26,6 +27,10 @@ const CompleteMembersPage = () => {
   const { logout, userType } = useAuth();
   const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
+  const [chapelRoleFilter, setChapelRoleFilter] = useState('all');
+  const [chapelFilter, setChapelFilter] = useState('all');
+  const [chapels, setChapels] = useState([]);
+  const [loadingChapels, setLoadingChapels] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -43,17 +48,70 @@ const CompleteMembersPage = () => {
   const [deleteType, setDeleteType] = useState(null); // 'single' or 'bulk'
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [roleMember, setRoleMember] = useState(null);
+  const [roleSelection, setRoleSelection] = useState('worker');
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [chapelModalOpen, setChapelModalOpen] = useState(false);
+  const [chapelMember, setChapelMember] = useState(null);
+  const [chapelSelection, setChapelSelection] = useState('unassigned');
+  const [chapelRoleSelection, setChapelRoleSelection] = useState('member');
+  const [chapelSaving, setChapelSaving] = useState(false);
+
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    return 'Member';
+  };
+
+  const getMemberRoleLabel = (member) =>
+    member?.chapelRole ? formatChapelRole(member.chapelRole) : 'Not assigned';
+
+  const getMemberChariotLabel = (member) => {
+    const labels = [];
+    (member?.chariotLeader || []).forEach((chariot) => {
+      labels.push(`${chariot.name} (Leader)`);
+    });
+    (member?.chariotAssistants || []).forEach((assistant) => {
+      if (assistant?.chariot?.name) {
+        labels.push(`${assistant.chariot.name} (Assistant)`);
+      }
+    });
+    (member?.chariotMembers || []).forEach((chariotMember) => {
+      if (chariotMember?.chariot?.name) {
+        labels.push(chariotMember.chariot.name);
+      }
+    });
+    return labels.length > 0 ? labels.join(', ') : 'Not assigned';
+  };
 
   // Fetch members with pagination - memoized
   const fetchMembers = useCallback(async (page = currentPage, forceRefresh = false) => {
     try {
       setLoading(true);
+      const chapelRoleParam = chapelRoleFilter === 'invitee'
+        ? 'INVITEE'
+        : chapelRoleFilter === 'member'
+          ? 'MEMBER'
+          : chapelRoleFilter === 'worker'
+            ? 'WORKER'
+            : chapelRoleFilter === 'unassigned'
+              ? 'UNASSIGNED'
+              : undefined;
+      const chapelFilterParam = chapelFilter === 'all'
+        ? undefined
+        : chapelFilter === 'unassigned'
+          ? 'UNASSIGNED'
+          : chapelFilter;
+
       const response = await apiService.getMembers({
         page,
         limit: membersPerPage,
         sortBy: sortBy === 'date' ? 'createdAt' : 'name',
         sortOrder,
         query: searchTerm.trim() || undefined,
+        chapelRole: chapelRoleParam,
+        chapelId: chapelFilterParam,
         forceRefresh,
       });
       
@@ -70,11 +128,26 @@ const CompleteMembersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, sortOrder, searchTerm, membersPerPage, showError]);
+  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, chapelFilter, membersPerPage, showError]);
+
+  const fetchChapels = useCallback(async () => {
+    try {
+      setLoadingChapels(true);
+      const response = await apiService.getChapels(true);
+      const chapelList = response?.data?.chapels || [];
+      setChapels(Array.isArray(chapelList) ? chapelList : []);
+    } catch (error) {
+      console.error('Failed to fetch chapels:', error);
+      showError('Failed to load chapels');
+    } finally {
+      setLoadingChapels(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
     // Fetch members on mount - show cached data immediately if available
     fetchMembers(1, false); // Use cache first for instant display
+    fetchChapels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -95,7 +168,7 @@ const CompleteMembersPage = () => {
     } else {
       fetchMembers(1, true);
     }
-  }, [searchTerm, sortBy, sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter, chapelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle page change
   useEffect(() => {
@@ -157,6 +230,72 @@ const CompleteMembersPage = () => {
   const handleEditMember = (member) => {
     setSelectedMember(member);
     setShowAddModal(true);
+  };
+
+  const openRoleModal = (member) => {
+    setRoleMember(member);
+    setRoleSelection(member?.chapelRole ? member.chapelRole.toLowerCase() : 'unassigned');
+    setRoleModalOpen(true);
+  };
+
+  const closeRoleModal = () => {
+    setRoleModalOpen(false);
+    setRoleMember(null);
+    setRoleSelection('worker');
+  };
+
+  const handleRoleUpdate = async () => {
+    if (!roleMember) return;
+    setRoleSaving(true);
+    try {
+      const response = await apiService.updateMember(roleMember.id, {
+        chapelRole: roleSelection,
+      });
+      const updatedMember = response?.data?.member || response?.member || response;
+      setMembers((prev) => prev.map((m) => (m.id === roleMember.id ? updatedMember : m)));
+      showSuccess(`Role updated to ${roleSelection}`);
+      closeRoleModal();
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      showError(error.message || 'Failed to update role');
+    } finally {
+      setRoleSaving(false);
+    }
+  };
+
+  const openChapelModal = (member) => {
+    setChapelMember(member);
+    setChapelSelection(member?.chapel?.id || 'unassigned');
+    setChapelRoleSelection(member?.chapelRole ? member.chapelRole.toLowerCase() : 'member');
+    setChapelModalOpen(true);
+  };
+
+  const closeChapelModal = () => {
+    setChapelModalOpen(false);
+    setChapelMember(null);
+    setChapelSelection('unassigned');
+    setChapelRoleSelection('member');
+  };
+
+  const handleChapelUpdate = async () => {
+    if (!chapelMember) return;
+    setChapelSaving(true);
+    try {
+      const payload = {
+        chapelId: chapelSelection === 'unassigned' ? 'UNASSIGNED' : chapelSelection,
+        chapelRole: chapelSelection === 'unassigned' ? 'unassigned' : chapelRoleSelection,
+      };
+      const response = await apiService.updateMember(chapelMember.id, payload);
+      const updatedMember = response?.data?.member || response?.member || response;
+      setMembers((prev) => prev.map((m) => (m.id === chapelMember.id ? updatedMember : m)));
+      showSuccess('Chapel updated successfully');
+      closeChapelModal();
+    } catch (error) {
+      console.error('Failed to update chapel:', error);
+      showError(error.message || 'Failed to update chapel');
+    } finally {
+      setChapelSaving(false);
+    }
   };
 
   const handleDeleteMember = (memberId) => {
@@ -600,8 +739,35 @@ const CompleteMembersPage = () => {
               />
             </div>
         
-        {/* Sort Controls */}
-        <div className="flex gap-2">
+        {/* Filters and Sort Controls */}
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={chapelRoleFilter}
+            onChange={(e) => setChapelRoleFilter(e.target.value)}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Chapel Roles</option>
+            <option value="invitee">Invitees</option>
+            <option value="member">Members</option>
+            <option value="worker">Workers</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+
+          <select
+            value={chapelFilter}
+            onChange={(e) => setChapelFilter(e.target.value)}
+            disabled={loadingChapels}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Chapels</option>
+            <option value="unassigned">Unassigned</option>
+            {chapels.map((chapel) => (
+              <option key={chapel.id} value={chapel.id}>
+                {chapel.name}
+              </option>
+            ))}
+          </select>
+
           {/* Sort By Dropdown */}
           <select
             value={sortBy}
@@ -743,13 +909,14 @@ const CompleteMembersPage = () => {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chapel</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Code</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      <TableRowSkeleton columns={6} rows={10} />
+                      <TableRowSkeleton columns={8} rows={10} />
                     </tbody>
                   </table>
                 </div>
@@ -791,10 +958,18 @@ const CompleteMembersPage = () => {
                         </label>
                       </div>
                     )}
-                    {filteredMembers.map((member) => (
+                    {filteredMembers.map((member) => {
+                      const isInvitee = member.chapelRole === 'INVITEE';
+                      return (
                       <div
                         key={member.id}
-                        className={`border rounded-lg p-4 ${selectedMembers.has(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}
+                        className={`border rounded-lg p-4 ${
+                          selectedMembers.has(member.id)
+                            ? 'bg-blue-50 border-blue-200'
+                            : isInvitee
+                              ? 'bg-yellow-50 border-yellow-200'
+                              : 'bg-white border-gray-200'
+                        }`}
                       >
                         <div className="flex items-start gap-3">
                           {/* Checkbox */}
@@ -827,6 +1002,17 @@ const CompleteMembersPage = () => {
                                 <div className="text-xs text-gray-500 truncate mt-0.5">
                                   {member.email}
                                 </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {member.chapel
+                                  ? `Chapel: ${member.chapel.name} (${getMemberRoleLabel(member)})`
+                                  : 'Chapel: Not assigned'}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                Role: {getMemberRoleLabel(member)}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                Chariot: {getMemberChariotLabel(member)}
+                              </div>
                               </div>
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
                                 member.isActive !== false 
@@ -848,6 +1034,22 @@ const CompleteMembersPage = () => {
                               </button>
                               {isAdmin && (
                                 <>
+                                  <button
+                                    onClick={() => openRoleModal(member)}
+                                    className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded touch-manipulation"
+                                    title="Assign Role"
+                                    aria-label="Assign Role"
+                                  >
+                                    <UserGroupIcon className="h-5 w-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => openChapelModal(member)}
+                                    className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded touch-manipulation"
+                                    title="Assign Chapel"
+                                    aria-label="Assign Chapel"
+                                  >
+                                    <UserGroupIcon className="h-5 w-5" />
+                                  </button>
                                   <button
                                     onClick={() => handleEditMember(member)}
                                     className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded touch-manipulation"
@@ -886,7 +1088,8 @@ const CompleteMembersPage = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Desktop Table View */}
@@ -910,6 +1113,15 @@ const CompleteMembersPage = () => {
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Contact
                         </th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Chapel
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Role
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Chariot
+                        </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           PIN
                         </th>
@@ -925,8 +1137,19 @@ const CompleteMembersPage = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredMembers.map((member) => (
-                          <tr key={member.id} className={`hover:bg-gray-50 ${selectedMembers.has(member.id) ? 'bg-blue-50' : ''}`}>
+                      {filteredMembers.map((member) => {
+                        const isInvitee = member.chapelRole === 'INVITEE';
+                        return (
+                          <tr
+                            key={member.id}
+                            className={`${
+                              selectedMembers.has(member.id)
+                                ? 'bg-blue-50 hover:bg-blue-100'
+                                : isInvitee
+                                  ? 'bg-yellow-50 hover:bg-yellow-100'
+                                  : 'hover:bg-gray-50'
+                            }`}
+                          >
                             {isAdmin && (
                               <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <input
@@ -960,6 +1183,23 @@ const CompleteMembersPage = () => {
                             <div className="text-sm text-gray-900">{member.email}</div>
                           </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {member.chapel
+                                  ? `${member.chapel.name} (${getMemberRoleLabel(member)})`
+                                  : 'Not assigned'}
+                              </div>
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {getMemberRoleLabel(member)}
+                              </div>
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {getMemberChariotLabel(member)}
+                              </div>
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               {member.pin || '12345'}
                             </span>
@@ -987,6 +1227,24 @@ const CompleteMembersPage = () => {
                               {isAdmin && (
                                 <>
                                   <button
+                                    onClick={() => openRoleModal(member)}
+                                    className="text-blue-600 hover:text-blue-900 inline-flex items-center touch-manipulation"
+                                    title="Assign Role"
+                                    aria-label="Assign Role"
+                                  >
+                                    <UserGroupIcon className="h-4 w-4" />
+                                    <span className="hidden lg:inline ml-1">Role</span>
+                                  </button>
+                                  <button
+                                    onClick={() => openChapelModal(member)}
+                                    className="text-purple-600 hover:text-purple-900 inline-flex items-center touch-manipulation"
+                                    title="Assign Chapel"
+                                    aria-label="Assign Chapel"
+                                  >
+                                    <UserGroupIcon className="h-4 w-4" />
+                                    <span className="hidden lg:inline ml-1">Chapel</span>
+                                  </button>
+                                  <button
                                     onClick={() => handleEditMember(member)}
                                     className="text-indigo-600 hover:text-indigo-900 inline-flex items-center touch-manipulation"
                                     title="Edit Member"
@@ -1004,7 +1262,8 @@ const CompleteMembersPage = () => {
                               )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1115,6 +1374,134 @@ const CompleteMembersPage = () => {
         />
       )}
 
+      {/* Role Assignment Modal */}
+      {roleModalOpen && roleMember && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900">Assign Role</h3>
+              <button
+                onClick={closeRoleModal}
+                className="text-gray-400 hover:text-gray-500"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <p className="text-sm text-gray-600">Member</p>
+                <p className="text-sm font-medium text-gray-900">{roleMember.name}</p>
+              </div>
+              <div>
+                <label htmlFor="roleSelection" className="block text-sm font-medium text-gray-700">
+                  Role
+                </label>
+                <select
+                  id="roleSelection"
+                  value={roleSelection}
+                  onChange={(e) => setRoleSelection(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="invitee">Invitee</option>
+                  <option value="member">Member</option>
+                  <option value="worker">Worker</option>
+                  <option value="unassigned">Unassigned</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
+              <button
+                onClick={closeRoleModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRoleUpdate}
+                disabled={roleSaving}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {roleSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chapel Assignment Modal */}
+      {chapelModalOpen && chapelMember && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900">Assign Chapel</h3>
+              <button
+                onClick={closeChapelModal}
+                className="text-gray-400 hover:text-gray-500"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <p className="text-sm text-gray-600">Member</p>
+                <p className="text-sm font-medium text-gray-900">{chapelMember.name}</p>
+              </div>
+              <div>
+                <label htmlFor="chapelSelection" className="block text-sm font-medium text-gray-700">
+                  Chapel
+                </label>
+                <select
+                  id="chapelSelection"
+                  value={chapelSelection}
+                  onChange={(e) => setChapelSelection(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="unassigned">Unassigned</option>
+                  {chapels.map((chapel) => (
+                    <option key={chapel.id} value={chapel.id}>
+                      {chapel.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="chapelRoleSelection" className="block text-sm font-medium text-gray-700">
+                  Role
+                </label>
+                <select
+                  id="chapelRoleSelection"
+                  value={chapelRoleSelection}
+                  onChange={(e) => setChapelRoleSelection(e.target.value)}
+                  disabled={chapelSelection === 'unassigned'}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-50"
+                >
+                  <option value="invitee">Invitee</option>
+                  <option value="member">Member</option>
+                  <option value="worker">Worker</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
+              <button
+                onClick={closeChapelModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChapelUpdate}
+                disabled={chapelSaving}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {chapelSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
         <DeleteConfirmationModal
@@ -1139,14 +1526,36 @@ const CompleteMembersPage = () => {
 
 // Add Member Modal Component
 const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
+  const splitName = (fullName = '') => {
+    const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: parts[0] || '',
+      lastName: parts.slice(1).join(' ') || '',
+    };
+  };
+
+  const initialNames = splitName(member?.name || '');
+
   const [formData, setFormData] = useState({
-    firstName: member?.firstName || '',
-    lastName: member?.lastName || '',
+    firstName: member?.firstName || initialNames.firstName,
+    lastName: member?.lastName || initialNames.lastName,
     email: member?.email || '',
     dateOfBirth: member?.dateOfBirth || '',
     address: member?.address || '',
     emergencyContact: member?.emergencyContact || '',
   });
+
+  useEffect(() => {
+    const updatedNames = splitName(member?.name || '');
+    setFormData({
+      firstName: member?.firstName || updatedNames.firstName,
+      lastName: member?.lastName || updatedNames.lastName,
+      email: member?.email || '',
+      dateOfBirth: member?.dateOfBirth || '',
+      address: member?.address || '',
+      emergencyContact: member?.emergencyContact || '',
+    });
+  }, [member]);
 
   const [errors, setErrors] = useState({});
 

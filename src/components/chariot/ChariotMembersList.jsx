@@ -46,6 +46,12 @@ const ChariotMembersList = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    return 'Member';
+  };
+
   if (loading && members.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -83,6 +89,11 @@ const ChariotMembersList = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-900 break-words">{member.name}</p>
                     <p className="text-xs text-gray-600 break-words mt-1">{member.email}</p>
+                    <p className="text-xs text-gray-600 break-words mt-1">
+                      {member.chapel
+                        ? `Chapel: ${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
+                        : 'Chapel: Not assigned'}
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
                     <div>
@@ -114,6 +125,7 @@ const ChariotMembersList = () => {
                   Email
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Chapel
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   PIN
@@ -126,7 +138,7 @@ const ChariotMembersList = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {members.length === 0 ? (
                 <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                     No members found
                   </td>
                 </tr>
@@ -140,6 +152,11 @@ const ChariotMembersList = () => {
                       <div className="text-sm text-gray-600">{member.email}</div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">
+                        {member.chapel
+                          ? `${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
+                          : 'Not assigned'}
+                      </div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-mono text-gray-900">{member.pin}</div>

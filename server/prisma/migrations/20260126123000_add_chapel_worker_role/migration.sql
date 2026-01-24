@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ChapelRole" ADD VALUE IF NOT EXISTS 'WORKER';

@@ -7,7 +7,8 @@ import {
   KeyIcon,
   CheckCircleIcon,
   XCircleIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { apiService } from '../../services/apiService';
@@ -24,6 +25,7 @@ const RegRepList = () => {
   const [editingRegRep, setEditingRegRep] = useState(null);
   const [resetPasswordRegRep, setResetPasswordRegRep] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [togglingChapelAssign, setTogglingChapelAssign] = useState({});
 
   useEffect(() => {
     loadRegReps();
@@ -115,6 +117,30 @@ const RegRepList = () => {
     } catch (error) {
       showError('Failed to reset password');
       console.error('Password reset error:', error);
+    }
+  };
+
+  const handleToggleChapelAssign = async (regRep) => {
+    try {
+      setTogglingChapelAssign(prev => ({ ...prev, [regRep.id]: true }));
+      const response = await apiService.toggleRegRepChapelAssign(regRep.id);
+      const updatedRegRep = response?.data?.regRep;
+      if (updatedRegRep) {
+        setRegReps(prev =>
+          prev.map(item =>
+            item.id === updatedRegRep.id ? { ...item, canAssignChapels: updatedRegRep.canAssignChapels } : item
+          )
+        );
+        showSuccess(`Chapel assignment permission ${updatedRegRep.canAssignChapels ? 'enabled' : 'disabled'} successfully`);
+      } else {
+        showSuccess(`Chapel assignment permission ${regRep.canAssignChapels ? 'disabled' : 'enabled'} successfully`);
+        await loadRegReps();
+      }
+    } catch (error) {
+      showError(error.message || 'Failed to update chapel assignment permission');
+      console.error('Toggle chapel assign error:', error);
+    } finally {
+      setTogglingChapelAssign(prev => ({ ...prev, [regRep.id]: false }));
     }
   };
 
@@ -281,6 +307,9 @@ const RegRepList = () => {
                           <p className="text-xs text-gray-500 truncate mt-1">
                             {regRep.email}
                           </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Chapel assignment: {regRep.canAssignChapels ? 'Enabled' : 'Disabled'}
+                          </p>
                           <p className="text-xs text-gray-400 mt-1">
                             Created: {formatDate(regRep.createdAt)}
                           </p>
@@ -303,6 +332,19 @@ const RegRepList = () => {
                         title="Reset Password"
                       >
                         <KeyIcon className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleChapelAssign(regRep)}
+                        disabled={togglingChapelAssign[regRep.id]}
+                        className={`p-2 rounded-md transition-colors ${
+                          regRep.canAssignChapels 
+                            ? 'text-blue-600 hover:text-blue-900 hover:bg-blue-50' 
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                        } ${togglingChapelAssign[regRep.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={regRep.canAssignChapels ? 'Disable Chapel Assignment' : 'Enable Chapel Assignment'}
+                      >
+                        <BuildingOfficeIcon className="h-4 w-4" />
                       </button>
 
                       <button
@@ -361,6 +403,9 @@ const RegRepList = () => {
                         <p className="text-sm text-gray-500 truncate mt-1">
                           {regRep.email}
                         </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Chapel assignment: {regRep.canAssignChapels ? 'Enabled' : 'Disabled'}
+                        </p>
                         <p className="text-xs text-gray-400 mt-1">
                           Created: {formatDate(regRep.createdAt)}
                         </p>
@@ -382,6 +427,19 @@ const RegRepList = () => {
                         title="Reset Password"
                       >
                         <KeyIcon className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleChapelAssign(regRep)}
+                        disabled={togglingChapelAssign[regRep.id]}
+                        className={`p-1 rounded-md transition-colors ${
+                          regRep.canAssignChapels 
+                            ? 'text-blue-600 hover:text-blue-900 hover:bg-blue-50' 
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                        } ${togglingChapelAssign[regRep.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={regRep.canAssignChapels ? 'Disable Chapel Assignment' : 'Enable Chapel Assignment'}
+                      >
+                        <BuildingOfficeIcon className="h-4 w-4" />
                       </button>
 
                       <button

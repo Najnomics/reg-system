@@ -6,7 +6,17 @@ const { generateMemberPin } = require('../utils/pinGenerator');
  */
 const getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email } = req.query;
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'name',
+      sortOrder = 'asc',
+      query,
+      name,
+      email,
+      chapelRole,
+      chapelId,
+    } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -34,6 +44,20 @@ const getMembers = async (req, res) => {
       }
     }
 
+    if (chapelRole === 'UNASSIGNED') {
+      where.chapelId = null;
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER') {
+      where.chapelRole = chapelRole;
+    }
+
+    if (chapelId) {
+      if (chapelId === 'UNASSIGNED') {
+        where.chapelId = null;
+      } else {
+        where.chapelId = chapelId;
+      }
+    }
+
     // Get members and total count in parallel
     // Only count if we're on the first page to improve performance
     const [members, total] = await Promise.all([
@@ -50,6 +74,22 @@ const getMembers = async (req, res) => {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          chariotLeader: {
+            select: { id: true, name: true },
+          },
+          chariotAssistants: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
+          chariotMembers: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
           _count: {
             select: { attendance: true },
           },
@@ -104,6 +144,13 @@ const getMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         attendance: {
           select: {
             id: true,
@@ -158,6 +205,11 @@ const createMember = async (req, res) => {
     console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
     
     const { name, email } = req.body;
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    const blockedEmails = new Set([
+      'nosakhareochuko@gmail.com',
+      'dennisozobor@gmail.com',
+    ]);
 
     // Check authentication
     if (!req.user || !req.user.id) {
@@ -169,10 +221,17 @@ const createMember = async (req, res) => {
       });
     }
 
-    // Check if name already exists (name must be unique)
+    if (blockedEmails.has(normalizedEmail)) {
+      return res.status(409).json({
+        error: 'Email blocked',
+        message: 'A member with this email already exists and cannot be duplicated.',
+      });
+    }
+
+    // Enforce unique full name (same name combination)
     const existingMember = await prisma.member.findUnique({
       where: { name: name.trim() },
-      select: { id: true, email: true },
+      select: { id: true },
     });
 
     if (existingMember) {
@@ -194,7 +253,7 @@ const createMember = async (req, res) => {
       data: {
         id: memberId,
         name: name.trim(),
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         pin,
         pinHash,
         isActive: true,
@@ -208,6 +267,13 @@ const createMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -248,7 +314,7 @@ const createMember = async (req, res) => {
 const updateMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, isActive } = req.body;
+    const { name, email, isActive, chapelRole, chapelId } = req.body;
 
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
@@ -284,6 +350,32 @@ const updateMember = async (req, res) => {
     if (email !== undefined) updateData.email = email.toLowerCase();
     if (isActive !== undefined) updateData.isActive = isActive;
 
+    if (chapelRole !== undefined) {
+      const normalizedRole = String(chapelRole).trim().toUpperCase();
+      const allowedRoles = ['INVITEE', 'MEMBER', 'WORKER', 'UNASSIGNED'];
+      if (!allowedRoles.includes(normalizedRole)) {
+        return res.status(400).json({
+          error: 'Invalid role',
+          message: 'chapelRole must be invitee, member, worker, or unassigned',
+        });
+      }
+      if (normalizedRole === 'UNASSIGNED') {
+        updateData.chapelRole = null;
+        updateData.chapelId = null;
+      } else {
+        updateData.chapelRole = normalizedRole;
+      }
+    }
+
+    if (chapelId !== undefined) {
+      if (chapelId === 'UNASSIGNED' || chapelId === null || chapelId === '') {
+        updateData.chapelId = null;
+        updateData.chapelRole = updateData.chapelRole ?? null;
+      } else {
+        updateData.chapelId = chapelId;
+      }
+    }
+
     // Update member
     const member = await prisma.member.update({
       where: { id },
@@ -296,6 +388,13 @@ const updateMember = async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        chapelRole: true,
+        chapel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -315,7 +414,7 @@ const updateMember = async (req, res) => {
 };
 
 /**
- * Delete/deactivate a member
+ * Delete a member (hard delete)
  */
 const deleteMember = async (req, res) => {
   try {
@@ -324,7 +423,7 @@ const deleteMember = async (req, res) => {
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
       where: { id },
-      select: { id: true, isActive: true },
+      select: { id: true, name: true, email: true },
     });
 
     if (!existingMember) {
@@ -334,21 +433,18 @@ const deleteMember = async (req, res) => {
       });
     }
 
-    // Soft delete by setting isActive to false
-    const member = await prisma.member.update({
+    const member = await prisma.member.delete({
       where: { id },
-      data: { isActive: false },
       select: {
         id: true,
         name: true,
         email: true,
-        isActive: true,
       },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Member deactivated successfully',
+      message: 'Member deleted successfully',
       data: { member },
     });
 
@@ -356,13 +452,13 @@ const deleteMember = async (req, res) => {
     console.error('Delete member error:', error);
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to deactivate member',
+      message: 'Failed to delete member',
     });
   }
 };
 
 /**
- * Bulk delete/deactivate members
+ * Bulk delete members (hard delete)
  */
 const bulkDeleteMembers = async (req, res) => {
   try {
@@ -396,7 +492,6 @@ const bulkDeleteMembers = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        isActive: true,
       },
     });
 
@@ -407,17 +502,15 @@ const bulkDeleteMembers = async (req, res) => {
       });
     }
 
-    // Soft delete by setting isActive to false
-    const result = await prisma.member.updateMany({
+    const result = await prisma.member.deleteMany({
       where: {
         id: { in: memberIds },
       },
-      data: { isActive: false },
     });
 
     res.status(200).json({
       success: true,
-      message: `Successfully deactivated ${result.count} member(s)`,
+      message: `Successfully deleted ${result.count} member(s)`,
       data: {
         deletedCount: result.count,
         requestedCount: memberIds.length,
@@ -439,7 +532,7 @@ const bulkDeleteMembers = async (req, res) => {
  */
 const searchMembers = async (req, res) => {
   try {
-    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { query, name, email, pin, page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', chapelRole } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -465,6 +558,12 @@ const searchMembers = async (req, res) => {
       }
     }
 
+    if (chapelRole === 'UNASSIGNED') {
+      where.chapelId = null;
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER') {
+      where.chapelRole = chapelRole;
+    }
+
     // Get members and total count
     const [members, total] = await Promise.all([
       prisma.member.findMany({
@@ -479,6 +578,22 @@ const searchMembers = async (req, res) => {
           pin: true,
           isActive: true,
           createdAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          chariotLeader: {
+            select: { id: true, name: true },
+          },
+          chariotAssistants: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
+          chariotMembers: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
           _count: {
             select: { attendance: true },
           },

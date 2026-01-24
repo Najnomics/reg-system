@@ -3,6 +3,15 @@ import { apiService } from '../services/apiService';
 
 const AppContext = createContext();
 
+let notificationCounter = 0;
+const getNotificationId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  notificationCounter += 1;
+  return `${Date.now()}-${notificationCounter}`;
+};
+
 export const AppProvider = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -27,7 +36,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const showNotification = (message, type = 'info') => {
-    const id = Date.now();
+    const id = getNotificationId();
     const notification = { id, message, type };
     setNotifications(prev => [...prev, notification]);
     

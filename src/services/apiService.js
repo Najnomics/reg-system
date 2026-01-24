@@ -138,6 +138,8 @@ class ApiService {
     if (params.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     if (params.query) queryParams.append('query', params.query);
+    if (params.chapelRole) queryParams.append('chapelRole', params.chapelRole);
+    if (params.chapelId) queryParams.append('chapelId', params.chapelId);
     
     // Use cache for GET requests (cache for 30 seconds)
     const cacheKey = `/members?${queryParams.toString()}`;
@@ -192,6 +194,25 @@ class ApiService {
       method: 'PATCH',
       body: JSON.stringify(backendData),
     });
+  }
+
+  async sortUploadMembers(file) {
+    const url = `${API_BASE_URL}/members/sort-upload`;
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to process sort upload');
+    }
+    return response.json();
   }
 
   async deleteMember(id) {
@@ -532,6 +553,12 @@ class ApiService {
     });
   }
 
+  async toggleRegRepChapelAssign(id) {
+    return this.request(`/reg-reps/${id}/toggle-chapel-assign`, {
+      method: 'PATCH',
+    });
+  }
+
   async resetRegRepPassword(id, newPassword) {
     return this.request(`/reg-reps/${id}/reset-password`, {
       method: 'POST',
@@ -613,6 +640,105 @@ class ApiService {
   async removeChariotMembers(chariotId, memberIds) {
     apiCache.clearPattern('/chariots');
     return this.request(`/chariots/${chariotId}/members`, {
+      method: 'DELETE',
+      body: JSON.stringify({ memberIds }),
+    });
+  }
+
+  async exportChariotsPDF() {
+    const url = `${API_BASE_URL}/chariots/export/pdf`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export chariots PDF');
+    }
+    return response.blob();
+  }
+
+  async exportChariotsCSV() {
+    const url = `${API_BASE_URL}/chariots/export/csv`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export chariots CSV');
+    }
+    return response.blob();
+  }
+
+  async assignUnassignedMembersToChariots() {
+    return this.request('/chariots/assign-unassigned', { method: 'POST' });
+  }
+
+  // Chapel methods (admin only for write, pastoral read)
+  async getChapels(forceRefresh = false) {
+    const cacheKey = '/chapels';
+    if (!forceRefresh) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) return cached;
+    }
+    return this.request('/chapels', {}, true, true);
+  }
+
+  async getChapel(id) {
+    return this.request(`/chapels/${id}`);
+  }
+
+  async createChapel(chapelData) {
+    apiCache.clearPattern('/chapels');
+    return this.request('/chapels', {
+      method: 'POST',
+      body: JSON.stringify(chapelData),
+    });
+  }
+
+  async updateChapel(id, chapelData) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(chapelData),
+    });
+  }
+
+  async deleteChapel(id) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async exportChapelsPDF() {
+    const url = `${API_BASE_URL}/chapels/export/pdf`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export chapels PDF');
+    }
+    return response.blob();
+  }
+
+  async addChapelMembers(chapelId, memberIds, role) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ memberIds, role }),
+    });
+  }
+
+  async removeChapelMembers(chapelId, memberIds) {
+    apiCache.clearPattern('/chapels');
+    return this.request(`/chapels/${chapelId}/members`, {
       method: 'DELETE',
       body: JSON.stringify({ memberIds }),
     });

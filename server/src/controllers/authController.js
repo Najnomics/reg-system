@@ -10,29 +10,68 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Check admin and reg-rep tables first
-    const [admin, regRep] = await Promise.all([
-      prisma.admin.findUnique({
-        where: { email: email.toLowerCase() },
-        select: {
-          id: true,
-          email: true,
-          password: true,
-          name: true,
-          isActive: true,
-        },
-      }),
-      prisma.regRep.findUnique({
-        where: { email: email.toLowerCase() },
-        select: {
-          id: true,
-          email: true,
-          password: true,
-          name: true,
-          isActive: true,
-          createdBy: true,
-        },
-      })
-    ]);
+    let admin, regRep;
+    try {
+      [admin, regRep] = await Promise.all([
+        prisma.admin.findUnique({
+          where: { email: email.toLowerCase() },
+          select: {
+            id: true,
+            email: true,
+            password: true,
+            name: true,
+            isActive: true,
+          },
+        }),
+        prisma.regRep.findUnique({
+          where: { email: email.toLowerCase() },
+          select: {
+            id: true,
+            email: true,
+            password: true,
+            name: true,
+            isActive: true,
+            createdBy: true,
+            canAssignChapels: true,
+          },
+        })
+      ]);
+    } catch (dbError) {
+      console.error('Database query error in login:', dbError);
+      // If canAssignChapels field doesn't exist, try without it
+      if (dbError.message && dbError.message.includes('canAssignChapels')) {
+        console.log('Retrying without canAssignChapels field...');
+        [admin, regRep] = await Promise.all([
+          prisma.admin.findUnique({
+            where: { email: email.toLowerCase() },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              name: true,
+              isActive: true,
+            },
+          }),
+          prisma.regRep.findUnique({
+            where: { email: email.toLowerCase() },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              name: true,
+              isActive: true,
+              createdBy: true,
+            },
+          })
+        ]);
+        // Set canAssignChapels to false as default if not available
+        if (regRep) {
+          regRep.canAssignChapels = false;
+        }
+      } else {
+        throw dbError;
+      }
+    }
 
     // If admin or reg-rep found, use existing logic
     if (admin || regRep) {
@@ -71,6 +110,44 @@ const login = async (req, res) => {
         userType,
         // Keep legacy format for backwards compatibility
         ...(userType === 'admin' ? { admin: userData } : { regRep: userData })
+      });
+    }
+
+    // Pastoral team login (read-only access)
+    const pastoralEmail = process.env.PASTORAL_EMAIL?.toLowerCase();
+    const pastoralPassword = process.env.PASTORAL_PASSWORD;
+    const pastoralName = process.env.PASTORAL_NAME || 'Pastoral Team';
+
+    if (pastoralEmail && email.toLowerCase() === pastoralEmail) {
+      if (!pastoralPassword) {
+        return res.status(500).json({
+          error: 'Server configuration error',
+          message: 'Pastoral credentials not configured. Please set PASTORAL_PASSWORD.',
+        });
+      }
+
+      if (password !== pastoralPassword) {
+        return res.status(401).json({
+          error: 'Authentication failed',
+          message: 'Invalid email or password',
+        });
+      }
+
+      const user = {
+        id: 'pastoral',
+        email: pastoralEmail,
+        name: pastoralName,
+        isActive: true,
+      };
+
+      const token = generateToken(user, 'pastoral');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: { ...user, userType: 'pastoral' },
+        userType: 'pastoral',
       });
     }
 
@@ -280,7 +357,11 @@ const verify = async (req, res) => {
       user: req.user,
       userType: req.user.userType,
       // Keep legacy format for backwards compatibility
-      ...(req.user.userType === 'admin' ? { admin: req.user } : { regRep: req.user })
+      ...(req.user.userType === 'admin'
+        ? { admin: req.user }
+        : req.user.userType === 'reg-rep'
+        ? { regRep: req.user }
+        : {})
     });
 
   } catch (error) {
@@ -309,7 +390,11 @@ const refresh = async (req, res) => {
       user: req.user,
       userType: req.user.userType,
       // Keep legacy format for backwards compatibility
-      ...(req.user.userType === 'admin' ? { admin: req.user } : { regRep: req.user })
+      ...(req.user.userType === 'admin'
+        ? { admin: req.user }
+        : req.user.userType === 'reg-rep'
+        ? { regRep: req.user }
+        : {})
     });
 
   } catch (error) {

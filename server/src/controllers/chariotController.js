@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const crypto = require('crypto');
+const PDFDocument = require('pdfkit');
 
 /**
  * Get all chariots
@@ -13,6 +14,13 @@ const getChariots = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         assistants: {
@@ -22,6 +30,13 @@ const getChariots = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -34,6 +49,13 @@ const getChariots = async (req, res) => {
                 name: true,
                 email: true,
                 pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -46,7 +68,7 @@ const getChariots = async (req, res) => {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        name: 'asc',
       },
     });
 
@@ -78,6 +100,13 @@ const getChariot = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         assistants: {
@@ -87,6 +116,13 @@ const getChariot = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -99,6 +135,13 @@ const getChariot = async (req, res) => {
                 name: true,
                 email: true,
                 pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -128,6 +171,398 @@ const getChariot = async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to retrieve chariot',
+    });
+  }
+};
+
+/**
+ * Export all chariots as PDF
+ */
+const exportChariotsPDF = async (req, res) => {
+  try {
+    const chariots = await prisma.chariot.findMany({
+      include: {
+        leader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            chapelRole: true,
+            chapel: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+        assistants: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                chapelRole: true,
+                chapel: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const totalAssistants = chariots.reduce((sum, chariot) => sum + (chariot.assistants?.length || 0), 0);
+    const totalMembers = chariots.reduce((sum, chariot) => sum + (chariot.members?.length || 0), 0);
+
+    const formatChapelRole = (role) => {
+      if (role === 'INVITEE') return 'Invitee';
+      if (role === 'WORKER') return 'Worker';
+      return 'Member';
+    };
+
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = `chariots_report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.pipe(res);
+
+    doc.fontSize(20).text('Chariots Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Total Chariots: ${chariots.length}`);
+    doc.text(`Total Assistants: ${totalAssistants}`);
+    doc.text(`Total Members: ${totalMembers}`);
+    doc.moveDown();
+
+    if (chariots.length === 0) {
+      doc.fontSize(12).text('No chariots found.');
+      doc.end();
+      return;
+    }
+
+    chariots.forEach((chariot, index) => {
+      if (doc.y > 700) doc.addPage();
+
+      doc.fontSize(14).text(`${index + 1}. ${chariot.name}`, { underline: true });
+      if (chariot.description) {
+        doc.fontSize(10).text(`Description: ${chariot.description}`);
+      }
+      doc.moveDown(0.3);
+
+      const leaderLabel = chariot.leader
+        ? `${chariot.leader.name} (${chariot.leader.email})${chariot.leader.chapelRole ? ` - ${formatChapelRole(chariot.leader.chapelRole)}` : ''}`
+        : 'Not assigned';
+      doc.fontSize(11).text(`Leader: ${leaderLabel}`);
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Assistants (${chariot.assistants.length}):`);
+      if (chariot.assistants.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        chariot.assistants.forEach((assistant, i) => {
+          const roleLabel = assistant.member.chapelRole ? ` - ${formatChapelRole(assistant.member.chapelRole)}` : '';
+          doc.fontSize(10).text(`  ${i + 1}. ${assistant.member.name} (${assistant.member.email})${roleLabel}`);
+        });
+      }
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Members (${chariot.members.length}):`);
+      if (chariot.members.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        chariot.members.forEach((member, i) => {
+          const roleLabel = member.member.chapelRole ? ` - ${formatChapelRole(member.member.chapelRole)}` : '';
+          doc.fontSize(10).text(`  ${i + 1}. ${member.member.name} (${member.member.email})${roleLabel}`);
+        });
+      }
+
+      doc.moveDown();
+    });
+
+    doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' });
+    doc.end();
+  } catch (error) {
+    console.error('Export chariots PDF error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export chariots as PDF',
+    });
+  }
+};
+
+/**
+ * Export all chariots as CSV
+ */
+const exportChariotsCSV = async (req, res) => {
+  try {
+    const chariots = await prisma.chariot.findMany({
+      include: {
+        leader: {
+          select: {
+            name: true,
+            email: true,
+            chapelRole: true,
+            chapel: { select: { name: true } },
+          },
+        },
+        assistants: {
+          include: {
+            member: {
+              select: {
+                name: true,
+                email: true,
+                chapelRole: true,
+                chapel: { select: { name: true } },
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            member: {
+              select: {
+                name: true,
+                email: true,
+                chapelRole: true,
+                chapel: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const formatChapelRole = (role) => {
+      if (role === 'INVITEE') return 'Invitee';
+      if (role === 'WORKER') return 'Worker';
+      if (role === 'MEMBER') return 'Member';
+      return '';
+    };
+
+    const escapeCsv = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = [
+      ['Chariot', 'Role', 'Name', 'Email', 'Chapel', 'Chapel Role'],
+    ];
+
+    chariots.forEach((chariot) => {
+      const leader = chariot.leader;
+      rows.push([
+        chariot.name,
+        'Leader',
+        leader?.name || 'Not assigned',
+        leader?.email || '',
+        leader?.chapel?.name || '',
+        formatChapelRole(leader?.chapelRole),
+      ]);
+
+      if (chariot.assistants.length === 0) {
+        rows.push([chariot.name, 'Assistant', 'None', '', '', '']);
+      } else {
+        chariot.assistants.forEach((assistant) => {
+          const member = assistant.member;
+          rows.push([
+            chariot.name,
+            'Assistant',
+            member?.name || '',
+            member?.email || '',
+            member?.chapel?.name || '',
+            formatChapelRole(member?.chapelRole),
+          ]);
+        });
+      }
+
+      if (chariot.members.length === 0) {
+        rows.push([chariot.name, 'Member', 'None', '', '', '']);
+      } else {
+        chariot.members.forEach((memberEntry) => {
+          const member = memberEntry.member;
+          rows.push([
+            chariot.name,
+            'Member',
+            member?.name || '',
+            member?.email || '',
+            member?.chapel?.name || '',
+            formatChapelRole(member?.chapelRole),
+          ]);
+        });
+      }
+    });
+
+    const csv = rows.map((row) => row.map(escapeCsv).join(',')).join('\n');
+    const filename = `chariots_report_${new Date().toISOString().split('T')[0]}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export chariots CSV error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export chariots as CSV',
+    });
+  }
+};
+
+/**
+ * Assign all unassigned members to chariots (workers, invitees, others)
+ */
+const assignUnassignedMembersToChariots = async (req, res) => {
+  try {
+    const chariots = await prisma.chariot.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    if (chariots.length === 0) {
+      return res.status(400).json({
+        error: 'No active chariots',
+        message: 'No active chariots found to assign members',
+      });
+    }
+
+    const occupied = new Set();
+    chariots.forEach((chariot) => {
+      if (chariot.leaderId) occupied.add(chariot.leaderId);
+      chariot.assistants.forEach((assistant) => occupied.add(assistant.memberId));
+    });
+
+    const existingAssignments = await prisma.chariotMember.findMany({
+      select: { memberId: true },
+    });
+    const alreadyAssigned = new Set(existingAssignments.map((entry) => entry.memberId));
+
+    const excludedIds = new Set([...occupied, ...alreadyAssigned]);
+
+    const chariotStats = chariots.map((chariot) => ({
+      id: chariot.id,
+      name: chariot.name,
+      count: chariot.members.length,
+    }));
+
+    const assignMembers = (memberIds) => {
+      const assignments = [];
+      memberIds.forEach((memberId) => {
+        let targetIndex = 0;
+        for (let i = 1; i < chariotStats.length; i += 1) {
+          const current = chariotStats[i];
+          const target = chariotStats[targetIndex];
+          if (current.count < target.count) {
+            targetIndex = i;
+          } else if (current.count === target.count && current.name < target.name) {
+            targetIndex = i;
+          }
+        }
+        const target = chariotStats[targetIndex];
+        assignments.push({ memberId, chariotId: target.id });
+        target.count += 1;
+      });
+      return assignments;
+    };
+
+    const [workers, invitees, others] = await Promise.all([
+      prisma.member.findMany({
+        where: {
+          isActive: { not: false },
+          chapelRole: 'WORKER',
+          id: { notIn: Array.from(excludedIds) },
+        },
+        select: { id: true },
+      }),
+      prisma.member.findMany({
+        where: {
+          isActive: { not: false },
+          chapelRole: 'INVITEE',
+          id: { notIn: Array.from(excludedIds) },
+        },
+        select: { id: true },
+      }),
+      prisma.member.findMany({
+        where: {
+          isActive: { not: false },
+          id: { notIn: Array.from(excludedIds) },
+          OR: [
+            { chapelRole: { notIn: ['WORKER', 'INVITEE'] } },
+            { chapelRole: null },
+          ],
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    const workerIds = workers.map((member) => member.id);
+    workerIds.forEach((id) => excludedIds.add(id));
+    const inviteeIds = invitees.map((member) => member.id).filter((id) => !excludedIds.has(id));
+    inviteeIds.forEach((id) => excludedIds.add(id));
+    const otherIds = others
+      .map((member) => member.id)
+      .filter((id) => !excludedIds.has(id));
+
+    const workerAssignments = assignMembers(workerIds);
+    const inviteeAssignments = assignMembers(inviteeIds);
+    const otherAssignments = assignMembers(otherIds);
+
+    const assignments = [
+      ...workerAssignments,
+      ...inviteeAssignments,
+      ...otherAssignments,
+    ];
+
+    if (assignments.length > 0) {
+      await prisma.chariotMember.createMany({
+        data: assignments,
+        skipDuplicates: true,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Unassigned members distributed to chariots',
+      data: {
+        totalChariots: chariots.length,
+        assigned: assignments.length,
+        workersAssigned: workerAssignments.length,
+        inviteesAssigned: inviteeAssignments.length,
+        othersAssigned: otherAssignments.length,
+      },
+    });
+  } catch (error) {
+    console.error('Assign unassigned members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to assign unassigned members to chariots',
     });
   }
 };
@@ -202,6 +637,13 @@ const createChariot = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -306,6 +748,13 @@ const updateChariot = async (req, res) => {
             id: true,
             name: true,
             email: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -478,6 +927,13 @@ const addAssistants = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -605,6 +1061,13 @@ const addMembers = async (req, res) => {
                 name: true,
                 email: true,
                 pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -670,6 +1133,9 @@ const removeMembers = async (req, res) => {
 module.exports = {
   getChariots,
   getChariot,
+  exportChariotsPDF,
+  exportChariotsCSV,
+  assignUnassignedMembersToChariots,
   createChariot,
   updateChariot,
   deleteChariot,

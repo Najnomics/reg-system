@@ -1,6 +1,74 @@
 const prisma = require('../config/database');
 const { parseExcelFile, generateTemplate, validateFileFormat } = require('../services/excelParser');
 const { randomUUID } = require('crypto');
+const { generateMemberPin } = require('../utils/pinGenerator');
+
+const codeToChapelName = {
+  TRU82754: 'Truth',
+  POWR8567: 'Power',
+  FAITH908: 'Faith',
+  LIGHT287: 'Light',
+  GRACE345: 'Grace',
+  MISSG234: 'Missions and Glory',
+  REV123: 'Revelations',
+  FIRE222: 'Fire',
+  SPIRIT111: 'Spirit',
+  GOSPEL111: 'Gospel',
+  PROVOST69: 'Provost',
+  PSTZUZU345: 'Pst-Charles',
+};
+
+const parseCsvLine = (line) => {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"' && inQuotes && nextChar === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current);
+  return values;
+};
+
+const normalizeName = (value) =>
+  String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const normalizeEmail = (value) =>
+  String(value || '').toLowerCase().trim();
+
+const parseTicketTotal = (value) => {
+  if (!value) return null;
+  const digits = String(value).replace(/[^\d]/g, '');
+  return digits ? Number(digits) : null;
+};
+
+const extractCouponCode = (value) => {
+  if (!value) return null;
+  const normalized = String(value).trim().toUpperCase();
+  const match = normalized.match(/([A-Z0-9]+)\s*$/);
+  return match ? match[1] : null;
+};
 
 /**
  * Helper function to create a member with retry logic
@@ -383,6 +451,259 @@ const uploadMembers = async (req, res) => {
 };
 
 /**
+ * Upload and process CSV for sort-upload (workers/invitees/members)
+ */
+const sortUploadMembers = async (req, res) => {
+  try {
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({
+        error: 'No file uploaded',
+        message: 'Please select a file to upload',
+      });
+    }
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Admin authentication required',
+      });
+    }
+
+    console.log(`[Sort Upload] Admin ${req.user.email || req.user.id} uploading file: ${file.originalname} (${file.size} bytes)`);
+    const raw = file.buffer.toString('utf8');
+    const lines = raw.split(/\r?\n/).filter((line) => line.trim() !== '');
+    if (lines.length === 0) {
+      return res.status(400).json({
+        error: 'Empty file',
+        message: 'CSV file is empty',
+      });
+    }
+
+    const header = parseCsvLine(lines[0]).map((col) => col.trim().toLowerCase());
+    console.log(`[Sort Upload] Header columns: ${header.join(', ')}`);
+    const nameIndex =
+      header.indexOf('name') !== -1 ? header.indexOf('name') : header.indexOf('names');
+    const emailIndex = header.indexOf('email');
+    const ticketIndex = header.indexOf('ticket_total');
+    const couponIndex =
+      header.indexOf('coupon_applied') !== -1
+        ? header.indexOf('coupon_applied')
+        : header.indexOf('coupon_aplied');
+
+    if (nameIndex === -1 || emailIndex === -1 || ticketIndex === -1 || couponIndex === -1) {
+      return res.status(400).json({
+        error: 'Invalid CSV format',
+        message: 'CSV must include name(s), email, ticket_total, and coupon_applied columns.',
+      });
+    }
+
+    const rows = lines.slice(1).map((line) => {
+      const values = parseCsvLine(line);
+      return {
+        name: values[nameIndex] ? values[nameIndex].trim() : '',
+        email: values[emailIndex] ? values[emailIndex].trim() : '',
+        ticketTotal: values[ticketIndex] ? values[ticketIndex].trim() : '',
+        coupon: values[couponIndex] ? values[couponIndex].trim() : '',
+      };
+    });
+    console.log(`[Sort Upload] Parsed ${rows.length} data rows`);
+
+    const chapelNames = [...new Set(Object.values(codeToChapelName))];
+    const chapels = await prisma.chapel.findMany({
+      where: { name: { in: chapelNames } },
+      select: { id: true, name: true },
+    });
+    console.log(`[Sort Upload] Chapel lookup: ${chapels.length} found`);
+    const chapelByName = chapels.reduce((acc, chapel) => {
+      acc[chapel.name] = chapel.id;
+      return acc;
+    }, {});
+
+    const existingMembers = await prisma.member.findMany({
+      select: { id: true, name: true, email: true, chapelId: true, chapelRole: true },
+    });
+    console.log(`[Sort Upload] Loaded ${existingMembers.length} existing members`);
+
+    const membersByName = new Map();
+    const membersByEmail = new Map();
+    existingMembers.forEach((member) => {
+      const normalizedName = normalizeName(member.name);
+      if (normalizedName) membersByName.set(normalizedName, member);
+      const normalizedEmail = normalizeEmail(member.email);
+      if (normalizedEmail) membersByEmail.set(normalizedEmail, member);
+    });
+
+    const summary = {
+      totalRows: rows.length,
+      createdMembers: 0,
+      existingMembers: 0,
+      missingName: 0,
+      missingEmail: 0,
+      workersMarked: 0,
+      inviteesAssigned: 0,
+      membersMarked: 0,
+      skippedAssigned: 0,
+      missingChapel: 0,
+      unknownCoupon: 0,
+      nameConflicts: 0,
+      emailConflicts: 0,
+    };
+    const conflictSamples = [];
+
+    let processed = 0;
+    let rowIndex = 0;
+    for (const row of rows) {
+      rowIndex += 1;
+      const normalizedName = normalizeName(row.name);
+      if (!normalizedName) {
+        summary.missingName += 1;
+        continue;
+      }
+
+      const normalizedEmail = normalizeEmail(row.email);
+      const memberByName = membersByName.get(normalizedName) || null;
+      const memberByEmail = normalizedEmail ? membersByEmail.get(normalizedEmail) || null : null;
+      let member = memberByName || memberByEmail;
+
+      if (memberByName && normalizedEmail && normalizeEmail(memberByName.email) !== normalizedEmail) {
+        summary.nameConflicts += 1;
+        if (conflictSamples.length < 10) {
+          conflictSamples.push({
+            type: 'name',
+            rowName: row.name,
+            rowEmail: normalizedEmail,
+            existingEmail: memberByName.email,
+          });
+        }
+      }
+
+      if (!memberByName && memberByEmail && normalizeName(memberByEmail.name) !== normalizedName) {
+        summary.emailConflicts += 1;
+        if (conflictSamples.length < 10) {
+          conflictSamples.push({
+            type: 'email',
+            rowName: row.name,
+            rowEmail: normalizedEmail,
+            existingName: memberByEmail.name,
+          });
+        }
+      }
+
+      if (!member) {
+        if (!normalizedEmail) {
+          summary.missingEmail += 1;
+          continue;
+        }
+
+        const { pin, pinHash } = await generateMemberPin();
+        member = await prisma.member.create({
+          data: {
+            id: randomUUID(),
+            name: row.name.trim(),
+            email: normalizedEmail,
+            pin,
+            pinHash,
+            isActive: true,
+            createdBy: req.user.id,
+          },
+          select: { id: true, name: true, email: true, chapelId: true, chapelRole: true },
+        });
+
+        membersByName.set(normalizedName, member);
+        if (normalizedEmail) membersByEmail.set(normalizedEmail, member);
+        summary.createdMembers += 1;
+      } else {
+        summary.existingMembers += 1;
+      }
+
+      const ticketValue = parseTicketTotal(row.ticketTotal);
+
+      if (ticketValue === 10000) {
+        if (member.chapelRole !== 'WORKER') {
+          await prisma.member.update({
+            where: { id: member.id },
+            data: { chapelRole: 'WORKER' },
+          });
+          member.chapelRole = 'WORKER';
+          summary.workersMarked += 1;
+        }
+        processed += 1;
+        if (processed % 50 === 0) console.log(`[Sort Upload] Processed ${processed}/${rows.length} matched rows (row ${rowIndex})`);
+        continue;
+      }
+
+      if (ticketValue === 3000) {
+        const code = extractCouponCode(row.coupon);
+        if (!code) {
+          summary.unknownCoupon += 1;
+          continue;
+        }
+
+        const chapelName = codeToChapelName[code];
+        if (!chapelName) {
+          summary.unknownCoupon += 1;
+          continue;
+        }
+
+        const chapelId = chapelByName[chapelName];
+        if (!chapelId) {
+          summary.missingChapel += 1;
+          continue;
+        }
+
+        if (member.chapelId && member.chapelId !== chapelId) {
+          summary.skippedAssigned += 1;
+          continue;
+        }
+
+        await prisma.member.update({
+          where: { id: member.id },
+          data: { chapelId, chapelRole: 'INVITEE' },
+        });
+
+        member.chapelId = chapelId;
+        member.chapelRole = 'INVITEE';
+        summary.inviteesAssigned += 1;
+        processed += 1;
+        if (processed % 50 === 0) console.log(`[Sort Upload] Processed ${processed}/${rows.length} matched rows (row ${rowIndex})`);
+        continue;
+      }
+
+      if (ticketValue === 3500) {
+        if (member.chapelRole !== 'MEMBER') {
+          await prisma.member.update({
+            where: { id: member.id },
+            data: { chapelRole: 'MEMBER' },
+          });
+          member.chapelRole = 'MEMBER';
+          summary.membersMarked += 1;
+        }
+        processed += 1;
+        if (processed % 50 === 0) console.log(`[Sort Upload] Processed ${processed}/${rows.length} matched rows (row ${rowIndex})`);
+      }
+    }
+
+    console.log('[Sort Upload] Completed summary:', summary);
+    if (conflictSamples.length > 0) {
+      console.log('[Sort Upload] Conflict samples (max 10):', conflictSamples);
+    }
+    res.status(200).json({
+      success: true,
+      message: 'Sort upload completed',
+      data: { summary },
+    });
+  } catch (error) {
+    console.error('Sort upload error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to process sort upload',
+    });
+  }
+};
+
+/**
  * Download Excel template for member upload
  */
 const downloadTemplate = async (req, res) => {
@@ -521,4 +842,5 @@ module.exports = {
   uploadMembers,
   downloadTemplate,
   getUploadHistory,
+  sortUploadMembers,
 };
