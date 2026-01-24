@@ -1,4 +1,113 @@
 import nodemailer from 'nodemailer';
+import { PrismaClient } from '@prisma/client';
+
+// Initialize Prisma Client
+// Use DIRECT_URL if available (bypasses connection pooler), otherwise use DATABASE_URL
+const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
+});
+
+/**
+ * Fetch member with chariot details from database
+ */
+async function fetchMemberChariotDetails(memberId, memberEmail) {
+  try {
+    const where = memberId 
+      ? { id: memberId }
+      : { email: memberEmail.toLowerCase() };
+
+    const member = await prisma.member.findFirst({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+        chariotLeader: {
+          select: { id: true, name: true },
+        },
+        chariotAssistants: {
+          select: {
+            chariot: {
+              select: {
+                id: true,
+                name: true,
+                leader: { select: { name: true, email: true } },
+              },
+            },
+          },
+        },
+        chariotMembers: {
+          select: {
+            chariot: {
+              select: {
+                id: true,
+                name: true,
+                leader: { select: { name: true, email: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!member) {
+      return null;
+    }
+
+    const chariotLeaderPassword = process.env.CHARIOT_LEADER_PASSWORD || 'blessingikpia';
+    const chariotAssistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD || 'food123';
+    const portalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
+
+    let chariotName = 'Not assigned';
+    let roleLabel = 'Member';
+    let leaderName = '';
+    let leaderEmail = '';
+    let loginPassword = '';
+    let showLogin = false;
+
+    if (member.chariotLeader && member.chariotLeader.length > 0) {
+      roleLabel = 'Leader';
+      chariotName = member.chariotLeader[0].name;
+      leaderName = member.name;
+      leaderEmail = member.email;
+      loginPassword = chariotLeaderPassword;
+      showLogin = true;
+    } else if (member.chariotAssistants && member.chariotAssistants.length > 0) {
+      roleLabel = 'Assistant';
+      const chariot = member.chariotAssistants[0].chariot;
+      chariotName = chariot?.name || chariotName;
+      leaderName = chariot?.leader?.name || '';
+      leaderEmail = chariot?.leader?.email || '';
+      loginPassword = chariotAssistantPassword;
+      showLogin = true;
+    } else if (member.chariotMembers && member.chariotMembers.length > 0) {
+      roleLabel = 'Member';
+      const chariot = member.chariotMembers[0].chariot;
+      chariotName = chariot?.name || chariotName;
+      leaderName = chariot?.leader?.name || '';
+      leaderEmail = chariot?.leader?.email || '';
+    }
+
+    return {
+      chariotName,
+      roleLabel,
+      leaderName,
+      leaderEmail,
+      portalUrl,
+      loginPassword,
+      showLogin,
+    };
+  } catch (error) {
+    console.error('Error fetching member chariot details:', error);
+    return null;
+  }
+}
 
 /**
  * Vercel Serverless Function for sending PIN emails to members
@@ -49,14 +158,7 @@ export default async function handler(req, res) {
       memberId, 
       memberName, 
       memberEmail, 
-      memberPin,
-      chariotName,
-      roleLabel,
-      leaderName,
-      leaderEmail,
-      showLogin,
-      loginPassword,
-      portalUrl
+      memberPin
     } = body;
 
     // Validate required fields
@@ -66,6 +168,24 @@ export default async function handler(req, res) {
         message: 'memberName, memberEmail, and memberPin are required',
       });
     }
+
+    // Fetch member chariot details from database
+    console.log(`🔍 Fetching chariot details for member: ${memberId || memberEmail}`);
+    const chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail);
+    
+    if (!chariotDetails) {
+      console.warn(`⚠️ Could not fetch chariot details for member: ${memberId || memberEmail}`);
+    }
+
+    const {
+      chariotName = 'Not assigned',
+      roleLabel = 'Member',
+      leaderName = '',
+      leaderEmail = '',
+      portalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/',
+      loginPassword = '',
+      showLogin = false
+    } = chariotDetails || {};
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -138,10 +258,10 @@ export default async function handler(req, res) {
     }
 
     // Generate PIN email HTML template - HomeComing Conference 2026
-    const displayChariotName = chariotName || 'Not assigned';
-    const displayRole = roleLabel || 'Member';
-    const displayLeaderName = leaderName || 'Not assigned';
-    const frontendUrl = portalUrl || process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
+    const displayChariotName = chariotName;
+    const displayRole = roleLabel;
+    const displayLeaderName = leaderName;
+    const frontendUrl = portalUrl;
     
     const htmlTemplate = `
     <!DOCTYPE html>
@@ -331,6 +451,7 @@ This email was sent to ${memberEmail}
     console.log(`   PIN: ${memberPin}`);
     console.log(`   Chariot: ${displayChariotName}`);
     console.log(`   Role: ${displayRole}`);
+    console.log(`   Leader: ${displayLeaderName}${leaderEmail ? ` (${leaderEmail})` : ''}`);
     console.log(`   SMTP Host: ${smtpHost}:${smtpPort}`);
 
     // Send email
@@ -341,6 +462,9 @@ This email was sent to ${memberEmail}
       memberId: memberId || 'N/A',
       memberName: memberName
     });
+
+    // Cleanup Prisma connection
+    await prisma.$disconnect().catch(() => {});
 
     return res.status(200).json({
       success: true,
@@ -391,6 +515,9 @@ This email was sent to ${memberEmail}
       SMTP_PASS: process.env.SMTP_PASS ? 'SET' : 'MISSING',
       SMTP_PORT: process.env.SMTP_PORT || 'DEFAULT (587)',
     });
+
+    // Cleanup Prisma connection
+    await prisma.$disconnect().catch(() => {});
 
     return res.status(errorCode).json({
       error: 'Email sending failed',
