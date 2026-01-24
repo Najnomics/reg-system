@@ -564,14 +564,17 @@ This email was sent to ${memberEmail}
     };
 
     // Log environment variable status (without exposing values)
+    const smtpPortUsed = typeof smtpPort !== 'undefined' ? smtpPort : 'NOT DEFINED';
+    const smtpSecureUsed = typeof smtpSecure !== 'undefined' ? smtpSecure : 'NOT DEFINED';
+    
     console.error('Environment check:', {
       SMTP_HOST: process.env.SMTP_HOST ? 'SET' : 'MISSING',
       SMTP_USER: process.env.SMTP_USER ? 'SET' : 'MISSING',
       SMTP_PASS: process.env.SMTP_PASS ? 'SET' : 'MISSING',
       SMTP_PORT: process.env.SMTP_PORT || 'NOT SET',
-      SMTP_PORT_USED: smtpPort,
+      SMTP_PORT_USED: smtpPortUsed,
       SMTP_SECURE: process.env.SMTP_SECURE || 'NOT SET',
-      SMTP_SECURE_USED: smtpSecure,
+      SMTP_SECURE_USED: smtpSecureUsed,
     });
 
     // Cleanup Prisma connection
