@@ -166,15 +166,21 @@ class EmailService {
       const churchDisplayName = process.env.FROM_NAME || churchName;
       const emailData = await this.buildPinEmailData(member);
 
+      const htmlContent = this.generatePinEmailTemplate(emailData, churchName);
+      const textContent = this.generatePinEmailText(emailData, churchName);
+
       const mailOptions = {
         from: `"${churchDisplayName}" <${churchEmail}>`,
         to: member.email,
         subject: `Your ${churchName} Attendance PIN`,
-        html: this.generatePinEmailTemplate(emailData, churchName),
-        text: this.generatePinEmailText(emailData, churchName),
+        html: htmlContent,
+        text: textContent,
       };
 
       console.log(`📧 Attempting to send PIN email to ${member.email}...`);
+      console.log(`   Template check: ${htmlContent.includes('HomeComing Conference 2026') ? '✅ NEW TEMPLATE' : '❌ OLD TEMPLATE'}`);
+      console.log(`   Chariot: ${emailData.chariotName || 'Not assigned'}`);
+      console.log(`   Role: ${emailData.roleLabel || 'Member'}`);
       console.log(`   From: ${mailOptions.from}`);
       console.log(`   SMTP Host: ${process.env.SMTP_HOST || 'N/A'}`);
       console.log(`   SMTP Port: ${process.env.SMTP_PORT || 'N/A'}`);
