@@ -1,22 +1,33 @@
 import nodemailer from 'nodemailer';
 import { PrismaClient } from '@prisma/client';
 
-// Initialize Prisma Client
-// Use DIRECT_URL if available (bypasses connection pooler), otherwise use DATABASE_URL
-const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: databaseUrl,
+let prismaClient = null;
+
+const getPrismaClient = () => {
+  if (prismaClient) return prismaClient;
+  const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    return null;
+  }
+  prismaClient = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
     },
-  },
-});
+  });
+  return prismaClient;
+};
 
 /**
  * Fetch member with chariot details from database
  */
 async function fetchMemberChariotDetails(memberId, memberEmail) {
   try {
+    const prisma = getPrismaClient();
+    if (!prisma) {
+      return null;
+    }
     const where = memberId 
       ? { id: memberId }
       : { email: memberEmail.toLowerCase() };
@@ -60,15 +71,12 @@ async function fetchMemberChariotDetails(memberId, memberEmail) {
       return null;
     }
 
-    const chariotLeaderPassword = process.env.CHARIOT_LEADER_PASSWORD || 'blessingikpia';
-    const chariotAssistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD || 'food123';
     const portalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
 
     let chariotName = 'Not assigned';
     let roleLabel = 'Member';
     let leaderName = '';
     let leaderEmail = '';
-    let loginPassword = '';
     let showLogin = false;
 
     if (member.chariotLeader && member.chariotLeader.length > 0) {
@@ -76,7 +84,6 @@ async function fetchMemberChariotDetails(memberId, memberEmail) {
       chariotName = member.chariotLeader[0].name;
       leaderName = member.name;
       leaderEmail = member.email;
-      loginPassword = chariotLeaderPassword;
       showLogin = true;
     } else if (member.chariotAssistants && member.chariotAssistants.length > 0) {
       roleLabel = 'Assistant';
@@ -84,7 +91,6 @@ async function fetchMemberChariotDetails(memberId, memberEmail) {
       chariotName = chariot?.name || chariotName;
       leaderName = chariot?.leader?.name || '';
       leaderEmail = chariot?.leader?.email || '';
-      loginPassword = chariotAssistantPassword;
       showLogin = true;
     } else if (member.chariotMembers && member.chariotMembers.length > 0) {
       roleLabel = 'Member';
@@ -100,7 +106,6 @@ async function fetchMemberChariotDetails(memberId, memberEmail) {
       leaderName,
       leaderEmail,
       portalUrl,
-      loginPassword,
       showLogin,
     };
   } catch (error) {
@@ -158,7 +163,14 @@ export default async function handler(req, res) {
       memberId, 
       memberName, 
       memberEmail, 
-      memberPin
+      memberPin,
+      chariotName: payloadChariotName,
+      roleLabel: payloadRoleLabel,
+      leaderName: payloadLeaderName,
+      leaderEmail: payloadLeaderEmail,
+      showLogin: payloadShowLogin,
+      loginPassword: payloadLoginPassword,
+      portalUrl: payloadPortalUrl
     } = body;
 
     // Validate required fields
@@ -169,23 +181,33 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fetch member chariot details from database
+    // Fetch member chariot details from database if not provided
     console.log(`🔍 Fetching chariot details for member: ${memberId || memberEmail}`);
     const chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail);
-    
     if (!chariotDetails) {
       console.warn(`⚠️ Could not fetch chariot details for member: ${memberId || memberEmail}`);
     }
 
-    const {
-      chariotName = 'Not assigned',
-      roleLabel = 'Member',
-      leaderName = '',
-      leaderEmail = '',
-      portalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/',
-      loginPassword = '',
-      showLogin = false
-    } = chariotDetails || {};
+    const resolvedChariotName = payloadChariotName || chariotDetails?.chariotName || 'Not assigned';
+    const resolvedRoleLabel = payloadRoleLabel || chariotDetails?.roleLabel || 'Member';
+    const resolvedLeaderName = payloadLeaderName || chariotDetails?.leaderName || 'Not assigned';
+    const resolvedLeaderEmail = payloadLeaderEmail || chariotDetails?.leaderEmail || '';
+    const resolvedPortalUrl = payloadPortalUrl || chariotDetails?.portalUrl || process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
+    const resolvedShowLogin =
+      typeof payloadShowLogin === 'boolean'
+        ? payloadShowLogin
+        : typeof chariotDetails?.showLogin === 'boolean'
+          ? chariotDetails.showLogin
+          : ['Leader', 'Assistant'].includes(resolvedRoleLabel);
+
+    let resolvedLoginPassword = payloadLoginPassword || '';
+    if (!resolvedLoginPassword && resolvedShowLogin) {
+      if (resolvedRoleLabel === 'Leader') {
+        resolvedLoginPassword = process.env.CHARIOT_LEADER_PASSWORD || 'blessingikpia';
+      } else if (resolvedRoleLabel === 'Assistant') {
+        resolvedLoginPassword = process.env.CHARIOT_ASSISTANT_PASSWORD || 'food123';
+      }
+    }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -258,10 +280,10 @@ export default async function handler(req, res) {
     }
 
     // Generate PIN email HTML template - HomeComing Conference 2026
-    const displayChariotName = chariotName;
-    const displayRole = roleLabel;
-    const displayLeaderName = leaderName;
-    const frontendUrl = portalUrl;
+    const displayChariotName = resolvedChariotName;
+    const displayRole = resolvedRoleLabel;
+    const displayLeaderName = resolvedLeaderName;
+    const frontendUrl = resolvedPortalUrl;
     
     const htmlTemplate = `
     <!DOCTYPE html>
@@ -299,7 +321,7 @@ export default async function handler(req, res) {
 
             <h3>📌 Your Personal Assignment &amp; Check-In Information</h3>
             <p>For the duration of the conference, you will be in <strong>${displayChariotName}</strong>, and your chariot leader will be <strong>${displayLeaderName}</strong>.</p>
-            ${leaderEmail ? `<p>You may contact your chariot leader directly via <strong>${leaderEmail}</strong> for guidance or coordination before and during the conference.</p>` : ''}
+            ${resolvedLeaderEmail ? `<p>You may contact your chariot leader directly via <strong>${resolvedLeaderEmail}</strong> for guidance or coordination before and during the conference.</p>` : ''}
             <p>If you have any serious medical complications, please also contact your chariot leader so that adequate preparations can be made.</p>
             <p>Also, kindly take note of your personal check-in number (PIN):</p>
 
@@ -311,12 +333,12 @@ export default async function handler(req, res) {
             <p><strong>Role in chariot:</strong> ${displayRole}</p>
             <p><strong>Chariot:</strong> ${displayChariotName}</p>
 
-            ${showLogin && loginPassword ? `
+            ${resolvedShowLogin && resolvedLoginPassword ? `
               <div class="instructions">
                 <h3>🔐 Your Login Details</h3>
                 <p><strong>Platform:</strong> <a href="${frontendUrl}">${frontendUrl}</a></p>
                 <p><strong>Email:</strong> ${memberEmail}</p>
-                <p><strong>Password:</strong> ${loginPassword}</p>
+                <p><strong>Password:</strong> ${resolvedLoginPassword}</p>
               </div>
             ` : ''}
 
@@ -386,15 +408,15 @@ HomeComing Conference is a prayer retreat and camping experience, set apart for 
 Your Personal Assignment & Check-In Information
 Chariot: ${displayChariotName}
 Chariot Leader: ${displayLeaderName}
-${leaderEmail ? `Chariot Leader Email: ${leaderEmail}` : ''}
+${resolvedLeaderEmail ? `Chariot Leader Email: ${resolvedLeaderEmail}` : ''}
 Role in Chariot: ${displayRole}
 
 Your 4-digit check-in PIN: ${memberPin}
 
-${showLogin && loginPassword ? `Login Details:
+${resolvedShowLogin && resolvedLoginPassword ? `Login Details:
 Platform: ${frontendUrl}
 Email: ${memberEmail}
-Password: ${loginPassword}
+Password: ${resolvedLoginPassword}
 ` : ''}
 
 ---
@@ -451,7 +473,7 @@ This email was sent to ${memberEmail}
     console.log(`   PIN: ${memberPin}`);
     console.log(`   Chariot: ${displayChariotName}`);
     console.log(`   Role: ${displayRole}`);
-    console.log(`   Leader: ${displayLeaderName}${leaderEmail ? ` (${leaderEmail})` : ''}`);
+    console.log(`   Leader: ${displayLeaderName}${resolvedLeaderEmail ? ` (${resolvedLeaderEmail})` : ''}`);
     console.log(`   SMTP Host: ${smtpHost}:${smtpPort}`);
 
     // Send email
@@ -464,7 +486,10 @@ This email was sent to ${memberEmail}
     });
 
     // Cleanup Prisma connection
-    await prisma.$disconnect().catch(() => {});
+    if (prismaClient) {
+      await prismaClient.$disconnect().catch(() => {});
+      prismaClient = null;
+    }
 
     return res.status(200).json({
       success: true,
@@ -517,7 +542,10 @@ This email was sent to ${memberEmail}
     });
 
     // Cleanup Prisma connection
-    await prisma.$disconnect().catch(() => {});
+    if (prismaClient) {
+      await prismaClient.$disconnect().catch(() => {});
+      prismaClient = null;
+    }
 
     return res.status(errorCode).json({
       error: 'Email sending failed',

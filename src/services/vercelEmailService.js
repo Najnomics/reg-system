@@ -74,6 +74,13 @@ class VercelEmailService {
           memberName: member.name,
           memberEmail: member.email,
           memberPin: member.pin,
+          chariotName: member.chariotName,
+          roleLabel: member.roleLabel,
+          leaderName: member.leaderName,
+          leaderEmail: member.leaderEmail,
+          showLogin: member.showLogin,
+          loginPassword: member.loginPassword,
+          portalUrl: member.portalUrl,
         }),
       });
 

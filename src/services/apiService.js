@@ -248,12 +248,46 @@ class ApiService {
         throw new Error('Member data incomplete. Missing email or PIN.');
       }
 
+      // Build chariot details from member data
+      let chariotName = 'Not assigned';
+      let roleLabel = 'Member';
+      let leaderName = '';
+      let leaderEmail = '';
+      let showLogin = false;
+
+      if (member.chariotLeader && member.chariotLeader.length > 0) {
+        roleLabel = 'Leader';
+        chariotName = member.chariotLeader[0].name;
+        leaderName = member.name;
+        leaderEmail = member.email;
+        showLogin = true;
+      } else if (member.chariotAssistants && member.chariotAssistants.length > 0) {
+        roleLabel = 'Assistant';
+        const chariot = member.chariotAssistants[0].chariot;
+        chariotName = chariot?.name || chariotName;
+        leaderName = chariot?.leader?.name || '';
+        leaderEmail = chariot?.leader?.email || '';
+        showLogin = true;
+      } else if (member.chariotMembers && member.chariotMembers.length > 0) {
+        roleLabel = 'Member';
+        const chariot = member.chariotMembers[0].chariot;
+        chariotName = chariot?.name || chariotName;
+        leaderName = chariot?.leader?.name || '';
+        leaderEmail = chariot?.leader?.email || '';
+      }
+
       // Use Vercel email service instead of Railway backend
       const result = await vercelEmailService.sendPinEmail({
         id: member.id,
         name: member.name,
         email: member.email,
         pin: member.pin || member.memberCode, // Support both pin and memberCode
+        chariotName,
+        roleLabel,
+        leaderName,
+        leaderEmail,
+        showLogin,
+        portalUrl: window.location.origin,
       });
 
       return {

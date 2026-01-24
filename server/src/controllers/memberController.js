@@ -151,6 +151,44 @@ const getMember = async (req, res) => {
             name: true,
           },
         },
+        chariotLeader: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        chariotAssistants: {
+          select: {
+            chariot: {
+              select: {
+                id: true,
+                name: true,
+                leader: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        chariotMembers: {
+          select: {
+            chariot: {
+              select: {
+                id: true,
+                name: true,
+                leader: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         attendance: {
           select: {
             id: true,
