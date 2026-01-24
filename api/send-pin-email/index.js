@@ -546,7 +546,17 @@ This email was sent to ${memberEmail}
     let errorCode = 500;
     let errorDetails = {};
 
-    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
+    // Check for rate limiting / sending limit errors
+    const isRateLimitError = 
+      error.message?.includes('Sending limit reached') ||
+      error.message?.includes('Policy Rejection') ||
+      error.responseCode === 450 ||
+      error.code === 'EENVELOPE' && error.responseCode === 450;
+
+    if (isRateLimitError) {
+      errorMessage = 'Email sending limit reached. The email provider has temporarily restricted sending. Please try again in a few hours or use the Railway backend email service instead.';
+      errorCode = 429; // Too Many Requests
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
       errorMessage = 'Connection timeout. Vercel may also be blocking SMTP connections. Consider using SendGrid API instead.';
       errorCode = 503;
     } else if (error.code === 'EAUTH') {
