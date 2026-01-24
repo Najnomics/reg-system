@@ -8,6 +8,10 @@ import { useApp } from '../../contexts/SimpleAppContext';
 const schema = yup.object().shape({
   name: yup.string().required('Name is required').min(2, 'Name must be at least 2 characters'),
   email: yup.string().email('Invalid email').required('Email is required'),
+  chapelRole: yup
+    .string()
+    .transform((value) => (value ? value.toLowerCase().trim() : ''))
+    .oneOf(['', 'invitee', 'member', 'worker', 'unassigned'], 'Role must be invitee, member, worker, or unassigned'),
   isActive: yup.boolean().default(true),
 });
 
@@ -27,6 +31,7 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
     defaultValues: {
       name: '',
       email: '',
+      chapelRole: '',
       isActive: true,
     }
   });
@@ -36,6 +41,7 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
       reset({
         name: member.name || '',
         email: member.email || '',
+        chapelRole: member.chapelRole ? member.chapelRole.toLowerCase() : '',
         isActive: member.isActive ?? true,
       });
     }
@@ -47,9 +53,14 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
     setError(null);
 
     try {
+      const payload = { ...data };
+      if (!payload.chapelRole) {
+        delete payload.chapelRole;
+      }
+
       if (member) {
         console.log('Updating member:', member.id, data);
-        await updateMember(member.id, data);
+        await updateMember(member.id, payload);
       } else {
         console.log('Creating new member:', data);
         await createMember(data);
@@ -122,6 +133,27 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+            )}
+          </div>
+
+          {/* Role Field */}
+          <div>
+            <label htmlFor="chapelRole" className="block text-sm font-medium text-gray-700">
+              Role
+            </label>
+            <select
+              id="chapelRole"
+              {...register('chapelRole')}
+              className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            >
+              <option value="">No change</option>
+              <option value="invitee">Invitee</option>
+              <option value="member">Member</option>
+              <option value="worker">Worker</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+            {errors.chapelRole && (
+              <p className="mt-1 text-sm text-red-600">{errors.chapelRole.message}</p>
             )}
           </div>
 

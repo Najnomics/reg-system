@@ -41,6 +41,20 @@ const SimpleDashboard = () => {
     navigate('/admin/reports');
   };
 
+  const handleAssignUnassignedToChariots = async () => {
+    if (!window.confirm('Assign all unassigned members to chariots?')) return;
+    try {
+      const response = await apiService.assignUnassignedMembersToChariots();
+      showSuccess(
+        `Assigned ${response?.data?.assigned || 0} members to chariots`
+      );
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to assign members to chariots:', error);
+      showError(error.message || 'Failed to assign members to chariots');
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
@@ -207,6 +221,20 @@ const SimpleDashboard = () => {
                       <span className="text-sm font-medium text-gray-900">Manage Reg-Reps</span>
                     </div>
                   </a>
+                )}
+
+                {userType === 'admin' && (
+                  <button
+                    onClick={handleAssignUnassignedToChariots}
+                    className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 bg-orange-50 hover:bg-orange-100 rounded-md border border-orange-200 transition-colors touch-manipulation"
+                  >
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-orange-600 mr-2 sm:mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16M8 6v12M16 6v12" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">Assign Members to Chariots</span>
+                    </div>
+                  </button>
                 )}
               </div>
             </div>

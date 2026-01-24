@@ -75,6 +75,27 @@ const schemas = {
     email: Joi.string().email().optional().messages({
       'string.email': 'Email must be a valid email address',
     }),
+    chapelRole: Joi.string()
+      .valid(
+        'INVITEE',
+        'MEMBER',
+        'WORKER',
+        'UNASSIGNED',
+        'invitee',
+        'member',
+        'worker',
+        'unassigned'
+      )
+      .optional()
+      .messages({
+        'any.only': 'chapelRole must be invitee, member, worker, or unassigned',
+      }),
+    chapelId: Joi.alternatives()
+      .try(Joi.string().uuid(), Joi.string().valid('UNASSIGNED'))
+      .optional()
+      .messages({
+        'any.only': 'chapelId must be a valid UUID or UNASSIGNED',
+      }),
     isActive: Joi.boolean().optional(),
   }),
 

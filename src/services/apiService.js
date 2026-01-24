@@ -640,6 +640,24 @@ class ApiService {
     return response.blob();
   }
 
+  async exportChariotsCSV() {
+    const url = `${API_BASE_URL}/chariots/export/csv`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export chariots CSV');
+    }
+    return response.blob();
+  }
+
+  async assignUnassignedMembersToChariots() {
+    return this.request('/chariots/assign-unassigned', { method: 'POST' });
+  }
+
   // Chapel methods (admin only for write, pastoral read)
   async getChapels(forceRefresh = false) {
     const cacheKey = '/chapels';
