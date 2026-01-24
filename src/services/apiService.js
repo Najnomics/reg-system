@@ -303,8 +303,11 @@ class ApiService {
 
   /**
    * Bulk resend PIN emails using Vercel serverless function
+   * Processes emails in batches with retry logic
+   * @param {string[]} memberIds - Array of member IDs to send PINs to
+   * @param {number} batchSize - Number of emails to send per batch (default: 20)
    */
-  async bulkResendPin(memberIds) {
+  async bulkResendPin(memberIds, batchSize = 20) {
     const results = {
       successful: 0,
       failed: 0,
@@ -314,26 +317,100 @@ class ApiService {
       },
     };
 
-    // Process each member sequentially to avoid overwhelming the email service
-    for (const memberId of memberIds) {
-      try {
-        await this.resendPin(memberId);
-        results.successful++;
-        results.results.successful.push(memberId);
-      } catch (error) {
-        results.failed++;
-        results.results.failed.push({
-          memberId,
-          error: error.message || 'Unknown error',
-        });
-        console.error(`Failed to resend PIN for member ${memberId}:`, error);
+    // Helper function to wait/sleep
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Helper function to retry sending PIN with delay
+    const retryResendPin = async (memberId, retries = 1, delayMs = 60000) => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          await this.resendPin(memberId);
+          return { success: true };
+        } catch (error) {
+          const isRateLimit = 
+            error.status === 429 ||
+            error.message?.includes('limit reached') ||
+            error.message?.includes('Sending limit');
+          
+          if (isRateLimit && attempt < retries) {
+            console.warn(`Rate limit hit for member ${memberId}, waiting ${delayMs / 1000}s before retry ${attempt + 1}/${retries}`);
+            await sleep(delayMs);
+            continue;
+          }
+          
+          // If it's not a rate limit error or we've exhausted retries, throw
+          // For rate limit errors that can't be retried, throw with special flag
+          if (isRateLimit && attempt >= retries) {
+            const rateLimitError = new Error(error.message || 'Rate limit exceeded');
+            rateLimitError.status = 429;
+            rateLimitError.isRateLimit = true;
+            throw rateLimitError;
+          }
+          
+          throw error;
+        }
+      }
+      throw new Error('Max retries exceeded');
+    };
+
+    // Process members in batches
+    const totalBatches = Math.ceil(memberIds.length / batchSize);
+    console.log(`Processing ${memberIds.length} members in ${totalBatches} batches of ${batchSize}`);
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batchStart = batchIndex * batchSize;
+      const batchEnd = Math.min(batchStart + batchSize, memberIds.length);
+      const batch = memberIds.slice(batchStart, batchEnd);
+      
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (members ${batchStart + 1}-${batchEnd})`);
+
+      // Process batch members sequentially to better handle rate limits
+      for (const memberId of batch) {
+        try {
+          await retryResendPin(memberId, 1, 60000); // Retry once after 1 minute
+          results.successful++;
+          results.results.successful.push(memberId);
+          
+          // Small delay between emails in the same batch to avoid overwhelming the service
+          await sleep(500); // 500ms delay between emails
+        } catch (error) {
+          const isRateLimit = 
+            error.status === 429 ||
+            error.message?.includes('limit reached') ||
+            error.message?.includes('Sending limit');
+          
+          results.failed++;
+          results.results.failed.push({
+            memberId,
+            error: error.message || 'Unknown error',
+            isRateLimit,
+          });
+          console.error(`Failed to resend PIN for member ${memberId}:`, error.message);
+          
+          // If rate limited, wait a bit longer before continuing to next member
+          if (isRateLimit) {
+            console.warn(`Rate limit detected, waiting 5 seconds before continuing...`);
+            await sleep(5000);
+          }
+        }
+      }
+
+      // If not the last batch, add a small delay between batches to avoid overwhelming the service
+      if (batchIndex < totalBatches - 1) {
+        console.log(`Batch ${batchIndex + 1} completed. Waiting 2 seconds before next batch...`);
+        await sleep(2000); // 2 second delay between batches
       }
     }
+
+    console.log(`Bulk resend completed: ${results.successful} successful, ${results.failed} failed`);
 
     return {
       success: results.failed === 0,
       message: `Sent ${results.successful} PIN emails, ${results.failed} failed`,
-      data: results,
+      data: {
+        ...results,
+        totalMembers: memberIds.length,
+      },
     };
   }
 
