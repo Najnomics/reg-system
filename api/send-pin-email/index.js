@@ -196,9 +196,18 @@ export default async function handler(req, res) {
 
     // Fetch member chariot details from database
     console.log(`🔍 Fetching chariot details for member: ${memberId || memberEmail}`);
-    const chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail, databaseUrl);
-    if (!chariotDetails) {
-      console.warn(`⚠️ Could not fetch chariot details for member: ${memberId || memberEmail}`);
+    console.log(`   Database URL configured: ${databaseUrl ? 'YES' : 'NO'}`);
+    let chariotDetails = null;
+    try {
+      chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail, databaseUrl);
+      if (chariotDetails) {
+        console.log(`✅ Fetched chariot details: ${chariotDetails.chariotName}, Role: ${chariotDetails.roleLabel}`);
+      } else {
+        console.warn(`⚠️ Could not fetch chariot details for member: ${memberId || memberEmail}`);
+      }
+    } catch (dbError) {
+      console.error(`❌ Database fetch error (continuing with fallback):`, dbError.message);
+      // Continue without chariot details - email will still be sent
     }
 
     const resolvedChariotName = payloadChariotName || chariotDetails?.chariotName || 'Not assigned';
@@ -241,10 +250,13 @@ export default async function handler(req, res) {
 
     // Get email configuration from environment variables
     const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+    // Parse port - if SMTP_SECURE is true, default to 465, otherwise 587
+    const smtpPort = process.env.SMTP_PORT 
+      ? parseInt(process.env.SMTP_PORT) 
+      : (process.env.SMTP_SECURE === 'true' ? 465 : 587);
     const smtpSecure = process.env.SMTP_SECURE === 'true';
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    const smtpUser = process.env.SMTP_USER?.trim();
+    const smtpPass = process.env.SMTP_PASS?.trim();
     const fromEmail = process.env.FROM_EMAIL || smtpUser;
     const fromName = process.env.FROM_NAME || 'Grace Edge Ministries';
     const churchName = process.env.CHURCH_NAME || 'Grace Edge Ministries';
@@ -487,7 +499,8 @@ This email was sent to ${memberEmail}
     console.log(`   Chariot: ${displayChariotName}`);
     console.log(`   Role: ${displayRole}`);
     console.log(`   Leader: ${displayLeaderName}${resolvedLeaderEmail ? ` (${resolvedLeaderEmail})` : ''}`);
-    console.log(`   SMTP Host: ${smtpHost}:${smtpPort}`);
+    console.log(`   SMTP Config: ${smtpHost}:${smtpPort} (secure: ${smtpSecure})`);
+    console.log(`   SMTP User: ${smtpUser ? 'SET' : 'MISSING'}`);
 
     // Send email
     const result = await transporter.sendMail(mailOptions);
@@ -551,7 +564,10 @@ This email was sent to ${memberEmail}
       SMTP_HOST: process.env.SMTP_HOST ? 'SET' : 'MISSING',
       SMTP_USER: process.env.SMTP_USER ? 'SET' : 'MISSING',
       SMTP_PASS: process.env.SMTP_PASS ? 'SET' : 'MISSING',
-      SMTP_PORT: process.env.SMTP_PORT || 'DEFAULT (587)',
+      SMTP_PORT: process.env.SMTP_PORT || 'NOT SET',
+      SMTP_PORT_USED: smtpPort,
+      SMTP_SECURE: process.env.SMTP_SECURE || 'NOT SET',
+      SMTP_SECURE_USED: smtpSecure,
     });
 
     // Cleanup Prisma connection
