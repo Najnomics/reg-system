@@ -177,10 +177,16 @@ class EmailService {
         text: textContent,
       };
 
-      console.log(`📧 Attempting to send PIN email to ${member.email}...`);
-      console.log(`   Template check: ${htmlContent.includes('HomeComing Conference 2026') ? '✅ NEW TEMPLATE' : '❌ OLD TEMPLATE'}`);
+      const isNewTemplate = htmlContent.includes('HomeComing Conference 2026');
+      console.log(`📧 [EMAIL v2.0] Attempting to send PIN email to ${member.email}...`);
+      console.log(`   Template check: ${isNewTemplate ? '✅ NEW TEMPLATE' : '❌ OLD TEMPLATE'}`);
+      console.log(`   Template version: ${isNewTemplate ? 'HomeComing 2026' : 'Legacy'}`);
       console.log(`   Chariot: ${emailData.chariotName || 'Not assigned'}`);
       console.log(`   Role: ${emailData.roleLabel || 'Member'}`);
+      
+      if (!isNewTemplate) {
+        console.error('⚠️ WARNING: Old email template is being used! Expected "HomeComing Conference 2026" template.');
+      }
       console.log(`   From: ${mailOptions.from}`);
       console.log(`   SMTP Host: ${process.env.SMTP_HOST || 'N/A'}`);
       console.log(`   SMTP Port: ${process.env.SMTP_PORT || 'N/A'}`);
@@ -399,6 +405,7 @@ class EmailService {
             <div class="header">
                 <h1 class="church-name">${churchName}</h1>
                 <p>HomeComing Conference 2026</p>
+                <!-- Template Version: v2.0 - HomeComing 2026 -->
             </div>
 
             <p>Dear ${member.name},</p>
