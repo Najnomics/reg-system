@@ -251,11 +251,23 @@ const ChariotList = () => {
     }
   };
 
+  const getChariotNumber = useCallback((name = '') => {
+    const match = String(name).match(/(\d+)/);
+    return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+  }, []);
+
   // Memoize filtered chariots to avoid recalculating on every render
   const filteredChariots = useMemo(() => {
-    if (!searchTerm.trim()) return chariots;
+    const sorted = [...chariots].sort((a, b) => {
+      const numA = getChariotNumber(a?.name);
+      const numB = getChariotNumber(b?.name);
+      if (numA !== numB) return numA - numB;
+      return String(a?.name || '').localeCompare(String(b?.name || ''));
+    });
+
+    if (!searchTerm.trim()) return sorted;
     const term = searchTerm.toLowerCase();
-    return chariots.filter(chariot =>
+    return sorted.filter(chariot =>
       chariot.name.toLowerCase().includes(term) ||
       chariot.leader?.name?.toLowerCase().includes(term) ||
       chariot.leader?.email?.toLowerCase().includes(term) ||
@@ -266,7 +278,7 @@ const ChariotList = () => {
         member?.name?.toLowerCase().includes(term)
       )
     );
-  }, [chariots, searchTerm]);
+  }, [chariots, searchTerm, getChariotNumber]);
 
   useEffect(() => {
     if (filteredChariots.length > 0) {
