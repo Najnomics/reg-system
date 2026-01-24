@@ -150,6 +150,10 @@ export default async function handler(req, res) {
     });
   }
 
+  // Declare SMTP variables outside try block so they're accessible in catch
+  let smtpPort;
+  let smtpSecure;
+
   try {
     // Parse request body if it's a string
     let body = req.body;
@@ -254,11 +258,6 @@ export default async function handler(req, res) {
 
     // Get email configuration from environment variables
     const smtpHost = process.env.SMTP_HOST;
-    // Parse port - if SMTP_SECURE is true, default to 465, otherwise 587
-    const smtpPort = process.env.SMTP_PORT 
-      ? parseInt(process.env.SMTP_PORT) 
-      : (process.env.SMTP_SECURE === 'true' ? 465 : 587);
-    const smtpSecure = process.env.SMTP_SECURE === 'true';
     const smtpUser = process.env.SMTP_USER?.trim();
     const smtpPass = process.env.SMTP_PASS?.trim();
     const fromEmail = process.env.FROM_EMAIL || smtpUser;
@@ -272,6 +271,22 @@ export default async function handler(req, res) {
         error: 'Email service not configured',
         message: 'SMTP credentials are missing. Please configure SMTP_HOST, SMTP_USER, and SMTP_PASS in Vercel environment variables.',
       });
+    }
+
+    // Detect Namecheap/privateemail.com and force correct settings
+    const isNamecheap = smtpHost.includes('privateemail.com') || smtpHost.includes('homecomming26.com');
+    
+    // For Namecheap, always use port 465 with secure: true
+    // For others, use env vars or defaults
+    if (isNamecheap) {
+      smtpPort = 465;
+      smtpSecure = true;
+      console.log(`🔧 Namecheap detected: Forcing port 465 with secure: true`);
+    } else {
+      smtpPort = process.env.SMTP_PORT 
+        ? parseInt(process.env.SMTP_PORT) 
+        : (process.env.SMTP_SECURE === 'true' ? 465 : 587);
+      smtpSecure = process.env.SMTP_SECURE === 'true';
     }
 
     // Create transporter
@@ -289,8 +304,6 @@ export default async function handler(req, res) {
         greetingTimeout: 30000,
       });
     } else {
-      const isNamecheap = smtpHost.includes('privateemail.com') || smtpHost.includes('homecomming26.com');
-      
       transporter = nodemailer.createTransport({
         host: smtpHost,
         port: smtpPort,
