@@ -53,6 +53,13 @@ router.post('/upload',
   require('../controllers/uploadController').uploadMembers
 );
 
+// Sort-upload CSV (admin only)
+router.post(
+  '/sort-upload',
+  require('../middleware/upload').uploadMiddleware,
+  require('../controllers/uploadController').sortUploadMembers
+);
+
 // Get upload history
 router.get('/upload-history',
   require('../controllers/uploadController').getUploadHistory

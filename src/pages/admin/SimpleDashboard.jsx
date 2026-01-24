@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,8 @@ const SimpleDashboard = () => {
   const { showSuccess, showError } = useApp();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sortUploadBusy, setSortUploadBusy] = useState(false);
+  const sortUploadRef = useRef(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -52,6 +54,32 @@ const SimpleDashboard = () => {
     } catch (error) {
       console.error('Failed to assign members to chariots:', error);
       showError(error.message || 'Failed to assign members to chariots');
+    }
+  };
+
+  const handleSortUploadClick = () => {
+    sortUploadRef.current?.click();
+  };
+
+  const handleSortUploadFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSortUploadBusy(true);
+    try {
+      const response = await apiService.sortUploadMembers(file);
+      const summary = response?.data?.summary;
+      showSuccess(
+        summary
+          ? `Sort upload done. Created: ${summary.createdMembers}, Workers: ${summary.workersMarked}, Invitees: ${summary.inviteesAssigned}, Members: ${summary.membersMarked}`
+          : 'Sort upload completed'
+      );
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Sort upload failed:', error);
+      showError(error.message || 'Sort upload failed');
+    } finally {
+      setSortUploadBusy(false);
+      if (sortUploadRef.current) sortUploadRef.current.value = '';
     }
   };
 
@@ -235,6 +263,32 @@ const SimpleDashboard = () => {
                       <span className="text-sm font-medium text-gray-900">Assign Members to Chariots</span>
                     </div>
                   </button>
+                )}
+
+                {userType === 'admin' && (
+                  <>
+                    <button
+                      onClick={handleSortUploadClick}
+                      disabled={sortUploadBusy}
+                      className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 bg-indigo-50 hover:bg-indigo-100 rounded-md border border-indigo-200 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-indigo-600 mr-2 sm:mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v16h16M8 16l4-4 4 4 4-4" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-900">
+                          {sortUploadBusy ? 'Sorting Upload...' : 'Sort Upload'}
+                        </span>
+                      </div>
+                    </button>
+                    <input
+                      ref={sortUploadRef}
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={handleSortUploadFile}
+                    />
+                  </>
                 )}
               </div>
             </div>

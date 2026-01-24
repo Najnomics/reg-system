@@ -196,6 +196,25 @@ class ApiService {
     });
   }
 
+  async sortUploadMembers(file) {
+    const url = `${API_BASE_URL}/members/sort-upload`;
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to process sort upload');
+    }
+    return response.json();
+  }
+
   async deleteMember(id) {
     return this.request(`/members/${id}`, {
       method: 'DELETE',

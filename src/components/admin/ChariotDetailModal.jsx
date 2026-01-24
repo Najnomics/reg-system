@@ -13,6 +13,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
   const [currentChariot, setCurrentChariot] = useState(chariot);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignType, setAssignType] = useState(null); // 'assistants' or 'members'
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadChariotData();
@@ -96,6 +97,22 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
     return 'Member';
   };
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filterBySearch = (member) => {
+    if (!normalizedSearch) return true;
+    return (
+      member?.name?.toLowerCase().includes(normalizedSearch) ||
+      member?.email?.toLowerCase().includes(normalizedSearch)
+    );
+  };
+
+  const filteredAssistants = (currentChariot.assistants || []).filter((assistant) =>
+    filterBySearch(assistant.member)
+  );
+  const filteredMembers = (currentChariot.members || []).filter((memberEntry) =>
+    filterBySearch(memberEntry.member)
+  );
+
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-y-auto">
@@ -116,6 +133,19 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
         </div>
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div>
+            <label htmlFor="chariot-member-search" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Search members
+            </label>
+            <input
+              id="chariot-member-search"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name or email..."
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+            />
+          </div>
           {/* Leader */}
           <div>
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
@@ -134,7 +164,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
               <div className="flex items-center gap-2">
                 <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
-                  Assistants ({currentChariot.assistants?.length || 0})
+                  Assistants ({filteredAssistants.length})
                 </h4>
               </div>
               {isAdmin && (
@@ -149,9 +179,9 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                 </button>
               )}
             </div>
-            {currentChariot.assistants && currentChariot.assistants.length > 0 ? (
+            {filteredAssistants.length > 0 ? (
               <div className="space-y-2">
-                {currentChariot.assistants.map((assistant) => (
+                {filteredAssistants.map((assistant) => (
                   <div
                     key={assistant.member.id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
@@ -188,7 +218,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
               <div className="flex items-center gap-2">
                 <UserGroupIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
                 <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
-                  Members ({currentChariot.members?.length || 0})
+                  Members ({filteredMembers.length})
                 </h4>
               </div>
               {isAdmin && (
@@ -203,9 +233,9 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                 </button>
               )}
             </div>
-            {currentChariot.members && currentChariot.members.length > 0 ? (
+            {filteredMembers.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto">
-                {currentChariot.members.map((chariotMember) => (
+                {filteredMembers.map((chariotMember) => (
                   <div
                     key={chariotMember.member.id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg gap-2"
