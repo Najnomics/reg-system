@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import apiService from '../../services/apiService';
@@ -21,6 +21,7 @@ const SessionChariotAttendancePage = () => {
   const [data, setData] = useState(null);
   const [expandedChariots, setExpandedChariots] = useState(new Set());
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
 
   useEffect(() => {
     fetchChariotAttendance();
@@ -109,6 +110,22 @@ const SessionChariotAttendancePage = () => {
   }
 
   const { session, chariots = [], overallStats } = data;
+
+  const normalizedSearch = memberSearch.trim().toLowerCase();
+  const filteredChariots = useMemo(() => {
+    if (!normalizedSearch) return chariots;
+    return chariots
+      .map((chariot) => {
+        const filteredMembers = (chariot.members || []).filter((member) => {
+          return (
+            member?.name?.toLowerCase().includes(normalizedSearch) ||
+            member?.email?.toLowerCase().includes(normalizedSearch)
+          );
+        });
+        return { ...chariot, members: filteredMembers };
+      })
+      .filter((chariot) => chariot.members.length > 0);
+  }, [chariots, normalizedSearch]);
   
   // Debug logging
   console.log('🎨 Rendering - Number of chariots:', chariots?.length);
@@ -192,13 +209,24 @@ const SessionChariotAttendancePage = () => {
 
       {/* Chariots List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Chariots ({chariots?.length || 0})</h2>
-        {!chariots || chariots.length === 0 ? (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Chariots ({filteredChariots.length})
+          </h2>
+          <input
+            type="text"
+            value={memberSearch}
+            onChange={(e) => setMemberSearch(e.target.value)}
+            placeholder="Search members by name or email..."
+            className="w-full sm:w-80 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+          />
+        </div>
+        {!filteredChariots || filteredChariots.length === 0 ? (
           <div className="bg-white shadow rounded-lg p-6 text-center">
-            <p className="text-gray-500">No chariots found. Please create chariots first.</p>
+            <p className="text-gray-500">No matching members found.</p>
           </div>
         ) : (
-          chariots.map((chariot) => {
+          filteredChariots.map((chariot) => {
           const isExpanded = expandedChariots.has(chariot.id);
           return (
             <div key={chariot.id} className="bg-white shadow rounded-lg overflow-hidden">

@@ -258,7 +258,13 @@ const ChariotList = () => {
     return chariots.filter(chariot =>
       chariot.name.toLowerCase().includes(term) ||
       chariot.leader?.name?.toLowerCase().includes(term) ||
-      chariot.leader?.email?.toLowerCase().includes(term)
+      chariot.leader?.email?.toLowerCase().includes(term) ||
+      (chariot.assistants || []).some(({ member }) =>
+        member?.name?.toLowerCase().includes(term)
+      ) ||
+      (chariot.members || []).some(({ member }) =>
+        member?.name?.toLowerCase().includes(term)
+      )
     );
   }, [chariots, searchTerm]);
 
@@ -326,7 +332,7 @@ const ChariotList = () => {
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search chariots by name or leader..."
+          placeholder="Search chariots by name, leader, or member..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="input pl-9 sm:pl-10 w-full sm:max-w-md text-sm sm:text-base"

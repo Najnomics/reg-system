@@ -68,7 +68,7 @@ const getChariots = async (req, res) => {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        name: 'asc',
       },
     });
 

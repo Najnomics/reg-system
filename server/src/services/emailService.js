@@ -164,13 +164,14 @@ class EmailService {
       const churchName = process.env.CHURCH_NAME || 'Your Church';
       const churchEmail = process.env.FROM_EMAIL || 'noreply@yourchurch.com';
       const churchDisplayName = process.env.FROM_NAME || churchName;
+      const emailData = await this.buildPinEmailData(member);
 
       const mailOptions = {
         from: `"${churchDisplayName}" <${churchEmail}>`,
         to: member.email,
         subject: `Your ${churchName} Attendance PIN`,
-        html: this.generatePinEmailTemplate(member, churchName),
-        text: this.generatePinEmailText(member, churchName),
+        html: this.generatePinEmailTemplate(emailData, churchName),
+        text: this.generatePinEmailText(emailData, churchName),
       };
 
       console.log(`📧 Attempting to send PIN email to ${member.email}...`);
@@ -277,6 +278,92 @@ class EmailService {
     }
   }
 
+  async buildPinEmailData(member) {
+    let fullMember = member;
+
+    if (!member.chariotLeader && !member.chariotAssistants && !member.chariotMembers) {
+      fullMember = await prisma.member.findUnique({
+        where: { id: member.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          pin: true,
+          chariotLeader: {
+            select: { id: true, name: true },
+          },
+          chariotAssistants: {
+            select: {
+              chariot: {
+                select: {
+                  id: true,
+                  name: true,
+                  leader: { select: { name: true, email: true } },
+                },
+              },
+            },
+          },
+          chariotMembers: {
+            select: {
+              chariot: {
+                select: {
+                  id: true,
+                  name: true,
+                  leader: { select: { name: true, email: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    const chariotLeaderPassword = process.env.CHARIOT_LEADER_PASSWORD || 'blessingikpia';
+    const chariotAssistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD || 'food123';
+    const portalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
+
+    let chariotName = 'Not assigned';
+    let roleLabel = 'Member';
+    let leaderName = '';
+    let leaderEmail = '';
+    let loginPassword = '';
+    let showLogin = false;
+
+    if (fullMember?.chariotLeader?.length) {
+      roleLabel = 'Leader';
+      chariotName = fullMember.chariotLeader[0].name;
+      leaderName = fullMember.name;
+      leaderEmail = fullMember.email;
+      loginPassword = chariotLeaderPassword;
+      showLogin = true;
+    } else if (fullMember?.chariotAssistants?.length) {
+      roleLabel = 'Assistant';
+      const chariot = fullMember.chariotAssistants[0].chariot;
+      chariotName = chariot?.name || chariotName;
+      leaderName = chariot?.leader?.name || '';
+      leaderEmail = chariot?.leader?.email || '';
+      loginPassword = chariotAssistantPassword;
+      showLogin = true;
+    } else if (fullMember?.chariotMembers?.length) {
+      roleLabel = 'Member';
+      const chariot = fullMember.chariotMembers[0].chariot;
+      chariotName = chariot?.name || chariotName;
+      leaderName = chariot?.leader?.name || '';
+      leaderEmail = chariot?.leader?.email || '';
+    }
+
+    return {
+      ...fullMember,
+      chariotName,
+      roleLabel,
+      leaderName,
+      leaderEmail,
+      portalUrl,
+      loginPassword,
+      showLogin,
+    };
+  }
+
   /**
    * Generate PIN email HTML template
    */
@@ -305,39 +392,84 @@ class EmailService {
         <div class="container">
             <div class="header">
                 <h1 class="church-name">${churchName}</h1>
-                <p>Welcome to our Attendance System</p>
+                <p>HomeComing Conference 2026</p>
             </div>
-            
-            <h2>Hello ${member.name},</h2>
-            
-            <p>Welcome to ${churchName}! You have been registered in our attendance system. Here is your personal 4-digit PIN for checking in to church services and events:</p>
-            
+
+            <p>Dear ${member.name},</p>
+            <p>Welcome home.</p>
+            <p>Thank you for successfully registering for HomeComing Conference 2026. We are honoured to have you join us for this sacred gathering themed “Territorial Commanders.”</p>
+            <p>HomeComing Conference is a prayer retreat and camping experience, set apart for alignment, spiritual responsibility, and territorial authority. Over these days, we will pray, wait on God, receive divine instructions, and take our place as commanders in the territories God has entrusted to us.</p>
+
+            <hr />
+
+            <h3>📌 Your Personal Assignment &amp; Check-In Information</h3>
+            <p>For the duration of the conference, you will be in <strong>${member.chariotName}</strong>, and your chariot leader will be <strong>${member.leaderName || 'Not assigned'}</strong>.</p>
+            ${member.leaderEmail ? `<p>You may contact your chariot leader directly via <strong>${member.leaderEmail}</strong> for guidance or coordination before and during the conference.</p>` : ''}
+            <p>If you have any serious medical complications, please also contact your chariot leader so that adequate preparations can be made.</p>
+            <p>Also, kindly take note of your personal check-in number (PIN):</p>
+
             <div class="pin-box">
                 <div class="pin-label">Your Personal PIN</div>
                 <div class="pin-number">${member.pin}</div>
             </div>
-            
-            <div class="instructions">
-                <h3>How to use your PIN:</h3>
-                <ol>
-                    <li>Look for the QR code at the entrance of church services or events</li>
-                    <li>Scan the QR code with your smartphone camera</li>
-                    <li>Answer the location verification question</li>
-                    <li>Enter your 4-digit PIN: <strong>${member.pin}</strong></li>
-                    <li>You're checked in!</li>
-                </ol>
-            </div>
-            
-            <p><strong>Important:</strong> Please keep this PIN secure and don't share it with others. You'll need it every time you attend church services or events.</p>
-            
-            <p>If you have any questions about using the attendance system, please contact our church office.</p>
-            
-            <p>God bless,<br>
-            The ${churchName} Team</p>
-            
+
+            <p><strong>Role in chariot:</strong> ${member.roleLabel}</p>
+            <p><strong>Chariot:</strong> ${member.chariotName}</p>
+
+            ${member.showLogin ? `
+              <div class="instructions">
+                <h3>🔐 Your Login Details</h3>
+                <p><strong>Platform:</strong> <a href="${member.portalUrl}">${member.portalUrl}</a></p>
+                <p><strong>Email:</strong> ${member.email}</p>
+                <p><strong>Password:</strong> ${member.loginPassword}</p>
+              </div>
+            ` : ''}
+
+            <hr />
+
+            <h3>📲 How Registration Will Work at the Venue</h3>
+            <ul>
+              <li>At the venue, there will be a barcode/QR code at the registration point.</li>
+              <li>You will scan the barcode using your phone.</li>
+              <li>You will then be prompted to enter your 4-digit check-in PIN.</li>
+              <li>Once confirmed, your attendance for that session will be recorded.</li>
+            </ul>
+            <p><strong>⚠️ Your PIN is compulsory for every session.</strong></p>
+
+            <h3>🗓️ Meeting Date &amp; Venue</h3>
+            <p><strong>Date:</strong> 28th January – 1st February 2026<br />
+            <strong>Venue:</strong> Balm of Gilead City</p>
+
+            <h3>🚌 Movement &amp; Departure Information</h3>
+            <p>All participants will move together to the venue from our church location.</p>
+            <p><strong>Departure Point:</strong> 25, Igbineweka Street, Off Ekosodin Road, Ugbowo, Benin City.</p>
+            <p><strong>Arrival Time:</strong> 7:30 AM<br />
+            <strong>Departure Time:</strong> 8:00 AM (sharp)</p>
+            <p>Please ensure you arrive early and fully prepared, as the movement will be prompt.</p>
+
+            <h3>🏕️ What to Come With (Camping Essentials)</h3>
+            <ul>
+              <li>Your Bible, notebook, and writing materials</li>
+              <li>Personal clothing for the duration of the camp</li>
+              <li>Bedding materials (bedsheet, blanket, pillow, etc.)</li>
+              <li>Personal toiletries, a bucket</li>
+              <li>Any personal medications</li>
+              <li>A ready and yielded heart</li>
+            </ul>
+
+            <h3>🌾 Seed &amp; Offering</h3>
+            <p>Please come prepared with a landmark seed/offering, as the Lord leads you. These moments of sacrifice are spiritual statements, and we trust God for divine encounters and instructions as we give.
+            Remember, I will not give to the Lord what will cost me nothing!</p>
+
+            <p>We strongly encourage you to arrive prayerful, punctual, and expectant. God is intentional about this gathering, and we believe HomeComing Conference 2026 will mark you deeply, change your life, and make you a better minister of God's power and word.</p>
+            <p>Once again — welcome home, Territorial Commander. We look forward to receiving you.</p>
+
+            <p>Warm regards,<br />
+            HomeComing Conference 2026 Team<br />
+            ${churchName}</p>
+
             <div class="footer">
                 <p>This email was sent to ${member.email}</p>
-                <p>If you received this email by mistake, please contact us immediately.</p>
             </div>
         </div>
     </body>
@@ -350,29 +482,67 @@ class EmailService {
    */
   generatePinEmailText(member, churchName) {
     return `
-Hello ${member.name},
+Dear ${member.name},
 
-Welcome to ${churchName}! You have been registered in our attendance system.
+Welcome home.
 
-Your Personal PIN: ${member.pin}
+Thank you for successfully registering for HomeComing Conference 2026. We are honoured to have you join us for this sacred gathering themed "Territorial Commanders."
 
-How to use your PIN:
-1. Look for the QR code at the entrance of church services or events
-2. Scan the QR code with your smartphone camera
-3. Answer the location verification question
-4. Enter your 4-digit PIN: ${member.pin}
-5. You're checked in!
+HomeComing Conference is a prayer retreat and camping experience, set apart for alignment, spiritual responsibility, and territorial authority. Over these days, we will pray, wait on God, receive divine instructions, and take our place as commanders in the territories God has entrusted to us.
 
-Important: Please keep this PIN secure and don't share it with others.
+---
 
-If you have any questions, please contact our church office.
+Your Personal Assignment & Check-In Information
+Chariot: ${member.chariotName}
+Chariot Leader: ${member.leaderName || 'Not assigned'}
+Chariot Leader Email: ${member.leaderEmail || 'Not assigned'}
+Role in Chariot: ${member.roleLabel}
 
-God bless,
-The ${churchName} Team
+Your 4-digit check-in PIN: ${member.pin}
+
+${member.showLogin ? `Login Details:
+Platform: ${member.portalUrl}
+Email: ${member.email}
+Password: ${member.loginPassword}
+` : ''}
+
+---
+
+How Registration Will Work at the Venue:
+- Scan the QR code at the registration point.
+- Enter your 4-digit PIN.
+- Attendance for that session will be recorded.
+
+Your PIN is compulsory for every session.
+
+Meeting Date & Venue:
+Date: 28th January – 1st February 2026
+Venue: Balm of Gilead City
+
+Movement & Departure Information:
+Departure Point: 25, Igbineweka Street, Off Ekosodin Road, Ugbowo, Benin City.
+Arrival Time: 7:30 AM
+Departure Time: 8:00 AM (sharp)
+
+What to Come With (Camping Essentials):
+- Your Bible, notebook, and writing materials
+- Personal clothing for the duration of the camp
+- Bedding materials (bedsheet, blanket, pillow, etc.)
+- Personal toiletries, a bucket
+- Any personal medications
+- A ready and yielded heart
+
+Seed & Offering:
+Please come prepared with a landmark seed/offering, as the Lord leads you.
+Remember, I will not give to the Lord what will cost me nothing!
+
+Once again — welcome home, Territorial Commander.
+Warm regards,
+HomeComing Conference 2026 Team
+${churchName}
 
 ---
 This email was sent to ${member.email}
-If you received this email by mistake, please contact us immediately.
     `;
   }
 
