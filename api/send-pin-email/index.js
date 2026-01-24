@@ -3,9 +3,14 @@ import { PrismaClient } from '@prisma/client';
 
 let prismaClient = null;
 
-const getPrismaClient = () => {
+const getDatabaseUrl = () =>
+  process.env.DIRECT_URL ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_PRISMA_URL;
+
+const getPrismaClient = (databaseUrl) => {
   if (prismaClient) return prismaClient;
-  const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!databaseUrl) {
     return null;
   }
@@ -22,9 +27,9 @@ const getPrismaClient = () => {
 /**
  * Fetch member with chariot details from database
  */
-async function fetchMemberChariotDetails(memberId, memberEmail) {
+async function fetchMemberChariotDetails(memberId, memberEmail, databaseUrl) {
   try {
-    const prisma = getPrismaClient();
+    const prisma = getPrismaClient(databaseUrl);
     if (!prisma) {
       return null;
     }
@@ -181,9 +186,17 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fetch member chariot details from database if not provided
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
+      return res.status(500).json({
+        error: 'Database not configured',
+        message: 'Set DIRECT_URL or DATABASE_URL in Vercel environment variables to fetch chariot details.',
+      });
+    }
+
+    // Fetch member chariot details from database
     console.log(`🔍 Fetching chariot details for member: ${memberId || memberEmail}`);
-    const chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail);
+    const chariotDetails = await fetchMemberChariotDetails(memberId, memberEmail, databaseUrl);
     if (!chariotDetails) {
       console.warn(`⚠️ Could not fetch chariot details for member: ${memberId || memberEmail}`);
     }
