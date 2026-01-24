@@ -90,6 +90,12 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
     }
   };
 
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    return 'Member';
+  };
+
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-y-auto">
@@ -155,7 +161,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                       <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{assistant.member.email}</p>
                       <p className="text-xs text-gray-500 mt-1">
                         {assistant.member.chapel
-                          ? `Chapel: ${assistant.member.chapel.name} (${assistant.member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                          ? `Chapel: ${assistant.member.chapel.name} (${formatChapelRole(assistant.member.chapelRole)})`
                           : 'Chapel: Not assigned'}
                       </p>
                     </div>
@@ -209,7 +215,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                       <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{chariotMember.member.email}</p>
                       <p className="text-xs text-gray-500 mt-1">
                         {chariotMember.member.chapel
-                          ? `Chapel: ${chariotMember.member.chapel.name} (${chariotMember.member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                          ? `Chapel: ${chariotMember.member.chapel.name} (${formatChapelRole(chariotMember.member.chapelRole)})`
                           : 'Chapel: Not assigned'}
                       </p>
                       {chariotMember.member.pin && (

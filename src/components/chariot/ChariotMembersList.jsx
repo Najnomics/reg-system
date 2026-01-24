@@ -46,6 +46,12 @@ const ChariotMembersList = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    return 'Member';
+  };
+
   if (loading && members.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -85,7 +91,7 @@ const ChariotMembersList = () => {
                     <p className="text-xs text-gray-600 break-words mt-1">{member.email}</p>
                     <p className="text-xs text-gray-600 break-words mt-1">
                       {member.chapel
-                        ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                        ? `Chapel: ${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
                         : 'Chapel: Not assigned'}
                     </p>
                   </div>
@@ -148,7 +154,7 @@ const ChariotMembersList = () => {
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">
                         {member.chapel
-                          ? `${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                          ? `${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
                           : 'Not assigned'}
                       </div>
                     </td>

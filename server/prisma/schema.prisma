@@ -11,6 +11,7 @@ datasource db {
 enum ChapelRole {
   INVITEE
   MEMBER
+  WORKER
 }
 
 model Admin {
@@ -37,6 +38,7 @@ model RegRep {
   password  String
   name      String
   isActive  Boolean  @default(true)
+  canAssignChapels Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy String

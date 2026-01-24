@@ -140,7 +140,7 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
                     <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                     {member.chapel?.id === chapel.id && member.chapelRole && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Current: {member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'}
+                        Current: {member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : 'Member'}
                       </p>
                     )}
                   </div>

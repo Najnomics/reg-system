@@ -6,7 +6,17 @@ const { generateMemberPin } = require('../utils/pinGenerator');
  */
 const getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query, name, email, chapelRole } = req.query;
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = 'name',
+      sortOrder = 'asc',
+      query,
+      name,
+      email,
+      chapelRole,
+      chapelId,
+    } = req.query;
     
     const skip = (page - 1) * limit;
     const orderBy = { [sortBy]: sortOrder };
@@ -36,8 +46,16 @@ const getMembers = async (req, res) => {
 
     if (chapelRole === 'UNASSIGNED') {
       where.chapelId = null;
-    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER') {
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER') {
       where.chapelRole = chapelRole;
+    }
+
+    if (chapelId) {
+      if (chapelId === 'UNASSIGNED') {
+        where.chapelId = null;
+      } else {
+        where.chapelId = chapelId;
+      }
     }
 
     // Get members and total count in parallel
@@ -178,6 +196,11 @@ const createMember = async (req, res) => {
     console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
     
     const { name, email } = req.body;
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    const blockedEmails = new Set([
+      'nosakhareochuko@gmail.com',
+      'dennisozobor@gmail.com',
+    ]);
 
     // Check authentication
     if (!req.user || !req.user.id) {
@@ -189,10 +212,17 @@ const createMember = async (req, res) => {
       });
     }
 
-    // Check if name already exists (name must be unique)
+    if (blockedEmails.has(normalizedEmail)) {
+      return res.status(409).json({
+        error: 'Email blocked',
+        message: 'A member with this email already exists and cannot be duplicated.',
+      });
+    }
+
+    // Enforce unique full name (same name combination)
     const existingMember = await prisma.member.findUnique({
       where: { name: name.trim() },
-      select: { id: true, email: true },
+      select: { id: true },
     });
 
     if (existingMember) {
@@ -214,7 +244,7 @@ const createMember = async (req, res) => {
       data: {
         id: memberId,
         name: name.trim(),
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         pin,
         pinHash,
         isActive: true,
@@ -349,7 +379,7 @@ const updateMember = async (req, res) => {
 };
 
 /**
- * Delete/deactivate a member
+ * Delete a member (hard delete)
  */
 const deleteMember = async (req, res) => {
   try {
@@ -358,7 +388,7 @@ const deleteMember = async (req, res) => {
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
       where: { id },
-      select: { id: true, isActive: true },
+      select: { id: true, name: true, email: true },
     });
 
     if (!existingMember) {
@@ -368,21 +398,18 @@ const deleteMember = async (req, res) => {
       });
     }
 
-    // Soft delete by setting isActive to false
-    const member = await prisma.member.update({
+    const member = await prisma.member.delete({
       where: { id },
-      data: { isActive: false },
       select: {
         id: true,
         name: true,
         email: true,
-        isActive: true,
       },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Member deactivated successfully',
+      message: 'Member deleted successfully',
       data: { member },
     });
 
@@ -390,13 +417,13 @@ const deleteMember = async (req, res) => {
     console.error('Delete member error:', error);
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to deactivate member',
+      message: 'Failed to delete member',
     });
   }
 };
 
 /**
- * Bulk delete/deactivate members
+ * Bulk delete members (hard delete)
  */
 const bulkDeleteMembers = async (req, res) => {
   try {
@@ -430,7 +457,6 @@ const bulkDeleteMembers = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        isActive: true,
       },
     });
 
@@ -441,17 +467,15 @@ const bulkDeleteMembers = async (req, res) => {
       });
     }
 
-    // Soft delete by setting isActive to false
-    const result = await prisma.member.updateMany({
+    const result = await prisma.member.deleteMany({
       where: {
         id: { in: memberIds },
       },
-      data: { isActive: false },
     });
 
     res.status(200).json({
       success: true,
-      message: `Successfully deactivated ${result.count} member(s)`,
+      message: `Successfully deleted ${result.count} member(s)`,
       data: {
         deletedCount: result.count,
         requestedCount: memberIds.length,
@@ -501,7 +525,7 @@ const searchMembers = async (req, res) => {
 
     if (chapelRole === 'UNASSIGNED') {
       where.chapelId = null;
-    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER') {
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER') {
       where.chapelRole = chapelRole;
     }
 

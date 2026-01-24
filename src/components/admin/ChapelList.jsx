@@ -9,6 +9,7 @@ import {
   XCircleIcon,
   MagnifyingGlassIcon,
   UsersIcon,
+  DocumentIcon,
 } from '@heroicons/react/24/outline';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,8 +20,9 @@ import AssignChapelMembersModal from './AssignChapelMembersModal';
 
 const ChapelList = () => {
   const { showError, showSuccess } = useApp();
-  const { userType } = useAuth();
+  const { userType, user } = useAuth();
   const isAdmin = userType === 'admin';
+  const canAssignChapels = isAdmin || (userType === 'reg-rep' && user?.canAssignChapels);
   const [chapels, setChapels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,6 +39,7 @@ const ChapelList = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [selectedChapels, setSelectedChapels] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   const loadChapels = useCallback(async () => {
     try {
@@ -184,6 +187,26 @@ const ChapelList = () => {
     setDeleteModalOpen(true);
   };
 
+  const handleExportPDF = async () => {
+    try {
+      setExportingPDF(true);
+      const blob = await apiService.exportChapelsPDF();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `chapels_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      showError('Failed to export chapels PDF');
+      console.error('Export chapels PDF error:', error);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   const handleAssignSubmit = async (memberIds) => {
     if (!selectedChapel || !assignType || memberIds.length === 0) return;
 
@@ -232,19 +255,30 @@ const ChapelList = () => {
         <div className="min-w-0 flex-1">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Chapels</h2>
           <p className="mt-1 text-xs sm:text-sm text-gray-600">
-            Manage chapels, invitees, and members
+            Manage chapels, invitees, members, and workers
           </p>
         </div>
-        {isAdmin && (
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
-            onClick={handleCreate}
-            className="px-3 sm:px-4 py-2 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto"
+            onClick={handleExportPDF}
+            disabled={exportingPDF}
+            className="px-3 sm:px-4 py-2 bg-white text-gray-700 text-xs sm:text-sm font-medium rounded-md border border-gray-300 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden sm:inline">Create Chapel</span>
-            <span className="sm:hidden">Create</span>
+            <DocumentIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">{exportingPDF ? 'Exporting...' : 'Export PDF'}</span>
+            <span className="sm:hidden">PDF</span>
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={handleCreate}
+              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto"
+            >
+              <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Create Chapel</span>
+              <span className="sm:hidden">Create</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="relative w-full">
@@ -331,7 +365,7 @@ const ChapelList = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
                   <div className="text-center p-2 bg-gray-50 rounded">
                     <div className="text-base sm:text-lg font-semibold text-gray-900">
                       {chapel.members?.filter(member => member.chapelRole === 'INVITEE').length || 0}
@@ -340,9 +374,15 @@ const ChapelList = () => {
                   </div>
                   <div className="text-center p-2 bg-gray-50 rounded">
                     <div className="text-base sm:text-lg font-semibold text-gray-900">
-                      {chapel.members?.filter(member => member.chapelRole !== 'INVITEE').length || 0}
+                      {chapel.members?.filter(member => member.chapelRole === 'MEMBER').length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Members</div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded">
+                    <div className="text-base sm:text-lg font-semibold text-gray-900">
+                      {chapel.members?.filter(member => member.chapelRole === 'WORKER').length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Workers</div>
                   </div>
                 </div>
 
@@ -374,7 +414,7 @@ const ChapelList = () => {
                   )}
                 </div>
 
-                {isAdmin && (
+                {canAssignChapels && (
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button

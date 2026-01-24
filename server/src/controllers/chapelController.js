@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const crypto = require('crypto');
+const PDFDocument = require('pdfkit');
 
 /**
  * Get all chapels
@@ -98,6 +99,97 @@ const getChapel = async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to retrieve chapel',
+    });
+  }
+};
+
+/**
+ * Export all chapels as PDF
+ */
+const exportChapelsPDF = async (req, res) => {
+  try {
+    const chapels = await prisma.chapel.findMany({
+      include: {
+        members: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            chapelRole: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = `chapels_report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.pipe(res);
+
+    doc.fontSize(20).text('Chapels Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Total Chapels: ${chapels.length}`);
+    doc.moveDown();
+
+    if (chapels.length === 0) {
+      doc.fontSize(12).text('No chapels found.');
+      doc.end();
+      return;
+    }
+
+    chapels.forEach((chapel, index) => {
+      if (doc.y > 700) doc.addPage();
+
+      doc.fontSize(14).text(`${index + 1}. ${chapel.name}`, { underline: true });
+      doc.moveDown(0.2);
+
+      const invitees = chapel.members.filter(member => member.chapelRole === 'INVITEE');
+      const members = chapel.members.filter(member => member.chapelRole === 'MEMBER');
+      const workers = chapel.members.filter(member => member.chapelRole === 'WORKER');
+
+      doc.fontSize(11).text(`Invitees (${invitees.length}):`);
+      if (invitees.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        invitees.forEach((member, i) => {
+          doc.fontSize(10).text(`  ${i + 1}. ${member.name} (${member.email})`);
+        });
+      }
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Members (${members.length}):`);
+      if (members.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        members.forEach((member, i) => {
+          doc.fontSize(10).text(`  ${i + 1}. ${member.name} (${member.email})`);
+        });
+      }
+
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Workers (${workers.length}):`);
+      if (workers.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        workers.forEach((member, i) => {
+          doc.fontSize(10).text(`  ${i + 1}. ${member.name} (${member.email})`);
+        });
+      }
+
+      doc.moveDown();
+    });
+
+    doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' });
+    doc.end();
+  } catch (error) {
+    console.error('Export chapels PDF error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export chapels as PDF',
     });
   }
 };
@@ -272,13 +364,29 @@ const addMembers = async (req, res) => {
     }
 
     const roleSwitches = existingMembers.filter(
-      member => member.chapelId === id && member.chapelRole && member.chapelRole !== role
+      member => member.chapelRole !== 'WORKER' && member.chapelId === id && member.chapelRole && member.chapelRole !== role
     ).length;
 
-    await prisma.member.updateMany({
-      where: { id: { in: memberIds } },
-      data: { chapelId: id, chapelRole: role },
-    });
+    const workerIds = existingMembers
+      .filter(member => member.chapelRole === 'WORKER')
+      .map(member => member.id);
+    const nonWorkerIds = existingMembers
+      .filter(member => member.chapelRole !== 'WORKER')
+      .map(member => member.id);
+
+    if (nonWorkerIds.length > 0) {
+      await prisma.member.updateMany({
+        where: { id: { in: nonWorkerIds } },
+        data: { chapelId: id, chapelRole: role },
+      });
+    }
+
+    if (workerIds.length > 0) {
+      await prisma.member.updateMany({
+        where: { id: { in: workerIds } },
+        data: { chapelId: id },
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -311,10 +419,27 @@ const removeMembers = async (req, res) => {
       });
     }
 
-    await prisma.member.updateMany({
+    const membersInChapel = await prisma.member.findMany({
       where: { id: { in: memberIds }, chapelId: id },
-      data: { chapelId: null, chapelRole: null },
+      select: { id: true, chapelRole: true },
     });
+
+    const workerIds = membersInChapel.filter(member => member.chapelRole === 'WORKER').map(member => member.id);
+    const nonWorkerIds = membersInChapel.filter(member => member.chapelRole !== 'WORKER').map(member => member.id);
+
+    if (nonWorkerIds.length > 0) {
+      await prisma.member.updateMany({
+        where: { id: { in: nonWorkerIds } },
+        data: { chapelId: null, chapelRole: null },
+      });
+    }
+
+    if (workerIds.length > 0) {
+      await prisma.member.updateMany({
+        where: { id: { in: workerIds } },
+        data: { chapelId: null },
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -332,6 +457,7 @@ const removeMembers = async (req, res) => {
 module.exports = {
   getChapels,
   getChapel,
+  exportChapelsPDF,
   createChapel,
   updateChapel,
   deleteChapel,

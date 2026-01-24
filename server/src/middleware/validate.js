@@ -142,7 +142,11 @@ const schemas = {
     name: Joi.string().trim().min(1).max(100).optional().allow(''),
     email: Joi.string().email().optional().allow(''),
     pin: Joi.string().pattern(/^\d{4}$/).optional().allow(''),
-    chapelRole: Joi.string().valid('INVITEE', 'MEMBER', 'UNASSIGNED').optional().allow(''),
+    chapelRole: Joi.string().valid('INVITEE', 'MEMBER', 'WORKER', 'UNASSIGNED').optional().allow(''),
+    chapelId: Joi.alternatives()
+      .try(Joi.string().uuid(), Joi.string().valid('UNASSIGNED'))
+      .optional()
+      .allow(''),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
     sortBy: Joi.string().valid('name', 'email', 'createdAt').default('name'),
@@ -227,6 +231,7 @@ const schemas = {
       'string.max': 'Password must not exceed 50 characters',
       'any.required': 'Password is required',
     }),
+    canAssignChapels: Joi.boolean().optional(),
   }),
 
   regRepUpdate: Joi.object({
@@ -238,6 +243,7 @@ const schemas = {
       'string.email': 'Email must be a valid email address',
     }),
     isActive: Joi.boolean().optional(),
+    canAssignChapels: Joi.boolean().optional(),
   }),
 
   // Password reset

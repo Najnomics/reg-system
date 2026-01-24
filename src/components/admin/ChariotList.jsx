@@ -9,7 +9,8 @@ import {
   XCircleIcon,
   MagnifyingGlassIcon,
   UserIcon,
-  UsersIcon
+  UsersIcon,
+  DocumentIcon
 } from '@heroicons/react/24/outline';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -38,6 +39,7 @@ const ChariotList = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [selectedChariots, setSelectedChariots] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   const loadChariots = useCallback(async () => {
     try {
@@ -187,6 +189,26 @@ const ChariotList = () => {
     setDeleteModalOpen(true);
   };
 
+  const handleExportPDF = async () => {
+    try {
+      setExportingPDF(true);
+      const blob = await apiService.exportChariotsPDF();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `chariots_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      showError('Failed to export chariots PDF');
+      console.error('Export chariots PDF error:', error);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   const handleAssignSubmit = async (memberIds) => {
     if (!selectedChariot || !assignType || memberIds.length === 0) return;
 
@@ -246,16 +268,27 @@ const ChariotList = () => {
             Manage chariot groups, leaders, assistants, and members
           </p>
         </div>
-        {isAdmin && (
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
-            onClick={handleCreate}
-            className="px-3 sm:px-4 py-2 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto"
+            onClick={handleExportPDF}
+            disabled={exportingPDF}
+            className="px-3 sm:px-4 py-2 bg-white text-gray-700 text-xs sm:text-sm font-medium rounded-md border border-gray-300 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden sm:inline">Create Chariot</span>
-            <span className="sm:hidden">Create</span>
+            <DocumentIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">{exportingPDF ? 'Exporting...' : 'Export PDF'}</span>
+            <span className="sm:hidden">PDF</span>
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={handleCreate}
+              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white text-xs sm:text-sm font-medium rounded-md border border-indigo-600 shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto"
+            >
+              <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Create Chariot</span>
+              <span className="sm:hidden">Create</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}

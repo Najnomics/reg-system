@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const crypto = require('crypto');
+const PDFDocument = require('pdfkit');
 
 /**
  * Get all chariots
@@ -170,6 +171,138 @@ const getChariot = async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to retrieve chariot',
+    });
+  }
+};
+
+/**
+ * Export all chariots as PDF
+ */
+const exportChariotsPDF = async (req, res) => {
+  try {
+    const chariots = await prisma.chariot.findMany({
+      include: {
+        leader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            chapelRole: true,
+            chapel: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+        assistants: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                chapelRole: true,
+                chapel: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                pin: true,
+                chapelRole: true,
+                chapel: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const totalAssistants = chariots.reduce((sum, chariot) => sum + (chariot.assistants?.length || 0), 0);
+    const totalMembers = chariots.reduce((sum, chariot) => sum + (chariot.members?.length || 0), 0);
+
+    const formatChapelRole = (role) => {
+      if (role === 'INVITEE') return 'Invitee';
+      if (role === 'WORKER') return 'Worker';
+      return 'Member';
+    };
+
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = `chariots_report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.pipe(res);
+
+    doc.fontSize(20).text('Chariots Report', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Total Chariots: ${chariots.length}`);
+    doc.text(`Total Assistants: ${totalAssistants}`);
+    doc.text(`Total Members: ${totalMembers}`);
+    doc.moveDown();
+
+    if (chariots.length === 0) {
+      doc.fontSize(12).text('No chariots found.');
+      doc.end();
+      return;
+    }
+
+    chariots.forEach((chariot, index) => {
+      if (doc.y > 700) doc.addPage();
+
+      doc.fontSize(14).text(`${index + 1}. ${chariot.name}`, { underline: true });
+      if (chariot.description) {
+        doc.fontSize(10).text(`Description: ${chariot.description}`);
+      }
+      doc.moveDown(0.3);
+
+      const leaderLabel = chariot.leader
+        ? `${chariot.leader.name} (${chariot.leader.email})${chariot.leader.chapelRole ? ` - ${formatChapelRole(chariot.leader.chapelRole)}` : ''}`
+        : 'Not assigned';
+      doc.fontSize(11).text(`Leader: ${leaderLabel}`);
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Assistants (${chariot.assistants.length}):`);
+      if (chariot.assistants.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        chariot.assistants.forEach((assistant, i) => {
+          const roleLabel = assistant.member.chapelRole ? ` - ${formatChapelRole(assistant.member.chapelRole)}` : '';
+          doc.fontSize(10).text(`  ${i + 1}. ${assistant.member.name} (${assistant.member.email})${roleLabel}`);
+        });
+      }
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Members (${chariot.members.length}):`);
+      if (chariot.members.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        chariot.members.forEach((member, i) => {
+          const roleLabel = member.member.chapelRole ? ` - ${formatChapelRole(member.member.chapelRole)}` : '';
+          doc.fontSize(10).text(`  ${i + 1}. ${member.member.name} (${member.member.email})${roleLabel}`);
+        });
+      }
+
+      doc.moveDown();
+    });
+
+    doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' });
+    doc.end();
+  } catch (error) {
+    console.error('Export chariots PDF error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export chariots as PDF',
     });
   }
 };
@@ -740,6 +873,7 @@ const removeMembers = async (req, res) => {
 module.exports = {
   getChariots,
   getChariot,
+  exportChariotsPDF,
   createChariot,
   updateChariot,
   deleteChariot,

@@ -1,8 +1,14 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
-const RoleBasedRoute = ({ children, allowedRoles = [], adminOnly = false, regRepOnly = false }) => {
-  const { isAuthenticated, userType, isLoading } = useAuth();
+const RoleBasedRoute = ({
+  children,
+  allowedRoles = [],
+  adminOnly = false,
+  regRepOnly = false,
+  allowRegRepChapelAssign = false,
+}) => {
+  const { isAuthenticated, userType, user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -34,6 +40,17 @@ const RoleBasedRoute = ({ children, allowedRoles = [], adminOnly = false, regRep
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600">This feature is only available to registration representatives.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (allowRegRepChapelAssign && userType === 'reg-rep' && !user?.canAssignChapels) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You don't have permission to manage chapels.</p>
         </div>
       </div>
     );
