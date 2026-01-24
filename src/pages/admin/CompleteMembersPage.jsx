@@ -181,7 +181,7 @@ const CompleteMembersPage = () => {
 
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
 
-  const handleAddMember = async (memberData) => {
+  const handleSaveMember = async (memberData) => {
     // Prevent double submission
     if (isSubmittingMember) {
       return;
@@ -194,16 +194,27 @@ const CompleteMembersPage = () => {
         name: `${memberData.firstName} ${memberData.lastName}`,
         email: memberData.email
       };
-      
-      const response = await apiService.createMember(apiData);
-      const newMember = response?.data?.member || response?.member || response;
-      
-      // Update local state
-      setMembers(prev => [...prev, newMember]);
-      
-      // Show success message
-      showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully! You can send the PIN email manually using the "Resend PIN" button.`);
-      
+
+      if (selectedMember?.id) {
+        const response = await apiService.updateMember(selectedMember.id, apiData);
+        const updatedMember = response?.data?.member || response?.member || response;
+
+        // Update local state
+        setMembers((prev) => prev.map((m) => (m.id === selectedMember.id ? updatedMember : m)));
+
+        // Show success message
+        showSuccess(`Member ${memberData.firstName} ${memberData.lastName} updated successfully!`);
+      } else {
+        const response = await apiService.createMember(apiData);
+        const newMember = response?.data?.member || response?.member || response;
+
+        // Update local state
+        setMembers(prev => [...prev, newMember]);
+
+        // Show success message
+        showSuccess(`Member ${memberData.firstName} ${memberData.lastName} added successfully! You can send the PIN email manually using the "Resend PIN" button.`);
+      }
+
       // Close modal and reset
       setShowAddModal(false);
       setSelectedMember(null);
@@ -211,7 +222,7 @@ const CompleteMembersPage = () => {
       // Refresh the list to get latest data (stay on current page)
       await fetchMembers(currentPage);
     } catch (error) {
-      console.error('Failed to create member:', error);
+      console.error('Failed to save member:', error);
       
       // Handle specific error cases
       const errorMessage = error.message || '';
@@ -220,7 +231,7 @@ const CompleteMembersPage = () => {
       } else if (errorMessage.includes('Email already exists')) {
         showError(`A member with email ${memberData.email} already exists. Please use a different email address.`);
       } else {
-        showError(errorMessage || 'Failed to create member. Please try again.');
+        showError(errorMessage || 'Failed to save member. Please try again.');
       }
     } finally {
       setIsSubmittingMember(false);
@@ -1369,7 +1380,7 @@ const CompleteMembersPage = () => {
       {showAddModal && (
         <AddMemberModal
           member={selectedMember}
-          onSave={handleAddMember}
+          onSave={handleSaveMember}
           isSubmitting={isSubmittingMember}
           onCancel={() => {
             setShowAddModal(false);
