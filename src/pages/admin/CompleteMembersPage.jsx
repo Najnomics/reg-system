@@ -674,9 +674,22 @@ const CompleteMembersPage = () => {
     }
   };
 
-  const exportMembers = () => {
-    // Mock implementation
-    showSuccess('Members exported to Excel successfully!');
+  const exportMembers = async () => {
+    try {
+      const blob = await apiService.exportMembersCSV();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `members-${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess('Members exported successfully!');
+    } catch (error) {
+      console.error('Export members error:', error);
+      showError('Failed to export members CSV');
+    }
   };
 
   const handleLogout = () => {

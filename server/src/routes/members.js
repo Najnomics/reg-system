@@ -25,6 +25,12 @@ router.get('/template', (req, res, next) => {
   next();
 }, authenticateAdmin, require('../controllers/uploadController').downloadTemplate);
 
+// Export members CSV (admin and reg-rep)
+router.get('/export/csv',
+  authenticateUser,
+  memberController.exportMembersCSV
+);
+
 router.get('/:id',
   authenticateUser,
   validate(schemas.memberId, 'params'),

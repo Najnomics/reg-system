@@ -1007,6 +1007,136 @@ const resendPinToAll = async (req, res) => {
   }
 };
 
+/**
+ * Export all members as CSV
+ */
+const exportMembersCSV = async (req, res) => {
+  try {
+    const members = await prisma.member.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+        isActive: true,
+        createdAt: true,
+        chapelRole: true,
+        chapel: { select: { name: true } },
+        chariotLeader: {
+          select: {
+            name: true,
+          },
+        },
+        chariotAssistants: {
+          select: {
+            chariot: {
+              select: {
+                name: true,
+                leader: { select: { name: true, email: true } },
+              },
+            },
+          },
+        },
+        chariotMembers: {
+          select: {
+            chariot: {
+              select: {
+                name: true,
+                leader: { select: { name: true, email: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const formatChapelRole = (role) => {
+      if (role === 'INVITEE') return 'Invitee';
+      if (role === 'WORKER') return 'Worker';
+      if (role === 'MEMBER') return 'Member';
+      return 'Not assigned';
+    };
+
+    const escapeCsv = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = [
+      [
+        'Name',
+        'Email',
+        'PIN',
+        'Chapel',
+        'Chapel Role',
+        'Chariot',
+        'Chariot Role',
+        'Chariot Leader',
+        'Chariot Leader Email',
+        'Status',
+        'Joined',
+      ],
+    ];
+
+    members.forEach((member) => {
+      let chariotName = '';
+      let chariotRole = 'Not assigned';
+      let leaderName = '';
+      let leaderEmail = '';
+
+      if (member.chariotLeader?.length) {
+        chariotRole = 'Leader';
+        chariotName = member.chariotLeader[0]?.name || '';
+        leaderName = member.name || '';
+        leaderEmail = member.email || '';
+      } else if (member.chariotAssistants?.length) {
+        chariotRole = 'Assistant';
+        const chariot = member.chariotAssistants[0]?.chariot;
+        chariotName = chariot?.name || '';
+        leaderName = chariot?.leader?.name || '';
+        leaderEmail = chariot?.leader?.email || '';
+      } else if (member.chariotMembers?.length) {
+        chariotRole = 'Member';
+        const chariot = member.chariotMembers[0]?.chariot;
+        chariotName = chariot?.name || '';
+        leaderName = chariot?.leader?.name || '';
+        leaderEmail = chariot?.leader?.email || '';
+      }
+
+      rows.push([
+        member.name || '',
+        member.email || '',
+        member.pin || '',
+        member.chapel?.name || '',
+        formatChapelRole(member.chapelRole),
+        chariotName,
+        chariotRole,
+        leaderName,
+        leaderEmail,
+        member.isActive === false ? 'Inactive' : 'Active',
+        member.createdAt ? new Date(member.createdAt).toISOString() : '',
+      ]);
+    });
+
+    const csvContent = rows.map((row) => row.map(escapeCsv).join(',')).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="members.csv"');
+    res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('Export members CSV error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export members as CSV',
+    });
+  }
+};
+
 module.exports = {
   getMembers,
   getMember,
@@ -1019,4 +1149,5 @@ module.exports = {
   resendPin,
   bulkResendPin,
   resendPinToAll,
+  exportMembersCSV,
 };

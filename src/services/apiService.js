@@ -814,6 +814,20 @@ class ApiService {
     return response.blob();
   }
 
+  async exportMembersCSV() {
+    const url = `${API_BASE_URL}/members/export/csv`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export members CSV');
+    }
+    return response.blob();
+  }
+
   async assignUnassignedMembersToChariots() {
     return this.request('/chariots/assign-unassigned', { method: 'POST' });
   }
