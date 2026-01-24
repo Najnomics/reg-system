@@ -276,48 +276,25 @@ class ApiService {
         leaderEmail = chariot?.leader?.email || '';
       }
 
-      // Try Vercel email service first, fallback to Railway if rate limited
-      try {
-        const result = await vercelEmailService.sendPinEmail({
-          id: member.id,
-          name: member.name,
-          email: member.email,
-          pin: member.pin || member.memberCode, // Support both pin and memberCode
-          chariotName,
-          roleLabel,
-          leaderName,
-          leaderEmail,
-          showLogin,
-          portalUrl: window.location.origin,
-        });
+      // Use Vercel email service
+      const result = await vercelEmailService.sendPinEmail({
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        pin: member.pin || member.memberCode, // Support both pin and memberCode
+        chariotName,
+        roleLabel,
+        leaderName,
+        leaderEmail,
+        showLogin,
+        portalUrl: window.location.origin,
+      });
 
-        return {
-          success: true,
-          message: 'PIN email sent successfully',
-          data: result,
-        };
-      } catch (vercelError) {
-        // Check if it's a rate limit error (429 or message contains "limit")
-        const isRateLimit = 
-          vercelError.status === 429 ||
-          vercelError.message?.includes('limit reached') ||
-          vercelError.message?.includes('Sending limit');
-
-        if (isRateLimit) {
-          console.warn('Vercel rate limit reached, falling back to Railway email service');
-          // Fallback to Railway backend email service
-          const railwayResult = await this.request(`/members/${memberId}/resend-pin`, {
-            method: 'POST',
-          });
-          return {
-            success: true,
-            message: 'PIN email sent successfully via Railway (Vercel rate limited)',
-            data: railwayResult,
-          };
-        }
-        // Re-throw if it's not a rate limit error
-        throw vercelError;
-      }
+      return {
+        success: true,
+        message: 'PIN email sent successfully',
+        data: result,
+      };
     } catch (error) {
       console.error('Failed to resend PIN:', error);
       throw error;
