@@ -34,6 +34,7 @@ const getRegReps = async (req, res) => {
           name: true,
           email: true,
           isActive: true,
+          canAssignChapels: true,
           createdAt: true,
           updatedAt: true,
           createdBy: true,
@@ -85,6 +86,7 @@ const getRegRep = async (req, res) => {
         name: true,
         email: true,
         isActive: true,
+        canAssignChapels: true,
         createdAt: true,
         updatedAt: true,
         createdBy: true,
@@ -125,7 +127,7 @@ const createRegRep = async (req, res) => {
       });
     }
 
-    const { name, email, password } = req.body;
+    const { name, email, password, canAssignChapels } = req.body;
     const adminId = req.user.id; // Admin creating this reg-rep
 
     // Check if email already exists in admin or regRep tables
@@ -163,6 +165,7 @@ const createRegRep = async (req, res) => {
         email: email.toLowerCase(),
         password: hashedPassword,
         isActive: true,
+        ...(canAssignChapels !== undefined && { canAssignChapels }),
         createdBy: adminId,
       },
       select: {
@@ -170,6 +173,7 @@ const createRegRep = async (req, res) => {
         name: true,
         email: true,
         isActive: true,
+        canAssignChapels: true,
         createdAt: true,
         updatedAt: true,
         createdBy: true,
@@ -208,7 +212,7 @@ const createRegRep = async (req, res) => {
 const updateRegRep = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, isActive } = req.body;
+    const { name, email, isActive, canAssignChapels } = req.body;
 
     // Check if reg-rep exists
     const existingRegRep = await prisma.regRep.findUnique({
@@ -249,6 +253,7 @@ const updateRegRep = async (req, res) => {
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.toLowerCase();
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (canAssignChapels !== undefined) updateData.canAssignChapels = canAssignChapels;
 
     // Update reg-rep
     const regRep = await prisma.regRep.update({
@@ -259,6 +264,7 @@ const updateRegRep = async (req, res) => {
         name: true,
         email: true,
         isActive: true,
+        canAssignChapels: true,
         createdAt: true,
         updatedAt: true,
         createdBy: true,
@@ -309,6 +315,7 @@ const deleteRegRep = async (req, res) => {
         name: true,
         email: true,
         isActive: true,
+        canAssignChapels: true,
       },
     });
 
@@ -356,6 +363,7 @@ const toggleRegRepStatus = async (req, res) => {
         name: true,
         email: true,
         isActive: true,
+        canAssignChapels: true,
         createdAt: true,
         updatedAt: true,
         createdBy: true,
@@ -375,6 +383,59 @@ const toggleRegRepStatus = async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to toggle reg-rep status',
+    });
+  }
+};
+
+/**
+ * Toggle reg-rep chapel assignment permission (admin only)
+ */
+const toggleRegRepChapelAssign = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if reg-rep exists
+    const existingRegRep = await prisma.regRep.findUnique({
+      where: { id },
+      select: { id: true, canAssignChapels: true, name: true },
+    });
+
+    if (!existingRegRep) {
+      return res.status(404).json({
+        error: 'Reg-rep not found',
+        message: 'Reg-rep with the specified ID does not exist',
+      });
+    }
+
+    // Toggle canAssignChapels
+    const regRep = await prisma.regRep.update({
+      where: { id },
+      data: { canAssignChapels: !existingRegRep.canAssignChapels },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        canAssignChapels: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: true,
+      },
+    });
+
+    const action = regRep.canAssignChapels ? 'enabled' : 'disabled';
+
+    res.status(200).json({
+      success: true,
+      message: `Chapel assignment permission ${action} successfully`,
+      data: { regRep },
+    });
+
+  } catch (error) {
+    console.error('Toggle reg-rep chapel assign error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to toggle chapel assignment permission',
     });
   }
 };
@@ -435,5 +496,6 @@ module.exports = {
   updateRegRep,
   deleteRegRep,
   toggleRegRepStatus,
+  toggleRegRepChapelAssign,
   resetRegRepPassword,
 };

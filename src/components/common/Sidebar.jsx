@@ -12,7 +12,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
-const getNavigationItems = (userType) => {
+const getNavigationItems = (userType, user) => {
   // Chariot users navigation
   if (userType === 'chariot-leader' || userType === 'chariot-assistant') {
     return [
@@ -67,14 +67,23 @@ const getNavigationItems = (userType) => {
     });
   }
 
+  if (userType === 'reg-rep' && user?.canAssignChapels) {
+    baseNavigation.splice(4, 0, {
+      name: 'Chapels',
+      href: '/admin/chapels',
+      icon: UserGroupIcon,
+      roles: ['reg-rep'],
+    });
+  }
+
   return baseNavigation.filter(item => !item.roles || item.roles.includes(userType));
 };
 
 const Sidebar = () => {
   const { sidebarOpen, setSidebar } = useApp();
-  const { userType } = useAuth();
+  const { userType, user } = useAuth();
   
-  const navigation = getNavigationItems(userType);
+  const navigation = getNavigationItems(userType, user);
 
   return (
     <>

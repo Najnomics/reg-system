@@ -10,29 +10,68 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Check admin and reg-rep tables first
-    const [admin, regRep] = await Promise.all([
-      prisma.admin.findUnique({
-        where: { email: email.toLowerCase() },
-        select: {
-          id: true,
-          email: true,
-          password: true,
-          name: true,
-          isActive: true,
-        },
-      }),
-      prisma.regRep.findUnique({
-        where: { email: email.toLowerCase() },
-        select: {
-          id: true,
-          email: true,
-          password: true,
-          name: true,
-          isActive: true,
-          createdBy: true,
-        },
-      })
-    ]);
+    let admin, regRep;
+    try {
+      [admin, regRep] = await Promise.all([
+        prisma.admin.findUnique({
+          where: { email: email.toLowerCase() },
+          select: {
+            id: true,
+            email: true,
+            password: true,
+            name: true,
+            isActive: true,
+          },
+        }),
+        prisma.regRep.findUnique({
+          where: { email: email.toLowerCase() },
+          select: {
+            id: true,
+            email: true,
+            password: true,
+            name: true,
+            isActive: true,
+            createdBy: true,
+            canAssignChapels: true,
+          },
+        })
+      ]);
+    } catch (dbError) {
+      console.error('Database query error in login:', dbError);
+      // If canAssignChapels field doesn't exist, try without it
+      if (dbError.message && dbError.message.includes('canAssignChapels')) {
+        console.log('Retrying without canAssignChapels field...');
+        [admin, regRep] = await Promise.all([
+          prisma.admin.findUnique({
+            where: { email: email.toLowerCase() },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              name: true,
+              isActive: true,
+            },
+          }),
+          prisma.regRep.findUnique({
+            where: { email: email.toLowerCase() },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              name: true,
+              isActive: true,
+              createdBy: true,
+            },
+          })
+        ]);
+        // Set canAssignChapels to false as default if not available
+        if (regRep) {
+          regRep.canAssignChapels = false;
+        }
+      } else {
+        throw dbError;
+      }
+    }
 
     // If admin or reg-rep found, use existing logic
     if (admin || regRep) {

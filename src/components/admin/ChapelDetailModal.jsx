@@ -7,8 +7,8 @@ import AssignChapelMembersModal from './AssignChapelMembersModal';
 
 const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
   const { showError, showSuccess } = useApp();
-  const { userType } = useAuth();
-  const isAdmin = userType === 'admin';
+  const { userType, user } = useAuth();
+  const canAssignChapels = userType === 'admin' || (userType === 'reg-rep' && user?.canAssignChapels);
   const [loading, setLoading] = useState(false);
   const [currentChapel, setCurrentChapel] = useState(chapel);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -70,7 +70,8 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
   };
 
   const invitees = (currentChapel.members || []).filter(member => member.chapelRole === 'INVITEE');
-  const chapelMembers = (currentChapel.members || []).filter(member => member.chapelRole !== 'INVITEE');
+  const chapelMembers = (currentChapel.members || []).filter(member => member.chapelRole === 'MEMBER');
+  const chapelWorkers = (currentChapel.members || []).filter(member => member.chapelRole === 'WORKER');
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
@@ -100,7 +101,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                   Invitees ({invitees.length})
                 </h4>
               </div>
-              {isAdmin && (
+              {canAssignChapels && (
                 <button
                   onClick={() => handleAssign('invitees')}
                   className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 touch-manipulation w-full sm:w-auto"
@@ -123,7 +124,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                       <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
                       <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                     </div>
-                    {isAdmin && (
+                    {canAssignChapels && (
                       <button
                         onClick={() => handleRemoveMember(member.id)}
                         className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
@@ -148,7 +149,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                   Members ({chapelMembers.length})
                 </h4>
               </div>
-              {isAdmin && (
+              {canAssignChapels && (
                 <button
                   onClick={() => handleAssign('members')}
                   className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2 touch-manipulation w-full sm:w-auto"
@@ -174,7 +175,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                         <p className="text-xs text-gray-500">PIN: {member.pin}</p>
                       )}
                     </div>
-                    {isAdmin && (
+                    {canAssignChapels && (
                       <button
                         onClick={() => handleRemoveMember(member.id)}
                         className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
@@ -188,6 +189,35 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
               </div>
             ) : (
               <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No members assigned</p>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <UserGroupIcon className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 flex-shrink-0" />
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
+                Workers ({chapelWorkers.length})
+              </h4>
+            </div>
+            {chapelWorkers.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+                {chapelWorkers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-2 sm:p-3 bg-amber-50 border border-amber-200 rounded-lg gap-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
+                      {member.pin && (
+                        <p className="text-xs text-gray-500">PIN: {member.pin}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs sm:text-sm text-gray-500 p-3 sm:p-4 bg-gray-50 rounded-lg">No workers assigned</p>
             )}
           </div>
         </div>

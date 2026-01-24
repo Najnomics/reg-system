@@ -56,16 +56,51 @@ function App() {
                 }>
                   <Route index element={<SimpleDashboard />} />
                   <Route path="dashboard" element={<SimpleDashboard />} />
-                  <Route path="members" element={<CompleteMembersPage />} />
-                  <Route path="sessions" element={<SessionsPage />} />
+                  <Route
+                    path="members"
+                    element={
+                      <RoleBasedRoute allowedRoles={['admin', 'reg-rep', 'pastoral']}>
+                        <CompleteMembersPage />
+                      </RoleBasedRoute>
+                    }
+                  />
+                  <Route
+                    path="sessions"
+                    element={
+                      <RoleBasedRoute allowedRoles={['admin', 'reg-rep', 'pastoral']}>
+                        <SessionsPage />
+                      </RoleBasedRoute>
+                    }
+                  />
                   <Route path="sessions/new" element={
                     <RoleBasedRoute adminOnly={true}>
                       <CreateSessionPage />
                     </RoleBasedRoute>
                   } />
-                  <Route path="sessions/:sessionId/attendance" element={<SessionAttendancePage />} />
-                  <Route path="sessions/:sessionId/chariot-attendance" element={<SessionChariotAttendancePage />} />
-                  <Route path="reports" element={<ReportsPage />} />
+                  <Route
+                    path="sessions/:sessionId/attendance"
+                    element={
+                      <RoleBasedRoute allowedRoles={['admin', 'reg-rep', 'pastoral']}>
+                        <SessionAttendancePage />
+                      </RoleBasedRoute>
+                    }
+                  />
+                  <Route
+                    path="sessions/:sessionId/chariot-attendance"
+                    element={
+                      <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
+                        <SessionChariotAttendancePage />
+                      </RoleBasedRoute>
+                    }
+                  />
+                  <Route
+                    path="reports"
+                    element={
+                      <RoleBasedRoute allowedRoles={['admin', 'reg-rep', 'pastoral']}>
+                        <ReportsPage />
+                      </RoleBasedRoute>
+                    }
+                  />
                   <Route path="reg-reps" element={
                     <RoleBasedRoute adminOnly={true}>
                       <RegRepsPage />
@@ -77,7 +112,10 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   <Route path="chapels" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
+                    <RoleBasedRoute
+                      allowedRoles={['admin', 'pastoral', 'reg-rep']}
+                      allowRegRepChapelAssign={true}
+                    >
                       <ChapelsPage />
                     </RoleBasedRoute>
                   } />

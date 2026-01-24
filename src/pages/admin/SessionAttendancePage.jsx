@@ -16,6 +16,8 @@ import {
   ArrowDownTrayIcon,
   DocumentIcon,
   PlusCircleIcon,
+  BuildingOfficeIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline';
 
 const SessionAttendancePage = () => {
@@ -27,11 +29,16 @@ const SessionAttendancePage = () => {
   const [loading, setLoading] = useState(true);
   const [sessionData, setSessionData] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'present', 'absent'
+  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'invitee', 'member', 'worker'
+  const [chapelFilter, setChapelFilter] = useState('all'); // 'all' or chapel ID
+  const [chapels, setChapels] = useState([]);
+  const [loadingChapels, setLoadingChapels] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [markingPresent, setMarkingPresent] = useState({}); // Track which member is being marked
 
   useEffect(() => {
     fetchSessionAttendance();
+    fetchChapels();
   }, [sessionId]);
 
   const fetchSessionAttendance = async () => {
@@ -48,6 +55,20 @@ const SessionAttendancePage = () => {
       showError(error.message || 'Failed to load attendance data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchChapels = async () => {
+    try {
+      setLoadingChapels(true);
+      const response = await apiService.getChapels(true); // Force refresh
+      const chapelList = response?.data?.chapels || [];
+      setChapels(Array.isArray(chapelList) ? chapelList : []);
+    } catch (error) {
+      console.error('Failed to fetch chapels:', error);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingChapels(false);
     }
   };
 
@@ -128,24 +149,91 @@ const SessionAttendancePage = () => {
     }
   };
 
+  const getChapelFilteredMembers = (members) => {
+    if (chapelFilter === 'all') return members;
+    if (chapelFilter === 'unassigned') {
+      return members.filter(member => !member.chapel);
+    }
+    return members.filter(member => member.chapel && member.chapel.id === chapelFilter);
+  };
+
+  const getRoleFilteredMembers = (members) => {
+    if (roleFilter === 'invitee') {
+      return members.filter(member => member.chapelRole === 'INVITEE');
+    }
+    if (roleFilter === 'member') {
+      return members.filter(member => member.chapelRole === 'MEMBER');
+    }
+    if (roleFilter === 'worker') {
+      return members.filter(member => member.chapelRole === 'WORKER');
+    }
+    return members;
+  };
+
+  const getFilteredCounts = () => {
+    if (!sessionData || !sessionData.attendance) {
+      return { total: 0, present: 0, absent: 0 };
+    }
+
+    const present = sessionData.attendance.present || [];
+    const absent = sessionData.attendance.absent || [];
+    const presentFiltered = getRoleFilteredMembers(getChapelFilteredMembers(present));
+    const absentFiltered = getRoleFilteredMembers(getChapelFilteredMembers(absent));
+
+    return {
+      total: presentFiltered.length + absentFiltered.length,
+      present: presentFiltered.length,
+      absent: absentFiltered.length,
+    };
+  };
+
+  const getChapelOptions = () => {
+    const options = new Map();
+    chapels.forEach(chapel => {
+      if (chapel && chapel.id) {
+        options.set(chapel.id, chapel.name);
+      }
+    });
+
+    if (sessionData?.attendance) {
+      const allMembers = [
+        ...(sessionData.attendance.present || []),
+        ...(sessionData.attendance.absent || []),
+      ];
+      allMembers.forEach(member => {
+        if (member?.chapel?.id) {
+          options.set(member.chapel.id, member.chapel.name);
+        }
+      });
+    }
+
+    return Array.from(options.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+
   const getFilteredMembers = () => {
     if (!sessionData || !sessionData.attendance) return [];
     
     const present = sessionData.attendance.present || [];
     const absent = sessionData.attendance.absent || [];
     
+    // First filter by present/absent status
+    let members = [];
     if (filter === 'present') {
-      return present;
+      members = present;
     } else if (filter === 'absent') {
-      return absent;
+      members = absent;
     } else {
       // Combine and sort by name
-      return [...present, ...absent].sort((a, b) => {
+      members = [...present, ...absent].sort((a, b) => {
         const nameA = (a.name || '').toLowerCase();
         const nameB = (b.name || '').toLowerCase();
         return nameA.localeCompare(nameB);
       });
     }
+    
+    return getRoleFilteredMembers(getChapelFilteredMembers(members));
   };
 
   if (loading) {
@@ -169,6 +257,12 @@ const SessionAttendancePage = () => {
 
   const { session, attendance } = sessionData;
   const filteredMembers = getFilteredMembers();
+  const filteredCounts = getFilteredCounts();
+  const chapelOptions = getChapelOptions();
+  const hasUnassignedMembers = filteredCounts.total !== 0 && (
+    (sessionData.attendance.present || []).some(member => !member.chapel) ||
+    (sessionData.attendance.absent || []).some(member => !member.chapel)
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
@@ -286,33 +380,96 @@ const SessionAttendancePage = () => {
 
       {/* Filter Tabs */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="border-b border-gray-200 overflow-x-auto">
-          <nav className="-mb-px flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max sm:min-w-0" aria-label="Filter tabs">
-            {[
-              { key: 'all', label: 'All Members', count: attendance.summary.totalMembers },
-              { key: 'present', label: 'Present', count: attendance.summary.present },
-              { key: 'absent', label: 'Absent', count: attendance.summary.absent },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ${
-                  filter === tab.key
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+        <div className="border-b border-gray-200">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            {/* Status Filter Tabs */}
+            <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max sm:min-w-0" aria-label="Filter tabs">
+              {[
+                { key: 'all', label: 'All Members', count: filteredCounts.total },
+                { key: 'present', label: 'Present', count: filteredCounts.present },
+                { key: 'absent', label: 'Absent', count: filteredCounts.absent },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setFilter(tab.key)}
+                  className={`py-2 sm:py-3 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ${
+                    filter === tab.key
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-xs ${
+                    filter === tab.key
+                      ? 'bg-indigo-100 text-indigo-600'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </nav>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-shrink-0">
+              {/* Role Filter */}
+              <div className="inline-flex rounded-md shadow-sm border border-gray-200 overflow-hidden">
+                {[
+                  { key: 'all', label: 'All Roles' },
+                  { key: 'invitee', label: 'Invitees' },
+                  { key: 'member', label: 'Members' },
+                  { key: 'worker', label: 'Workers' },
+                ].map((role) => (
+                  <button
+                    key={role.key}
+                    onClick={() => setRoleFilter(role.key)}
+                    className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                      roleFilter === role.key
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {role.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chapel Filter Dropdown */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+              <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+              <label htmlFor="chapel-filter" className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                Filter by Chapel:
+              </label>
+              <select
+                id="chapel-filter"
+                value={chapelFilter}
+                onChange={(e) => setChapelFilter(e.target.value)}
+                disabled={loadingChapels}
+                className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md text-xs sm:text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px] sm:min-w-[150px]"
               >
-                {tab.label}
-                <span className={`ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-xs ${
-                  filter === tab.key
-                    ? 'bg-indigo-100 text-indigo-600'
-                    : 'bg-gray-100 text-gray-900'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </nav>
+                <option value="all">All Chapels</option>
+                {chapelOptions.map((chapel) => (
+                  <option key={chapel.id} value={chapel.id}>
+                    {chapel.name}
+                  </option>
+                ))}
+                {hasUnassignedMembers && (
+                  <option value="unassigned">Unassigned</option>
+                )}
+              </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 sm:px-6 py-2 text-xs sm:text-sm text-gray-600 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-x-2 gap-y-1">
+          Showing {filteredCounts.total} of {attendance.summary.totalMembers} members
+          {chapelFilter !== 'all' && chapelFilter !== 'unassigned' && (
+            <> for {chapelOptions.find(option => option.id === chapelFilter)?.name || 'selected chapel'}</>
+          )}
+          {chapelFilter === 'unassigned' && <> (Unassigned)</>}
+          {roleFilter === 'invitee' && <> (Invitees)</>}
+          {roleFilter === 'member' && <> (Members)</>}
+          {roleFilter === 'worker' && <> (Workers)</>}
         </div>
 
         {/* Members List */}
@@ -362,7 +519,7 @@ const SessionAttendancePage = () => {
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600 mt-1">
                           {member.chapel?.name
-                            ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                            ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : 'Member'})`
                             : 'Chapel: Not assigned'}
                         </div>
                       </div>

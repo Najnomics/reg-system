@@ -27,6 +27,9 @@ const CompleteMembersPage = () => {
   const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [chapelRoleFilter, setChapelRoleFilter] = useState('all');
+  const [chapelFilter, setChapelFilter] = useState('all');
+  const [chapels, setChapels] = useState([]);
+  const [loadingChapels, setLoadingChapels] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -45,6 +48,12 @@ const CompleteMembersPage = () => {
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    return 'Member';
+  };
+
   // Fetch members with pagination - memoized
   const fetchMembers = useCallback(async (page = currentPage, forceRefresh = false) => {
     try {
@@ -53,9 +62,17 @@ const CompleteMembersPage = () => {
         ? 'INVITEE'
         : chapelRoleFilter === 'member'
           ? 'MEMBER'
-          : chapelRoleFilter === 'unassigned'
-            ? 'UNASSIGNED'
-            : undefined;
+          : chapelRoleFilter === 'worker'
+            ? 'WORKER'
+            : chapelRoleFilter === 'unassigned'
+              ? 'UNASSIGNED'
+              : undefined;
+      const chapelFilterParam = chapelFilter === 'all'
+        ? undefined
+        : chapelFilter === 'unassigned'
+          ? 'UNASSIGNED'
+          : chapelFilter;
+
       const response = await apiService.getMembers({
         page,
         limit: membersPerPage,
@@ -63,6 +80,7 @@ const CompleteMembersPage = () => {
         sortOrder,
         query: searchTerm.trim() || undefined,
         chapelRole: chapelRoleParam,
+        chapelId: chapelFilterParam,
         forceRefresh,
       });
       
@@ -79,11 +97,26 @@ const CompleteMembersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, membersPerPage, showError]);
+  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, chapelFilter, membersPerPage, showError]);
+
+  const fetchChapels = useCallback(async () => {
+    try {
+      setLoadingChapels(true);
+      const response = await apiService.getChapels(true);
+      const chapelList = response?.data?.chapels || [];
+      setChapels(Array.isArray(chapelList) ? chapelList : []);
+    } catch (error) {
+      console.error('Failed to fetch chapels:', error);
+      showError('Failed to load chapels');
+    } finally {
+      setLoadingChapels(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
     // Fetch members on mount - show cached data immediately if available
     fetchMembers(1, false); // Use cache first for instant display
+    fetchChapels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -104,7 +137,7 @@ const CompleteMembersPage = () => {
     } else {
       fetchMembers(1, true);
     }
-  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter, chapelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle page change
   useEffect(() => {
@@ -619,7 +652,23 @@ const CompleteMembersPage = () => {
             <option value="all">All Chapel Roles</option>
             <option value="invitee">Invitees</option>
             <option value="member">Members</option>
+            <option value="worker">Workers</option>
             <option value="unassigned">Unassigned</option>
+          </select>
+
+          <select
+            value={chapelFilter}
+            onChange={(e) => setChapelFilter(e.target.value)}
+            disabled={loadingChapels}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Chapels</option>
+            <option value="unassigned">Unassigned</option>
+            {chapels.map((chapel) => (
+              <option key={chapel.id} value={chapel.id}>
+                {chapel.name}
+              </option>
+            ))}
           </select>
 
           {/* Sort By Dropdown */}
@@ -858,7 +907,7 @@ const CompleteMembersPage = () => {
                                 </div>
                               <div className="text-xs text-gray-600 mt-1">
                                 {member.chapel
-                                  ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                                ? `Chapel: ${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
                                   : 'Chapel: Not assigned'}
                               </div>
                               </div>
@@ -1011,7 +1060,7 @@ const CompleteMembersPage = () => {
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
                               {member.chapel
-                                ? `${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : 'Member'})`
+                                ? `${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
                                 : 'Not assigned'}
                             </div>
                           </td>

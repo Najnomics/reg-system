@@ -45,6 +45,12 @@ router.patch('/:id/toggle-status',
   regRepController.toggleRegRepStatus
 );
 
+// Toggle reg-rep chapel assignment permission (admin only)
+router.patch('/:id/toggle-chapel-assign',
+  validate(schemas.regRepId, 'params'),
+  regRepController.toggleRegRepChapelAssign
+);
+
 // Reset reg-rep password (admin only)
 router.post('/:id/reset-password',
   validate(schemas.regRepId, 'params'),

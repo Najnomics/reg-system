@@ -139,6 +139,7 @@ class ApiService {
     if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     if (params.query) queryParams.append('query', params.query);
     if (params.chapelRole) queryParams.append('chapelRole', params.chapelRole);
+    if (params.chapelId) queryParams.append('chapelId', params.chapelId);
     
     // Use cache for GET requests (cache for 30 seconds)
     const cacheKey = `/members?${queryParams.toString()}`;
@@ -533,6 +534,12 @@ class ApiService {
     });
   }
 
+  async toggleRegRepChapelAssign(id) {
+    return this.request(`/reg-reps/${id}/toggle-chapel-assign`, {
+      method: 'PATCH',
+    });
+  }
+
   async resetRegRepPassword(id, newPassword) {
     return this.request(`/reg-reps/${id}/reset-password`, {
       method: 'POST',
@@ -619,6 +626,20 @@ class ApiService {
     });
   }
 
+  async exportChariotsPDF() {
+    const url = `${API_BASE_URL}/chariots/export/pdf`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export chariots PDF');
+    }
+    return response.blob();
+  }
+
   // Chapel methods (admin only for write, pastoral read)
   async getChapels(forceRefresh = false) {
     const cacheKey = '/chapels';
@@ -654,6 +675,20 @@ class ApiService {
     return this.request(`/chapels/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  async exportChapelsPDF() {
+    const url = `${API_BASE_URL}/chapels/export/pdf`;
+    const token = localStorage.getItem('token');
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export chapels PDF');
+    }
+    return response.blob();
   }
 
   async addChapelMembers(chapelId, memberIds, role) {

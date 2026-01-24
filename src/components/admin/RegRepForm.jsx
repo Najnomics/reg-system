@@ -7,6 +7,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 const schema = yup.object({
   name: yup.string().required('Name is required').min(2, 'Name must be at least 2 characters'),
   email: yup.string().required('Email is required').email('Please enter a valid email'),
+  canAssignChapels: yup.boolean(),
   password: yup.string().when('isEdit', {
     is: false,
     then: (schema) => schema.required('Password is required').min(6, 'Password must be at least 6 characters'),
@@ -29,6 +30,7 @@ const RegRepForm = ({ regRep = null, onSubmit, onClose, isLoading = false }) => 
     defaultValues: {
       name: regRep?.name || '',
       email: regRep?.email || '',
+      canAssignChapels: regRep?.canAssignChapels || false,
       password: '',
       isEdit
     }
@@ -38,6 +40,7 @@ const RegRepForm = ({ regRep = null, onSubmit, onClose, isLoading = false }) => 
     const submitData = {
       name: data.name,
       email: data.email,
+      canAssignChapels: !!data.canAssignChapels,
       ...(data.password && { password: data.password })
     };
     onSubmit(submitData);
@@ -59,7 +62,7 @@ const RegRepForm = ({ regRep = null, onSubmit, onClose, isLoading = false }) => 
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-4">
+        <form id="reg-rep-form" onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
               Name
@@ -120,6 +123,18 @@ const RegRepForm = ({ regRep = null, onSubmit, onClose, isLoading = false }) => 
               )}
             </div>
           )}
+
+          <div className="flex items-center gap-2">
+            <input
+              id="canAssignChapels"
+              type="checkbox"
+              {...register('canAssignChapels')}
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label htmlFor="canAssignChapels" className="text-sm text-gray-700">
+              Allow this reg-rep to assign members to chapels
+            </label>
+          </div>
 
           {isEdit && (
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3">

@@ -120,6 +120,7 @@ const authenticateRegRep = async (req, res, next) => {
           name: true,
           isActive: true,
           createdBy: true,
+          canAssignChapels: true,
         },
       });
 
@@ -218,6 +219,7 @@ const authenticateUser = async (req, res, next) => {
             name: true,
             isActive: true,
             createdBy: true,
+          canAssignChapels: true,
           },
         });
         if (user) user.userType = 'reg-rep';
