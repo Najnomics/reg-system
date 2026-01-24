@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ChapelRole {
+  INVITEE
+  MEMBER
+  WORKER
+}
+
+model Admin {
+  id             String           @id
+  email          String           @unique
+  password       String
+  name           String
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  members        Member[]
+  reg_reps       RegRep[]
+  sessions       Session[]
+  upload_history upload_history[]
+  chariots       Chariot[]
+  chapels        Chapel[]
+
+  @@map("admins")
+}
+
+model RegRep {
+  id        String   @id
+  email     String   @unique
+  password  String
+  name      String
+  isActive  Boolean  @default(true)
+  canAssignChapels Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String
+  admins    Admin    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("reg_reps")
+}
+
+model Member {
+  id                    String              @id
+  firstName             String?
+  lastName              String?
+  email                 String              // Removed @unique to allow duplicate emails
+  pin                   String              @unique
+  dateOfBirth           DateTime?
+  gender                String?
+  address               String?
+  membershipType        String?
+  department            String?
+  position              String?
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  createdBy             String
+  name                  String              @unique  // Name must be unique to prevent duplicate members
+  pinHash               String?
+  attendance            attendance[]
+  admins                Admin               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  chariotLeader         Chariot[]           @relation("ChariotLeader")
+  chariotAssistants     ChariotAssistant[]
+  chariotMembers        ChariotMember[]
+  chapelId              String?
+  chapelRole            ChapelRole?
+  chapel                Chapel?             @relation(fields: [chapelId], references: [id], onDelete: SetNull)
+
+  @@index([isActive])
+  @@index([email])
+  @@index([name])
+  @@index([chapelId])
+  @@index([chapelRole])
+  @@map("members")
+}
+
+model Session {
+  id                String       @id
+  name              String?
+  description       String?
+  date              DateTime?
+  time              String?
+  location          String?
+  secretQuestion    String
+  secretAnswer      String
+  secretAnswerPlain String?      // Plain text answer for admin reference only
+  maxAttendees      Int?
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  createdBy         String
+  endTime           DateTime
+  qrCodeData        String?
+  startTime         DateTime
+  theme             String
+  attendance        attendance[]
+  admins            Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([createdAt])
+  @@map("sessions")
+}
+
+model attendance {
+  id          String   @id
+  checkedIn   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  memberId    String
+  sessionId   String
+  checkedInAt DateTime @default(now())
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, sessionId])
+  @@index([memberId])
+  @@index([sessionId])
+  @@index([checkedInAt])
+  @@index([createdAt])
+  @@map("attendances")
+}
+
+model upload_history {
+  id           String   @id
+  filename     String
+  totalRecords Int
+  successful   Int
+  failed       Int
+  errors       Json?
+  createdAt    DateTime @default(now())
+  uploadedBy   String
+  admins       Admin    @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+}
+
+model Chariot {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  leaderId    String
+  leader      Member            @relation("ChariotLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String
+  admins      Admin             @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  assistants  ChariotAssistant[]
+  members     ChariotMember[]
+
+  @@index([leaderId])
+  @@index([isActive])
+  @@map("chariots")
+}
+
+model ChariotAssistant {
+  id        String   @id @default(uuid())
+  chariotId String
+  memberId  String
+  chariot   Chariot  @relation(fields: [chariotId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([chariotId, memberId])
+  @@index([chariotId])
+  @@index([memberId])
+  @@map("chariot_assistants")
+}
+
+model ChariotMember {
+  id        String   @id @default(uuid())
+  chariotId String
+  memberId  String
+  chariot   Chariot  @relation(fields: [chariotId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([chariotId, memberId])
+  @@index([chariotId])
+  @@index([memberId])
+  @@map("chariot_members")
+}
+
+model Chapel {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  createdBy   String
+  admins      Admin          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  members     Member[]
+
+  @@index([isActive])
+  @@map("chapels")
+}
