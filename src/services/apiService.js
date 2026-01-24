@@ -355,21 +355,39 @@ class ApiService {
 
     // Process members in batches
     const totalBatches = Math.ceil(memberIds.length / batchSize);
-    console.log(`Processing ${memberIds.length} members in ${totalBatches} batches of ${batchSize}`);
+    const estimatedTotalMinutes = Math.ceil((memberIds.length * 0.5) / 60); // Rough estimate: 0.5s per email
+    console.log(`🚀 Starting bulk PIN resend:`);
+    console.log(`   📊 Total members: ${memberIds.length}`);
+    console.log(`   📦 Batches: ${totalBatches} (${batchSize} per batch)`);
+    console.log(`   ⏱️ Estimated time: ~${estimatedTotalMinutes} minutes`);
+    console.log(`   🔄 Retry: 1 attempt after 1 minute if failed`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const batchStart = batchIndex * batchSize;
       const batchEnd = Math.min(batchStart + batchSize, memberIds.length);
       const batch = memberIds.slice(batchStart, batchEnd);
       
-      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (members ${batchStart + 1}-${batchEnd})`);
+      const progressPercent = Math.round(((batchIndex + 1) / totalBatches) * 100);
+      console.log(`📦 Processing batch ${batchIndex + 1}/${totalBatches} (${progressPercent}%) - Members ${batchStart + 1}-${batchEnd}`);
 
       // Process batch members sequentially to better handle rate limits
-      for (const memberId of batch) {
+      let batchSuccess = 0;
+      let batchFailed = 0;
+      
+      for (let i = 0; i < batch.length; i++) {
+        const memberId = batch[i];
+        const memberNum = batchStart + i + 1;
         try {
           await retryResendPin(memberId, 1, 60000); // Retry once after 1 minute
           results.successful++;
+          batchSuccess++;
           results.results.successful.push(memberId);
+          
+          // Log progress every 5 members or at the end of batch
+          if ((i + 1) % 5 === 0 || i === batch.length - 1) {
+            console.log(`  ✓ Batch ${batchIndex + 1}: ${batchSuccess} sent, ${batchFailed} failed (${memberNum}/${memberIds.length} total)`);
+          }
           
           // Small delay between emails in the same batch to avoid overwhelming the service
           await sleep(500); // 500ms delay between emails
@@ -380,29 +398,41 @@ class ApiService {
             error.message?.includes('Sending limit');
           
           results.failed++;
+          batchFailed++;
           results.results.failed.push({
             memberId,
             error: error.message || 'Unknown error',
             isRateLimit,
           });
-          console.error(`Failed to resend PIN for member ${memberId}:`, error.message);
+          console.error(`  ✗ Failed to resend PIN for member ${memberId}:`, error.message);
           
           // If rate limited, wait a bit longer before continuing to next member
           if (isRateLimit) {
-            console.warn(`Rate limit detected, waiting 5 seconds before continuing...`);
+            console.warn(`  ⚠️ Rate limit detected, waiting 5 seconds before continuing...`);
             await sleep(5000);
           }
         }
       }
 
+      // Log batch completion summary
+      console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} completed: ${batchSuccess} sent, ${batchFailed} failed`);
+
       // If not the last batch, add a small delay between batches to avoid overwhelming the service
       if (batchIndex < totalBatches - 1) {
-        console.log(`Batch ${batchIndex + 1} completed. Waiting 2 seconds before next batch...`);
+        const remainingBatches = totalBatches - (batchIndex + 1);
+        const estimatedMinutes = Math.ceil((remainingBatches * batchSize * 0.5) / 60); // Rough estimate
+        console.log(`⏳ Waiting 2 seconds before next batch... (~${estimatedMinutes} min remaining)`);
         await sleep(2000); // 2 second delay between batches
       }
     }
 
-    console.log(`Bulk resend completed: ${results.successful} successful, ${results.failed} failed`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`✅ Bulk resend completed!`);
+    console.log(`   ✓ Successful: ${results.successful}/${memberIds.length} (${Math.round((results.successful / memberIds.length) * 100)}%)`);
+    console.log(`   ✗ Failed: ${results.failed}/${memberIds.length} (${Math.round((results.failed / memberIds.length) * 100)}%)`);
+    if (results.failed > 0) {
+      console.log(`   ⚠️ Check failed members above for details`);
+    }
 
     return {
       success: results.failed === 0,
