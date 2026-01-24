@@ -81,6 +81,15 @@ const getMembers = async (req, res) => {
               name: true,
             },
           },
+          chariotLeader: {
+            select: { id: true, name: true },
+          },
+          chariotAssistants: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
+          chariotMembers: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
           _count: {
             select: { attendance: true },
           },
@@ -305,7 +314,7 @@ const createMember = async (req, res) => {
 const updateMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, isActive } = req.body;
+    const { name, email, isActive, chapelRole, chapelId } = req.body;
 
     // Check if member exists
     const existingMember = await prisma.member.findUnique({
@@ -340,6 +349,32 @@ const updateMember = async (req, res) => {
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.toLowerCase();
     if (isActive !== undefined) updateData.isActive = isActive;
+
+    if (chapelRole !== undefined) {
+      const normalizedRole = String(chapelRole).trim().toUpperCase();
+      const allowedRoles = ['INVITEE', 'MEMBER', 'WORKER', 'UNASSIGNED'];
+      if (!allowedRoles.includes(normalizedRole)) {
+        return res.status(400).json({
+          error: 'Invalid role',
+          message: 'chapelRole must be invitee, member, worker, or unassigned',
+        });
+      }
+      if (normalizedRole === 'UNASSIGNED') {
+        updateData.chapelRole = null;
+        updateData.chapelId = null;
+      } else {
+        updateData.chapelRole = normalizedRole;
+      }
+    }
+
+    if (chapelId !== undefined) {
+      if (chapelId === 'UNASSIGNED' || chapelId === null || chapelId === '') {
+        updateData.chapelId = null;
+        updateData.chapelRole = updateData.chapelRole ?? null;
+      } else {
+        updateData.chapelId = chapelId;
+      }
+    }
 
     // Update member
     const member = await prisma.member.update({
@@ -549,6 +584,15 @@ const searchMembers = async (req, res) => {
               id: true,
               name: true,
             },
+          },
+          chariotLeader: {
+            select: { id: true, name: true },
+          },
+          chariotAssistants: {
+            select: { chariot: { select: { id: true, name: true } } },
+          },
+          chariotMembers: {
+            select: { chariot: { select: { id: true, name: true } } },
           },
           _count: {
             select: { attendance: true },

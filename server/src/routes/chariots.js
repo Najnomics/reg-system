@@ -23,6 +23,12 @@ router.get('/', authenticateUser, allowChariotRead, chariotController.getChariot
 // Export all chariots as PDF
 router.get('/export/pdf', authenticateUser, allowChariotRead, chariotController.exportChariotsPDF);
 
+// Export all chariots as CSV
+router.get('/export/csv', authenticateUser, allowChariotRead, chariotController.exportChariotsCSV);
+
+// Assign unassigned members to chariots (admin only)
+router.post('/assign-unassigned', authenticateAdmin, chariotController.assignUnassignedMembersToChariots);
+
 // Get a single chariot
 router.get('/:id', authenticateUser, allowChariotRead, validate(schemas.uuidParam, 'params'), chariotController.getChariot);
 

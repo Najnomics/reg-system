@@ -308,6 +308,266 @@ const exportChariotsPDF = async (req, res) => {
 };
 
 /**
+ * Export all chariots as CSV
+ */
+const exportChariotsCSV = async (req, res) => {
+  try {
+    const chariots = await prisma.chariot.findMany({
+      include: {
+        leader: {
+          select: {
+            name: true,
+            email: true,
+            chapelRole: true,
+            chapel: { select: { name: true } },
+          },
+        },
+        assistants: {
+          include: {
+            member: {
+              select: {
+                name: true,
+                email: true,
+                chapelRole: true,
+                chapel: { select: { name: true } },
+              },
+            },
+          },
+        },
+        members: {
+          include: {
+            member: {
+              select: {
+                name: true,
+                email: true,
+                chapelRole: true,
+                chapel: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const formatChapelRole = (role) => {
+      if (role === 'INVITEE') return 'Invitee';
+      if (role === 'WORKER') return 'Worker';
+      if (role === 'MEMBER') return 'Member';
+      return '';
+    };
+
+    const escapeCsv = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = [
+      ['Chariot', 'Role', 'Name', 'Email', 'Chapel', 'Chapel Role'],
+    ];
+
+    chariots.forEach((chariot) => {
+      const leader = chariot.leader;
+      rows.push([
+        chariot.name,
+        'Leader',
+        leader?.name || 'Not assigned',
+        leader?.email || '',
+        leader?.chapel?.name || '',
+        formatChapelRole(leader?.chapelRole),
+      ]);
+
+      if (chariot.assistants.length === 0) {
+        rows.push([chariot.name, 'Assistant', 'None', '', '', '']);
+      } else {
+        chariot.assistants.forEach((assistant) => {
+          const member = assistant.member;
+          rows.push([
+            chariot.name,
+            'Assistant',
+            member?.name || '',
+            member?.email || '',
+            member?.chapel?.name || '',
+            formatChapelRole(member?.chapelRole),
+          ]);
+        });
+      }
+
+      if (chariot.members.length === 0) {
+        rows.push([chariot.name, 'Member', 'None', '', '', '']);
+      } else {
+        chariot.members.forEach((memberEntry) => {
+          const member = memberEntry.member;
+          rows.push([
+            chariot.name,
+            'Member',
+            member?.name || '',
+            member?.email || '',
+            member?.chapel?.name || '',
+            formatChapelRole(member?.chapelRole),
+          ]);
+        });
+      }
+    });
+
+    const csv = rows.map((row) => row.map(escapeCsv).join(',')).join('\n');
+    const filename = `chariots_report_${new Date().toISOString().split('T')[0]}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export chariots CSV error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to export chariots as CSV',
+    });
+  }
+};
+
+/**
+ * Assign all unassigned members to chariots (workers, invitees, others)
+ */
+const assignUnassignedMembersToChariots = async (req, res) => {
+  try {
+    const chariots = await prisma.chariot.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    if (chariots.length === 0) {
+      return res.status(400).json({
+        error: 'No active chariots',
+        message: 'No active chariots found to assign members',
+      });
+    }
+
+    const occupied = new Set();
+    chariots.forEach((chariot) => {
+      if (chariot.leaderId) occupied.add(chariot.leaderId);
+      chariot.assistants.forEach((assistant) => occupied.add(assistant.memberId));
+    });
+
+    const existingAssignments = await prisma.chariotMember.findMany({
+      select: { memberId: true },
+    });
+    const alreadyAssigned = new Set(existingAssignments.map((entry) => entry.memberId));
+
+    const excludedIds = new Set([...occupied, ...alreadyAssigned]);
+
+    const chariotStats = chariots.map((chariot) => ({
+      id: chariot.id,
+      name: chariot.name,
+      count: chariot.members.length,
+    }));
+
+    const assignMembers = (memberIds) => {
+      const assignments = [];
+      memberIds.forEach((memberId) => {
+        let targetIndex = 0;
+        for (let i = 1; i < chariotStats.length; i += 1) {
+          const current = chariotStats[i];
+          const target = chariotStats[targetIndex];
+          if (current.count < target.count) {
+            targetIndex = i;
+          } else if (current.count === target.count && current.name < target.name) {
+            targetIndex = i;
+          }
+        }
+        const target = chariotStats[targetIndex];
+        assignments.push({ memberId, chariotId: target.id });
+        target.count += 1;
+      });
+      return assignments;
+    };
+
+    const [workers, invitees, others] = await Promise.all([
+      prisma.member.findMany({
+        where: {
+          isActive: { not: false },
+          chapelRole: 'WORKER',
+          id: { notIn: Array.from(excludedIds) },
+        },
+        select: { id: true },
+      }),
+      prisma.member.findMany({
+        where: {
+          isActive: { not: false },
+          chapelRole: 'INVITEE',
+          id: { notIn: Array.from(excludedIds) },
+        },
+        select: { id: true },
+      }),
+      prisma.member.findMany({
+        where: {
+          isActive: { not: false },
+          id: { notIn: Array.from(excludedIds) },
+          OR: [
+            { chapelRole: { notIn: ['WORKER', 'INVITEE'] } },
+            { chapelRole: null },
+          ],
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    const workerIds = workers.map((member) => member.id);
+    workerIds.forEach((id) => excludedIds.add(id));
+    const inviteeIds = invitees.map((member) => member.id).filter((id) => !excludedIds.has(id));
+    inviteeIds.forEach((id) => excludedIds.add(id));
+    const otherIds = others
+      .map((member) => member.id)
+      .filter((id) => !excludedIds.has(id));
+
+    const workerAssignments = assignMembers(workerIds);
+    const inviteeAssignments = assignMembers(inviteeIds);
+    const otherAssignments = assignMembers(otherIds);
+
+    const assignments = [
+      ...workerAssignments,
+      ...inviteeAssignments,
+      ...otherAssignments,
+    ];
+
+    if (assignments.length > 0) {
+      await prisma.chariotMember.createMany({
+        data: assignments,
+        skipDuplicates: true,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Unassigned members distributed to chariots',
+      data: {
+        totalChariots: chariots.length,
+        assigned: assignments.length,
+        workersAssigned: workerAssignments.length,
+        inviteesAssigned: inviteeAssignments.length,
+        othersAssigned: otherAssignments.length,
+      },
+    });
+  } catch (error) {
+    console.error('Assign unassigned members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to assign unassigned members to chariots',
+    });
+  }
+};
+
+/**
  * Create a new chariot
  */
 const createChariot = async (req, res) => {
@@ -874,6 +1134,8 @@ module.exports = {
   getChariots,
   getChariot,
   exportChariotsPDF,
+  exportChariotsCSV,
+  assignUnassignedMembersToChariots,
   createChariot,
   updateChariot,
   deleteChariot,

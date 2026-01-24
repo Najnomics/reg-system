@@ -40,6 +40,7 @@ const ChariotList = () => {
   const [selectedChariots, setSelectedChariots] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingCSV, setExportingCSV] = useState(false);
 
   const loadChariots = useCallback(async () => {
     try {
@@ -209,6 +210,26 @@ const ChariotList = () => {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      setExportingCSV(true);
+      const blob = await apiService.exportChariotsCSV();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `chariots_report_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      showError('Failed to export chariots CSV');
+      console.error('Export chariots CSV error:', error);
+    } finally {
+      setExportingCSV(false);
+    }
+  };
+
   const handleAssignSubmit = async (memberIds) => {
     if (!selectedChariot || !assignType || memberIds.length === 0) return;
 
@@ -277,6 +298,15 @@ const ChariotList = () => {
             <DocumentIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">{exportingPDF ? 'Exporting...' : 'Export PDF'}</span>
             <span className="sm:hidden">PDF</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            disabled={exportingCSV}
+            className="px-3 sm:px-4 py-2 bg-white text-gray-700 text-xs sm:text-sm font-medium rounded-md border border-gray-300 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2 touch-manipulation w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <DocumentIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">{exportingCSV ? 'Exporting...' : 'Export CSV'}</span>
+            <span className="sm:hidden">CSV</span>
           </button>
           {isAdmin && (
             <button
