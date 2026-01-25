@@ -1,4 +1,3 @@
-import vercelEmailService from './vercelEmailService.js';
 import { apiCache } from '../utils/cache.js';
 import { requestBatcher } from '../utils/requestBatcher.js';
 
@@ -235,66 +234,13 @@ class ApiService {
   }
 
   /**
-   * Resend PIN email using Vercel serverless function
-   * Fetches member data first, then sends email via Vercel
+   * Resend PIN email via backend (server sends email)
    */
   async resendPin(memberId) {
     try {
-      // First, fetch member data to get name, email, and pin
-      const memberResponse = await this.getMember(memberId);
-      const member = memberResponse.data?.member || memberResponse.data;
-      
-      if (!member || !member.email || !member.pin) {
-        throw new Error('Member data incomplete. Missing email or PIN.');
-      }
-
-      // Build chariot details from member data
-      let chariotName = 'Not assigned';
-      let roleLabel = 'Member';
-      let leaderName = '';
-      let leaderEmail = '';
-      let showLogin = false;
-
-      if (member.chariotLeader && member.chariotLeader.length > 0) {
-        roleLabel = 'Leader';
-        chariotName = member.chariotLeader[0].name;
-        leaderName = member.name;
-        leaderEmail = member.email;
-        showLogin = true;
-      } else if (member.chariotAssistants && member.chariotAssistants.length > 0) {
-        roleLabel = 'Assistant';
-        const chariot = member.chariotAssistants[0].chariot;
-        chariotName = chariot?.name || chariotName;
-        leaderName = chariot?.leader?.name || '';
-        leaderEmail = chariot?.leader?.email || '';
-        showLogin = true;
-      } else if (member.chariotMembers && member.chariotMembers.length > 0) {
-        roleLabel = 'Member';
-        const chariot = member.chariotMembers[0].chariot;
-        chariotName = chariot?.name || chariotName;
-        leaderName = chariot?.leader?.name || '';
-        leaderEmail = chariot?.leader?.email || '';
-      }
-
-      // Use Vercel email service
-      const result = await vercelEmailService.sendPinEmail({
-        id: member.id,
-        name: member.name,
-        email: member.email,
-        pin: member.pin || member.memberCode, // Support both pin and memberCode
-        chariotName,
-        roleLabel,
-        leaderName,
-        leaderEmail,
-        showLogin,
-        portalUrl: window.location.origin,
+      return await this.request(`/members/${memberId}/resend-pin`, {
+        method: 'POST',
       });
-
-      return {
-        success: true,
-        message: 'PIN email sent successfully',
-        data: result,
-      };
     } catch (error) {
       console.error('Failed to resend PIN:', error);
       throw error;
