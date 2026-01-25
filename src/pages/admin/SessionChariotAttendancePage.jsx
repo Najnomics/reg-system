@@ -93,6 +93,23 @@ const SessionChariotAttendancePage = () => {
     });
   };
 
+  const normalizedSearch = memberSearch.trim().toLowerCase();
+  const chariots = data?.chariots || [];
+  const filteredChariots = useMemo(() => {
+    if (!normalizedSearch) return chariots;
+    return chariots
+      .map((chariot) => {
+        const filteredMembers = (chariot.members || []).filter((member) => {
+          return (
+            member?.name?.toLowerCase().includes(normalizedSearch) ||
+            member?.email?.toLowerCase().includes(normalizedSearch)
+          );
+        });
+        return { ...chariot, members: filteredMembers };
+      })
+      .filter((chariot) => chariot.members.length > 0);
+  }, [chariots, normalizedSearch]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -109,23 +126,7 @@ const SessionChariotAttendancePage = () => {
     );
   }
 
-  const { session, chariots = [], overallStats } = data;
-
-  const normalizedSearch = memberSearch.trim().toLowerCase();
-  const filteredChariots = useMemo(() => {
-    if (!normalizedSearch) return chariots;
-    return chariots
-      .map((chariot) => {
-        const filteredMembers = (chariot.members || []).filter((member) => {
-          return (
-            member?.name?.toLowerCase().includes(normalizedSearch) ||
-            member?.email?.toLowerCase().includes(normalizedSearch)
-          );
-        });
-        return { ...chariot, members: filteredMembers };
-      })
-      .filter((chariot) => chariot.members.length > 0);
-  }, [chariots, normalizedSearch]);
+  const { session, overallStats } = data;
   
   // Debug logging
   console.log('🎨 Rendering - Number of chariots:', chariots?.length);
