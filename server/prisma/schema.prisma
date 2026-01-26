@@ -12,6 +12,7 @@ enum ChapelRole {
   INVITEE
   MEMBER
   WORKER
+  CHAPEL_LEADER
 }
 
 model Admin {
@@ -146,8 +147,8 @@ model Chariot {
   id          String            @id @default(uuid())
   name        String
   description String?
-  leaderId    String
-  leader      Member            @relation("ChariotLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  leaderId    String?
+  leader      Member?           @relation("ChariotLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   isActive    Boolean           @default(true)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt

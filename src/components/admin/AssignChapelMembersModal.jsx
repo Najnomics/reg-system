@@ -70,10 +70,14 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
     member.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const title = type === 'invitees' ? 'Assign Invitees' : 'Assign Members';
-  const description = type === 'invitees'
-    ? 'Select people to mark as invitees for this chapel'
-    : 'Select people to assign as chapel members';
+  const title =
+    type === 'invitees' ? 'Assign Invitees' : type === 'chapel_leaders' ? 'Assign Chapel Leaders' : 'Assign Members';
+  const description =
+    type === 'invitees'
+      ? 'Select people to mark as invitees for this chapel'
+      : type === 'chapel_leaders'
+        ? 'Select people to assign as chapel leaders'
+        : 'Select people to assign as chapel members';
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
@@ -140,7 +144,13 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
                     <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                     {member.chapel?.id === chapel.id && member.chapelRole && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Current: {member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : 'Member'}
+                        Current: {member.chapelRole === 'INVITEE'
+                          ? 'Invitee'
+                          : member.chapelRole === 'WORKER'
+                            ? 'Worker'
+                            : member.chapelRole === 'CHAPEL_LEADER'
+                              ? 'Chapel Leader'
+                              : 'Member'}
                       </p>
                     )}
                   </div>
@@ -162,7 +172,11 @@ const AssignChapelMembersModal = ({ chapel, type, onSubmit, onClose }) => {
             className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 hover:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             disabled={loading || selectedMembers.size === 0}
           >
-            {loading ? 'Assigning...' : `Assign ${selectedMembers.size} ${type === 'invitees' ? 'Invitee(s)' : 'Member(s)'}`}
+            {loading
+              ? 'Assigning...'
+              : `Assign ${selectedMembers.size} ${
+                  type === 'invitees' ? 'Invitee(s)' : type === 'chapel_leaders' ? 'Leader(s)' : 'Member(s)'
+                }`}
           </button>
         </div>
       </div>

@@ -6,6 +6,8 @@ const prismaOptions = {
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
 };
 
+// Use pooler URL (DATABASE_URL) for better connectivity
+// DIRECT_URL is only needed for migrations, not runtime connections
 if (process.env.NODE_ENV === 'production') {
   prisma = new PrismaClient(prismaOptions);
 } else {

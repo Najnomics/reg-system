@@ -61,6 +61,7 @@ const CompleteMembersPage = () => {
   const formatChapelRole = (role) => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
+    if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
     return 'Member';
   };
 
@@ -95,9 +96,11 @@ const CompleteMembersPage = () => {
           ? 'MEMBER'
           : chapelRoleFilter === 'worker'
             ? 'WORKER'
-            : chapelRoleFilter === 'unassigned'
-              ? 'UNASSIGNED'
-              : undefined;
+            : chapelRoleFilter === 'chapel_leader'
+              ? 'CHAPEL_LEADER'
+              : chapelRoleFilter === 'unassigned'
+                ? 'UNASSIGNED'
+                : undefined;
       const chapelFilterParam = chapelFilter === 'all'
         ? undefined
         : chapelFilter === 'unassigned'
@@ -774,6 +777,7 @@ const CompleteMembersPage = () => {
             <option value="invitee">Invitees</option>
             <option value="member">Members</option>
             <option value="worker">Workers</option>
+            <option value="chapel_leader">Chapel Leaders</option>
             <option value="unassigned">Unassigned</option>
           </select>
 
@@ -1430,6 +1434,7 @@ const CompleteMembersPage = () => {
                   <option value="invitee">Invitee</option>
                   <option value="member">Member</option>
                   <option value="worker">Worker</option>
+                  <option value="chapel_leader">Chapel Leader</option>
                   <option value="unassigned">Unassigned</option>
                 </select>
               </div>
@@ -1504,6 +1509,7 @@ const CompleteMembersPage = () => {
                   <option value="invitee">Invitee</option>
                   <option value="member">Member</option>
                   <option value="worker">Worker</option>
+                  <option value="chapel_leader">Chapel Leader</option>
                 </select>
               </div>
             </div>

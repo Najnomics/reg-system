@@ -234,6 +234,7 @@ const exportChariotsPDF = async (req, res) => {
     const formatChapelRole = (role) => {
       if (role === 'INVITEE') return 'Invitee';
       if (role === 'WORKER') return 'Worker';
+      if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
       return 'Member';
     };
 
@@ -354,6 +355,7 @@ const exportChariotsCSV = async (req, res) => {
       if (role === 'INVITEE') return 'Invitee';
       if (role === 'WORKER') return 'Worker';
       if (role === 'MEMBER') return 'Member';
+      if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
       return '';
     };
 
