@@ -394,9 +394,11 @@ const addMembers = async (req, res) => {
     }
 
     if (workerIds.length > 0) {
+      // If assigning CHAPEL_LEADER role, update the role even for workers
+      // Otherwise, just update chapelId to keep worker role
       await prisma.member.updateMany({
         where: { id: { in: workerIds } },
-        data: { chapelId: id },
+        data: role === 'CHAPEL_LEADER' ? { chapelId: id, chapelRole: role } : { chapelId: id },
       });
     }
 

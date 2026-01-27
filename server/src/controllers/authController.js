@@ -246,22 +246,52 @@ const login = async (req, res) => {
         });
       }
 
+      // Check if member is also a chapel leader
+      const memberAsChapelLeader = await prisma.member.findUnique({
+        where: { id: member.id },
+        select: {
+          chapelId: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      const chapelLeaderCheck = memberAsChapelLeader && 
+        memberAsChapelLeader.chapelRole === 'CHAPEL_LEADER' && 
+        memberAsChapelLeader.chapel
+        ? [memberAsChapelLeader.chapel]
+        : [];
+
       // Generate JWT token
       const token = generateToken(
         { ...member, userType: 'chariot-leader' },
         'chariot-leader'
       );
 
+      const userData = {
+        ...member,
+        userType: 'chariot-leader',
+        chariotId: chariotAsLeader.id,
+        chariotName: chariotAsLeader.name,
+      };
+
+      // Add chapel information if member is a chapel leader
+      if (chapelLeaderCheck.length > 0) {
+        userData.chapelIds = chapelLeaderCheck.map(c => c.id);
+        userData.chapelNames = chapelLeaderCheck.map(c => c.name);
+        userData.isChapelLeader = true;
+      }
+
       return res.status(200).json({
         success: true,
         message: 'Login successful',
         token,
-        user: {
-          ...member,
-          userType: 'chariot-leader',
-          chariotId: chariotAsLeader.id,
-          chariotName: chariotAsLeader.name,
-        },
+        user: userData,
         userType: 'chariot-leader',
       });
     }

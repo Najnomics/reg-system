@@ -34,8 +34,12 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
       setLoading(true);
       await apiService.removeChapelMembers(currentChapel.id, [memberId]);
       showSuccess('Member removed successfully');
+      // Refresh modal data first
       await loadChapelData();
-      if (onRefresh) onRefresh();
+      // Then refresh parent list to ensure it's updated
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       showError('Failed to remove member');
       console.error('Remove member error:', error);
