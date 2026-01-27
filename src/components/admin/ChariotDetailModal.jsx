@@ -94,6 +94,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
   const formatChapelRole = (role) => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
+    if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
     return 'Member';
   };
 

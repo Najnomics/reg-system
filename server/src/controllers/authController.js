@@ -78,39 +78,34 @@ const login = async (req, res) => {
       const user = admin || regRep;
       const userType = admin ? 'admin' : 'reg-rep';
 
-      // Check if user is active
-      if (!user.isActive) {
-        return res.status(401).json({
-          error: 'Account disabled',
-          message: 'Your account has been disabled',
-        });
-      }
-
-      // Verify password
+      // Verify password first. If it doesn't match, fall through to chariot login
+      // so reg reps who are also chariot leaders/assistants can use those passwords.
       const isValidPassword = await bcrypt.compare(password, user.password);
-      
-      if (!isValidPassword) {
-        return res.status(401).json({
-          error: 'Authentication failed',
-          message: 'Invalid email or password',
+      if (isValidPassword) {
+        // Check if user is active
+        if (!user.isActive) {
+          return res.status(401).json({
+            error: 'Account disabled',
+            message: 'Your account has been disabled',
+          });
+        }
+
+        // Generate JWT token with user type
+        const token = generateToken(user, userType);
+
+        // Return success response (exclude password)
+        const { password: _, ...userData } = user;
+
+        return res.status(200).json({
+          success: true,
+          message: 'Login successful',
+          token,
+          user: { ...userData, userType },
+          userType,
+          // Keep legacy format for backwards compatibility
+          ...(userType === 'admin' ? { admin: userData } : { regRep: userData })
         });
       }
-
-      // Generate JWT token with user type
-      const token = generateToken(user, userType);
-
-      // Return success response (exclude password)
-      const { password: _, ...userData } = user;
-
-      return res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        token,
-        user: { ...userData, userType },
-        userType,
-        // Keep legacy format for backwards compatibility
-        ...(userType === 'admin' ? { admin: userData } : { regRep: userData })
-      });
     }
 
     // Pastoral team login (read-only access)
@@ -315,9 +310,20 @@ const login = async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
+    
+    // Check if it's a database connection error
+    if (error.name === 'PrismaClientInitializationError' || error.message?.includes('Can\'t reach database server')) {
+      return res.status(503).json({
+        error: 'Database connection failed',
+        message: 'Unable to connect to the database. Please check your Supabase connection settings or network restrictions.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+    
     res.status(500).json({
       error: 'Internal server error',
       message: 'Login failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };

@@ -11,7 +11,7 @@ const schema = yup.object().shape({
   chapelRole: yup
     .string()
     .transform((value) => (value ? value.toLowerCase().trim() : ''))
-    .oneOf(['', 'invitee', 'member', 'worker', 'unassigned'], 'Role must be invitee, member, worker, or unassigned'),
+    .oneOf(['', 'invitee', 'member', 'worker', 'chapel_leader', 'unassigned'], 'Role must be invitee, member, worker, chapel leader, or unassigned'),
   isActive: yup.boolean().default(true),
 });
 
@@ -150,6 +150,7 @@ const MemberForm = ({ member, onClose, onSuccess }) => {
               <option value="invitee">Invitee</option>
               <option value="member">Member</option>
               <option value="worker">Worker</option>
+              <option value="chapel_leader">Chapel Leader</option>
               <option value="unassigned">Unassigned</option>
             </select>
             {errors.chapelRole && (

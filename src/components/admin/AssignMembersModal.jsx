@@ -168,7 +168,7 @@ const AssignMembersModal = ({ chariot, type, onSubmit, onClose }) => {
                     <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                     <p className="text-xs text-gray-500 mt-1">
                       {member.chapel
-                        ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : 'Member'})`
+                        ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : member.chapelRole === 'CHAPEL_LEADER' ? 'Chapel Leader' : 'Member'})`
                         : 'Chapel: Not assigned'}
                     </p>
                   </div>
