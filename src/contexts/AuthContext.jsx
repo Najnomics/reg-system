@@ -98,17 +98,20 @@ export const AuthProvider = ({ children }) => {
 
       const response = await apiService.verifyToken()
       if (response && response.valid && response.user) {
+        const userType = response.userType;
+        
         dispatch({
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: {
             user: response.user,
             token,
-            userType: response.userType,
+            userType: userType,
           },
         })
         
         // Preload critical data when user is already authenticated
-        dataPreloader.preloadCriticalData().catch(() => {});
+        // Pass userType to preload user-specific data
+        dataPreloader.preloadCriticalData(userType).catch(() => {});
       } else {
         localStorage.removeItem('token')
         dispatch({ type: AuthActionTypes.SET_LOADING, payload: false })
@@ -127,17 +130,20 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('token', response.token)
 
+      const userType = response.userType;
+
       dispatch({
         type: AuthActionTypes.LOGIN_SUCCESS,
         payload: {
           user: response.user || response.admin || response.regRep,
           token: response.token,
-          userType: response.userType,
+          userType: userType,
         },
       })
 
       // Preload critical data immediately after login for faster navigation
-      dataPreloader.preloadCriticalData().catch(() => {});
+      // Pass userType to preload user-specific data
+      dataPreloader.preloadCriticalData(userType).catch(() => {});
 
       return { success: true }
     } catch (error) {
@@ -158,14 +164,20 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('token', response.token)
 
+      const responseUserType = response.userType || userType;
+
       dispatch({
         type: AuthActionTypes.LOGIN_SUCCESS,
         payload: {
           user: response.user,
           token: response.token,
-          userType: response.userType,
+          userType: responseUserType,
         },
       })
+
+      // Preload critical data immediately after login for faster navigation
+      // Pass userType to preload user-specific data
+      dataPreloader.preloadCriticalData(responseUserType).catch(() => {});
 
       return { success: true }
     } catch (error) {
@@ -181,6 +193,13 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token')
     dispatch({ type: AuthActionTypes.LOGOUT })
+    // Reset preloader and clear cache on logout
+    dataPreloader.reset()
+    apiService.clearCache('')
+    // Reset page load time to allow fresh data on next login
+    if (window.apiCache) {
+      window.apiCache.pageLoadTime = Date.now();
+    }
   }
 
   const clearError = () => {

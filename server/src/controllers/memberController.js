@@ -352,12 +352,35 @@ const createMember = async (req, res) => {
 const updateMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, isActive, chapelRole, chapelId } = req.body;
+    const { name, email, isActive, chapelRole, chapelId, pin, pinHash, id: bodyId, ...otherFields } = req.body;
 
-    // Check if member exists
+    // SECURITY: Explicitly reject any attempt to update PIN or member ID
+    if (pin !== undefined || pinHash !== undefined) {
+      return res.status(400).json({
+        error: 'Invalid update',
+        message: 'PIN cannot be changed. PIN is permanent and cannot be modified.',
+      });
+    }
+
+    if (bodyId !== undefined && bodyId !== id) {
+      return res.status(400).json({
+        error: 'Invalid update',
+        message: 'Member ID cannot be changed.',
+      });
+    }
+
+    // Reject any unexpected fields that could cause issues
+    const allowedFields = ['name', 'email', 'isActive', 'chapelRole', 'chapelId'];
+    const unexpectedFields = Object.keys(otherFields).filter(field => !allowedFields.includes(field));
+    if (unexpectedFields.length > 0) {
+      console.warn(`Unexpected fields in update request: ${unexpectedFields.join(', ')}`);
+      // Don't fail, just log and ignore unexpected fields
+    }
+
+    // Check if member exists - MUST use the provided ID (prevents creating new member)
     const existingMember = await prisma.member.findUnique({
       where: { id },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, pin: true },
     });
 
     if (!existingMember) {
@@ -367,14 +390,15 @@ const updateMember = async (req, res) => {
       });
     }
 
-    // Check if name is being changed and if it conflicts
+    // Check if name is being changed and if it conflicts with ANOTHER member
     if (name && name.trim() !== existingMember.name) {
       const nameConflict = await prisma.member.findUnique({
         where: { name: name.trim() },
         select: { id: true },
       });
 
-      if (nameConflict) {
+      // Only conflict if it's a different member (not the same member being updated)
+      if (nameConflict && nameConflict.id !== id) {
         return res.status(409).json({
           error: 'Name already exists',
           message: 'A member with this name already exists. Please use a different name.',
@@ -382,7 +406,8 @@ const updateMember = async (req, res) => {
       }
     }
 
-    // Build update data
+    // Build update data - ONLY include allowed fields
+    // PIN is explicitly excluded - it cannot be changed
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.toLowerCase();
@@ -414,15 +439,16 @@ const updateMember = async (req, res) => {
       }
     }
 
-    // Update member
+    // Update member - using WHERE clause ensures we update the EXISTING member by ID
+    // This prevents creating a new member instance
     const member = await prisma.member.update({
-      where: { id },
+      where: { id }, // CRITICAL: Using ID ensures we update existing member, not create new one
       data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
-        pin: true,
+        pin: true, // PIN is returned but never changed
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -435,6 +461,12 @@ const updateMember = async (req, res) => {
         },
       },
     });
+
+    // Verify PIN was not changed (safety check)
+    if (member.pin !== existingMember.pin) {
+      console.error('CRITICAL: PIN was changed during update! This should never happen.');
+      // Log error but don't fail the request - the damage is done
+    }
 
     res.status(200).json({
       success: true,

@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { CalendarDaysIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ChariotSessionsList = () => {
   const { showError } = useApp();
+  const { user, userType } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionViewType, setSessionViewType] = useState('chariot'); // 'chariot' or 'chapel'
 
   useEffect(() => {
     loadSessions();
@@ -28,7 +31,11 @@ const ChariotSessionsList = () => {
 
   const handleViewSession = async (sessionId) => {
     try {
-      const response = await apiService.getChariotSession(sessionId);
+      // Determine which type to fetch based on current view
+      const type = (userType === 'chariot-leader' && user?.isChapelLeader && sessionViewType === 'chapel') 
+        ? 'chapel-only' 
+        : 'chariot-only';
+      const response = await apiService.getChariotSession(sessionId, type);
       setSelectedSession(response?.data?.session);
     } catch (error) {
       showError('Failed to load session details');
@@ -54,8 +61,42 @@ const ChariotSessionsList = () => {
     );
   }
 
+  const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
+
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+      {/* Tabs for Chariot/Chapel views (only show if user is chapel leader) */}
+      {isChapelLeader && (
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8">
+            <button
+              onClick={() => setSessionViewType('chariot')}
+              className={`
+                py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
+                ${sessionViewType === 'chariot'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Chariot Attendance
+            </button>
+            <button
+              onClick={() => setSessionViewType('chapel')}
+              className={`
+                py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
+                ${sessionViewType === 'chapel'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Chapel Attendance
+            </button>
+          </nav>
+        </div>
+      )}
+
       {sessions.length === 0 ? (
         <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 px-4">
           <CalendarDaysIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
@@ -101,7 +142,11 @@ const ChariotSessionsList = () => {
                 {/* Attendance Stats */}
                 <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg">
                   <div className="text-xs sm:text-sm">
-                    <span className="text-gray-600">Chariot Members Attendance:</span>{' '}
+                    <span className="text-gray-600">
+                      {isChapelLeader && sessionViewType === 'chapel' 
+                        ? 'Chapel Members Attendance:' 
+                        : 'Chariot Members Attendance:'}
+                    </span>{' '}
                     <span className="font-semibold text-blue-900">
                       {session._count?.attendance || session.attendance?.length || 0}
                     </span>
@@ -182,7 +227,9 @@ const ChariotSessionsList = () => {
               {/* Attendance List */}
               <div>
                 <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                  Chariot Members ({selectedSession.totalCount || selectedSession.members?.length || 0})
+                  {isChapelLeader && sessionViewType === 'chapel' 
+                    ? `Chapel Members (${selectedSession.totalCount || selectedSession.members?.length || 0})`
+                    : `Chariot Members (${selectedSession.totalCount || selectedSession.members?.length || 0})`}
                 </h4>
                 {selectedSession.members && selectedSession.members.length > 0 ? (
                   <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -276,7 +323,9 @@ const ChariotSessionsList = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
-                    No chariot members found
+                    {isChapelLeader && sessionViewType === 'chapel' 
+                      ? 'No chapel members found'
+                      : 'No chariot members found'}
                   </p>
                 )}
               </div>

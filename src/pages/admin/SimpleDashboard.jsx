@@ -20,7 +20,8 @@ const SimpleDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getDashboardStats();
+      // Force refresh on page load to get latest data
+      const response = await apiService.getDashboardStats(true);
       setDashboardData(response.data);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);

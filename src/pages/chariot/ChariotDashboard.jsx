@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { apiService } from '../../services/apiService';
 import ChariotMembersList from '../../components/chariot/ChariotMembersList';
+import ChapelMembersList from '../../components/chariot/ChapelMembersList';
 import ChariotSessionsList from '../../components/chariot/ChariotSessionsList';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -32,6 +33,7 @@ const ChariotDashboard = () => {
     return 'overview';
   };
   const [activeTab, setActiveTab] = useState(getActiveTab());
+  const [membersSubTab, setMembersSubTab] = useState('chariot'); // 'chariot' or 'chapel'
 
   useEffect(() => {
     const tab = getActiveTab();
@@ -44,7 +46,8 @@ const ChariotDashboard = () => {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const response = await apiService.getChariotDashboardStats();
+      // Force refresh on page load to get latest data
+      const response = await apiService.getChariotDashboardStats(true);
       const data = response?.data || {};
       setStats({
         totalMembers: data.totalMembers || 0,
@@ -79,12 +82,20 @@ const ChariotDashboard = () => {
             {userType === 'chariot-leader' ? 'Chariot Leader Dashboard' : 'Chariot Assistant Dashboard'}
           </h1>
           <p className="mt-1 text-sm sm:text-base text-gray-600 break-words">
-            Welcome, {user?.name}! 
-            {userType === 'chariot-leader' 
-              ? ` You are leading "${chariotInfo.name}"`
-              : ` You are assisting ${chariotInfo.names?.length || 0} chariot(s)`
-            }
+            Welcome, {user?.name}!
           </p>
+          {userType === 'chariot-leader' && (
+            <div className="mt-2 space-y-1">
+              <p className="text-sm sm:text-base font-medium text-gray-900 break-words">
+                Chariot: {chariotInfo.name}
+              </p>
+              {user?.isChapelLeader && user?.chapelNames && user.chapelNames.length > 0 && (
+                <p className="text-sm sm:text-base font-medium text-gray-900 break-words">
+                  Chapel(s): {user.chapelNames.join(', ')}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -184,14 +195,28 @@ const ChariotDashboard = () => {
             </div>
           </div>
 
-          {/* Chariot Info */}
+          {/* Leadership Information */}
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Chariot Information</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Leadership Information</h3>
             {userType === 'chariot-leader' ? (
-              <div>
-                <p className="text-sm text-gray-600 break-words">
-                  <span className="font-medium">Chariot:</span> {chariotInfo.name}
-                </p>
+              <div className="space-y-3">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-1">Chariot Leadership</p>
+                  <p className="text-sm text-blue-800 break-words">
+                    You are leading: <span className="font-semibold">{chariotInfo.name}</span>
+                  </p>
+                </div>
+                {user?.isChapelLeader && user?.chapelNames && user.chapelNames.length > 0 && (
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <p className="text-sm font-medium text-purple-900 mb-1">Chapel Leadership</p>
+                    <p className="text-sm text-purple-800 break-words">
+                      You are leading: <span className="font-semibold">{user.chapelNames.join(', ')}</span>
+                    </p>
+                    <p className="text-xs text-purple-700 mt-2">
+                      You can view attendance for all members, invitees, and workers in your chapel(s)
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
@@ -211,7 +236,49 @@ const ChariotDashboard = () => {
         </div>
       )}
 
-      {activeTab === 'members' && <ChariotMembersList />}
+      {activeTab === 'members' && (
+        <div className="space-y-4 sm:space-y-6">
+          {userType === 'chariot-leader' && user?.isChapelLeader && (
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-4 sm:space-x-8">
+                <button
+                  onClick={() => setMembersSubTab('chariot')}
+                  className={`
+                    py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
+                    ${membersSubTab === 'chariot'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  Chariot Members
+                </button>
+                <button
+                  onClick={() => setMembersSubTab('chapel')}
+                  className={`
+                    py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
+                    ${membersSubTab === 'chapel'
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  Chapel Members
+                </button>
+              </nav>
+            </div>
+          )}
+          {membersSubTab === 'chariot' ? (
+            <ChariotMembersList />
+          ) : (
+            userType === 'chariot-leader' && user?.isChapelLeader ? (
+              <ChapelMembersList />
+            ) : (
+              <ChariotMembersList />
+            )
+          )}
+        </div>
+      )}
       {activeTab === 'sessions' && <ChariotSessionsList />}
     </div>
   );

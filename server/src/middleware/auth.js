@@ -264,6 +264,27 @@ const authenticateUser = async (req, res, next) => {
             });
 
             if (chariot) {
+              // Check if member is also a chapel leader
+              const memberAsChapelLeader = await prisma.member.findUnique({
+                where: { id: member.id },
+                select: {
+                  chapelId: true,
+                  chapelRole: true,
+                  chapel: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              });
+
+              const chapelLeaderCheck = memberAsChapelLeader && 
+                memberAsChapelLeader.chapelRole === 'CHAPEL_LEADER' && 
+                memberAsChapelLeader.chapel
+                ? [memberAsChapelLeader.chapel]
+                : [];
+
               user = {
                 id: member.id,
                 email: member.email,
@@ -272,6 +293,13 @@ const authenticateUser = async (req, res, next) => {
                 chariotId: chariot.id,
                 chariotName: chariot.name,
               };
+
+              // Add chapel information if member is a chapel leader
+              if (chapelLeaderCheck.length > 0) {
+                user.chapelIds = chapelLeaderCheck.map(c => c.id);
+                user.chapelNames = chapelLeaderCheck.map(c => c.name);
+                user.isChapelLeader = true;
+              }
             }
           }
         } catch (error) {
@@ -717,6 +745,27 @@ const authenticateChariotUser = async (req, res, next) => {
           });
         }
 
+        // Check if member is also a chapel leader
+        const memberAsChapelLeader = await prisma.member.findUnique({
+          where: { id: member.id },
+          select: {
+            chapelId: true,
+            chapelRole: true,
+            chapel: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        const chapelLeaderCheck = memberAsChapelLeader && 
+          memberAsChapelLeader.chapelRole === 'CHAPEL_LEADER' && 
+          memberAsChapelLeader.chapel
+          ? [memberAsChapelLeader.chapel]
+          : [];
+
         req.user = {
           id: member.id,
           email: member.email,
@@ -725,6 +774,13 @@ const authenticateChariotUser = async (req, res, next) => {
           chariotId: member.chariotLeader[0].id,
           chariotName: member.chariotLeader[0].name,
         };
+
+        // Add chapel information if member is a chapel leader
+        if (chapelLeaderCheck.length > 0) {
+          req.user.chapelIds = chapelLeaderCheck.map(c => c.id);
+          req.user.chapelNames = chapelLeaderCheck.map(c => c.name);
+          req.user.isChapelLeader = true;
+        }
       } else if (decoded.userType === 'chariot-assistant') {
         // Use assistant authentication logic
         const member = await prisma.member.findUnique({

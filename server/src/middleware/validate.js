@@ -99,7 +99,17 @@ const schemas = {
         'any.only': 'chapelId must be a valid UUID or UNASSIGNED',
       }),
     isActive: Joi.boolean().optional(),
-  }),
+    // Explicitly forbid PIN and ID fields from being updated
+    pin: Joi.any().forbidden().messages({
+      'any.unknown': 'PIN cannot be updated',
+    }),
+    pinHash: Joi.any().forbidden().messages({
+      'any.unknown': 'PIN hash cannot be updated',
+    }),
+    id: Joi.any().forbidden().messages({
+      'any.unknown': 'Member ID cannot be changed',
+    }),
+  }).unknown(true), // Allow unknown fields but they will be ignored in controller
 
   // Session creation/update
   sessionCreate: Joi.object({
