@@ -186,14 +186,14 @@ const ChariotMembersList = () => {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                 disabled={pagination.page === 1}
-                className="btn btn-sm btn-outline text-xs sm:text-sm px-3 sm:px-4"
+                className="btn btn-sm btn-outline border border-gray-300 bg-white text-xs sm:text-sm px-3 sm:px-4 hover:bg-gray-50"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                 disabled={pagination.page >= pagination.pages}
-                className="btn btn-sm btn-outline text-xs sm:text-sm px-3 sm:px-4"
+                className="btn btn-sm btn-outline border border-gray-300 bg-white text-xs sm:text-sm px-3 sm:px-4 hover:bg-gray-50"
               >
                 Next
               </button>
