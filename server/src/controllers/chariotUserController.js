@@ -172,8 +172,8 @@ const getChariotMembers = async (req, res) => {
       ];
     }
 
-    // Get members and total count
-    const [members, total] = await Promise.all([
+    // Get members, total count, and role summary
+    const [members, total, roleCounts] = await Promise.all([
       prisma.member.findMany({
         where,
         skip,
@@ -200,7 +200,27 @@ const getChariotMembers = async (req, res) => {
         },
       }),
       prisma.member.count({ where }),
+      prisma.member.groupBy({
+        by: ['chapelRole'],
+        where,
+        _count: { _all: true },
+      }),
     ]);
+
+    const summary = roleCounts.reduce(
+      (acc, row) => {
+        const count = row?._count?._all || 0;
+        if (row.chapelRole === 'INVITEE') {
+          acc.invitees += count;
+        } else if (row.chapelRole === 'WORKER') {
+          acc.workers += count;
+        } else {
+          acc.members += count;
+        }
+        return acc;
+      },
+      { invitees: 0, members: 0, workers: 0 }
+    );
 
     const pages = Math.ceil(total / limit);
     const hasNext = page < pages;
@@ -210,6 +230,7 @@ const getChariotMembers = async (req, res) => {
       success: true,
       data: {
         members,
+        summary,
         pagination: {
           total,
           page: parseInt(page),
@@ -534,6 +555,7 @@ const getChariotSession = async (req, res) => {
               id: true,
               name: true,
               email: true,
+              chapelRole: true,
             },
           },
         },
@@ -548,6 +570,7 @@ const getChariotSession = async (req, res) => {
           id: true,
           name: true,
           email: true,
+          chapelRole: true,
         },
       }),
     ]);
@@ -560,6 +583,7 @@ const getChariotSession = async (req, res) => {
       id: a.member.id,
       name: a.member.name,
       email: a.member.email,
+      chapelRole: a.member.chapelRole,
       checkedInAt: a.checkedInAt,
       status: 'present',
     }));
@@ -570,6 +594,7 @@ const getChariotSession = async (req, res) => {
         id: m.id,
         name: m.name,
         email: m.email,
+        chapelRole: m.chapelRole,
         checkedInAt: null,
         status: 'absent',
       }));

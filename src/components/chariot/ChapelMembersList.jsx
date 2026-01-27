@@ -14,6 +14,11 @@ const ChapelMembersList = () => {
     total: 0,
     pages: 0,
   });
+  const [roleSummary, setRoleSummary] = useState({
+    invitees: 0,
+    members: 0,
+    workers: 0,
+  });
 
   useEffect(() => {
     loadMembers();
@@ -33,6 +38,29 @@ const ChapelMembersList = () => {
         total: response?.data?.pagination?.total || 0,
         pages: response?.data?.pagination?.pages || 0,
       }));
+      const summary = response?.data?.summary;
+      if (summary) {
+        setRoleSummary({
+          invitees: summary.invitees || 0,
+          members: summary.members || 0,
+          workers: summary.workers || 0,
+        });
+      } else {
+        const fallback = (response?.data?.members || []).reduce(
+          (acc, member) => {
+            if (member.chapelRole === 'INVITEE') {
+              acc.invitees += 1;
+            } else if (member.chapelRole === 'WORKER') {
+              acc.workers += 1;
+            } else {
+              acc.members += 1;
+            }
+            return acc;
+          },
+          { invitees: 0, members: 0, workers: 0 }
+        );
+        setRoleSummary(fallback);
+      }
     } catch (error) {
       showError('Failed to load chapel members');
       console.error('Load chapel members error:', error);
@@ -73,6 +101,22 @@ const ChapelMembersList = () => {
           onChange={handleSearch}
           className="input pl-9 sm:pl-10 w-full sm:max-w-md text-sm sm:text-base"
         />
+      </div>
+
+      {/* Role Summary */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
+          <div className="text-lg sm:text-xl font-semibold text-indigo-900">{roleSummary.invitees}</div>
+        </div>
+        <div className="bg-green-50 border border-green-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-green-700">Members</div>
+          <div className="text-lg sm:text-xl font-semibold text-green-900">{roleSummary.members}</div>
+        </div>
+        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-amber-700">Workers</div>
+          <div className="text-lg sm:text-xl font-semibold text-amber-900">{roleSummary.workers}</div>
+        </div>
       </div>
 
       {/* Members Table */}
@@ -184,14 +228,14 @@ const ChapelMembersList = () => {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                 disabled={pagination.page === 1}
-                className="btn btn-sm btn-outline text-xs sm:text-sm px-3 sm:px-4"
+                className="btn btn-sm btn-outline border border-gray-300 bg-white text-xs sm:text-sm px-3 sm:px-4 hover:bg-gray-50"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                 disabled={pagination.page >= pagination.pages}
-                className="btn btn-sm btn-outline text-xs sm:text-sm px-3 sm:px-4"
+                className="btn btn-sm btn-outline border border-gray-300 bg-white text-xs sm:text-sm px-3 sm:px-4 hover:bg-gray-50"
               >
                 Next
               </button>
