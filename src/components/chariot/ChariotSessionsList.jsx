@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CalendarDaysIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
@@ -62,6 +62,31 @@ const ChariotSessionsList = () => {
   }
 
   const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
+  const roleBreakdown = useMemo(() => {
+    const summary = {
+      invitees: { total: 0, present: 0, absent: 0 },
+      members: { total: 0, present: 0, absent: 0 },
+      workers: { total: 0, present: 0, absent: 0 },
+    };
+
+    if (!selectedSession?.members || selectedSession.members.length === 0) {
+      return summary;
+    }
+
+    selectedSession.members.forEach((member) => {
+      const role = member.chapelRole;
+      const bucket =
+        role === 'INVITEE' ? summary.invitees : role === 'WORKER' ? summary.workers : summary.members;
+      bucket.total += 1;
+      if (member.status === 'present') {
+        bucket.present += 1;
+      } else {
+        bucket.absent += 1;
+      }
+    });
+
+    return summary;
+  }, [selectedSession]);
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
@@ -220,6 +245,44 @@ const ChariotSessionsList = () => {
                   <div className="text-xs sm:text-sm text-gray-600">Absent</div>
                   <div className="text-xl sm:text-2xl font-bold text-red-700">
                     {selectedSession.absentCount || selectedSession.members?.filter(m => m.status === 'absent').length || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Role Breakdown */}
+              <div className="mb-4 sm:mb-6">
+                <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 sm:mb-3">
+                  {isChapelLeader && sessionViewType === 'chapel'
+                    ? 'Chapel Role Breakdown'
+                    : 'Chariot Role Breakdown'}
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                  <div className="bg-indigo-50 border border-indigo-100 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
+                    <div className="text-lg sm:text-xl font-semibold text-indigo-900">
+                      {roleBreakdown.invitees.total}
+                    </div>
+                    <div className="text-xs text-indigo-800">
+                      {roleBreakdown.invitees.present} present • {roleBreakdown.invitees.absent} absent
+                    </div>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-green-700">Members</div>
+                    <div className="text-lg sm:text-xl font-semibold text-green-900">
+                      {roleBreakdown.members.total}
+                    </div>
+                    <div className="text-xs text-green-800">
+                      {roleBreakdown.members.present} present • {roleBreakdown.members.absent} absent
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-100 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-amber-700">Workers</div>
+                    <div className="text-lg sm:text-xl font-semibold text-amber-900">
+                      {roleBreakdown.workers.total}
+                    </div>
+                    <div className="text-xs text-amber-800">
+                      {roleBreakdown.workers.present} present • {roleBreakdown.workers.absent} absent
+                    </div>
                   </div>
                 </div>
               </div>
