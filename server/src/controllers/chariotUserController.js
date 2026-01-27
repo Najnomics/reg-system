@@ -69,7 +69,82 @@ const getRelevantMemberIds = async (user) => {
 };
 
 /**
+ * Helper function to get only chariot member IDs (excluding chapel members)
+ */
+const getChariotOnlyMemberIds = async (user) => {
+  let memberIds = new Set();
+
+  if (user.userType === 'chariot-leader') {
+    // Get the chariot with leader and assistants
+    const chariot = await prisma.chariot.findUnique({
+      where: { id: user.chariotId },
+      select: {
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+    });
+
+    if (chariot) {
+      // Add leader ID
+      if (chariot.leaderId) memberIds.add(chariot.leaderId);
+      
+      // Add assistant IDs
+      chariot.assistants.forEach(assistant => memberIds.add(assistant.memberId));
+      
+      // Add member IDs
+      chariot.members.forEach(member => memberIds.add(member.memberId));
+    }
+  } else if (user.userType === 'chariot-assistant') {
+    // Get all chariots the assistant belongs to
+    const chariots = await prisma.chariot.findMany({
+      where: { id: { in: user.chariotIds } },
+      select: {
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+    });
+
+    chariots.forEach(chariot => {
+      // Add leader ID
+      if (chariot.leaderId) memberIds.add(chariot.leaderId);
+      
+      // Add assistant IDs
+      chariot.assistants.forEach(assistant => memberIds.add(assistant.memberId));
+      
+      // Add member IDs
+      chariot.members.forEach(member => memberIds.add(member.memberId));
+    });
+  }
+
+  return Array.from(memberIds);
+};
+
+/**
+ * Helper function to get only chapel member IDs (for chapel leaders)
+ */
+const getChapelOnlyMemberIds = async (user) => {
+  let memberIds = new Set();
+
+  if (user.isChapelLeader && user.chapelIds && user.chapelIds.length > 0) {
+    const chapelMembers = await prisma.member.findMany({
+      where: {
+        chapelId: { in: user.chapelIds },
+        isActive: { not: false },
+        // Include all roles: INVITEE, MEMBER, WORKER, CHAPEL_LEADER
+      },
+      select: { id: true },
+    });
+    chapelMembers.forEach(member => memberIds.add(member.id));
+  }
+
+  return Array.from(memberIds);
+};
+
+/**
  * Get chariot members (filtered for leader/assistant)
+ * Returns all relevant members (chariot + chapel if applicable)
  */
 const getChariotMembers = async (req, res) => {
   try {
@@ -155,6 +230,178 @@ const getChariotMembers = async (req, res) => {
 };
 
 /**
+ * Get only chariot members (excluding chapel members)
+ */
+const getChariotOnlyMembers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query } = req.query;
+    const skip = (page - 1) * limit;
+    const orderBy = { [sortBy]: sortOrder };
+
+    let memberIds = [];
+
+    if (req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant') {
+      // Get only chariot member IDs (excluding chapel)
+      memberIds = await getChariotOnlyMemberIds(req.user);
+    }
+
+    // Build search conditions
+    let where = {
+      id: { in: memberIds },
+      isActive: { not: false },
+    };
+
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ];
+    }
+
+    // Get members and total count
+    const [members, total] = await Promise.all([
+      prisma.member.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          pin: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: { attendance: true },
+          },
+        },
+      }),
+      prisma.member.count({ where }),
+    ]);
+
+    const pages = Math.ceil(total / limit);
+    const hasNext = page < pages;
+    const hasPrev = page > 1;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages,
+          hasNext,
+          hasPrev,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get chariot-only members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to retrieve chariot members',
+    });
+  }
+};
+
+/**
+ * Get only chapel members (for chapel leaders)
+ */
+const getChapelOnlyMembers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query } = req.query;
+    const skip = (page - 1) * limit;
+    const orderBy = { [sortBy]: sortOrder };
+
+    let memberIds = [];
+
+    // Only chapel leaders can access this
+    if (req.user.isChapelLeader && req.user.chapelIds && req.user.chapelIds.length > 0) {
+      memberIds = await getChapelOnlyMemberIds(req.user);
+    }
+
+    // Build search conditions
+    let where = {
+      id: { in: memberIds },
+      isActive: { not: false },
+    };
+
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ];
+    }
+
+    // Get members and total count
+    const [members, total] = await Promise.all([
+      prisma.member.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          pin: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: { attendance: true },
+          },
+        },
+      }),
+      prisma.member.count({ where }),
+    ]);
+
+    const pages = Math.ceil(total / limit);
+    const hasNext = page < pages;
+    const hasPrev = page > 1;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages,
+          hasNext,
+          hasPrev,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get chapel-only members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to retrieve chapel members',
+    });
+  }
+};
+
+/**
  * Get chariot sessions with attendance filtered by chariot members
  * Optimized with parallel queries and selective field loading
  */
@@ -231,31 +478,39 @@ const getChariotSessions = async (req, res) => {
 /**
  * Get a single session with chariot member attendance
  * Optimized with parallel queries
+ * Supports query param 'type' = 'chariot-only' | 'chapel-only' | 'all' (default)
  */
 const getChariotSession = async (req, res) => {
   try {
     const { id } = req.params;
+    const { type = 'all' } = req.query; // 'chariot-only', 'chapel-only', or 'all'
 
-    // Get member IDs and session data in parallel for better performance
-    const [memberIds, session] = await Promise.all([
-      // Get all relevant member IDs (leader, assistants, and members)
-      req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant'
-        ? getRelevantMemberIds(req.user)
-        : Promise.resolve([]),
-      // Get session data
-      prisma.session.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          theme: true,
-          startTime: true,
-          endTime: true,
-          location: true,
-          isActive: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+    // Get member IDs based on type
+    let memberIds = [];
+    if (req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant') {
+      if (type === 'chariot-only') {
+        memberIds = await getChariotOnlyMemberIds(req.user);
+      } else if (type === 'chapel-only' && req.user.isChapelLeader) {
+        memberIds = await getChapelOnlyMemberIds(req.user);
+      } else {
+        // Default: get all relevant member IDs
+        memberIds = await getRelevantMemberIds(req.user);
+      }
+    }
+
+    // Get session data
+    const session = await prisma.session.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        theme: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
 
     if (!session) {
       return res.status(404).json({
@@ -296,13 +551,6 @@ const getChariotSession = async (req, res) => {
         },
       }),
     ]);
-
-    if (!session) {
-      return res.status(404).json({
-        error: 'Session not found',
-        message: 'Session with the specified ID does not exist',
-      });
-    }
 
     // Get IDs of members who attended
     const attendedMemberIds = new Set(attendanceRecords.map(a => a.member.id));
@@ -439,6 +687,8 @@ const getChariotDashboardStats = async (req, res) => {
 
 module.exports = {
   getChariotMembers,
+  getChariotOnlyMembers,
+  getChapelOnlyMembers,
   getChariotSessions,
   getChariotSession,
   getChariotDashboardStats,

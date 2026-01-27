@@ -3,7 +3,7 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
 
-const ChariotMembersList = () => {
+const ChapelMembersList = () => {
   const { showError } = useApp();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ const ChariotMembersList = () => {
   const loadMembers = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getChariotOnlyMembers({
+      const response = await apiService.getChapelOnlyMembers({
         page: pagination.page,
         limit: pagination.limit,
         query: searchTerm || undefined,
@@ -34,8 +34,8 @@ const ChariotMembersList = () => {
         pages: response?.data?.pagination?.pages || 0,
       }));
     } catch (error) {
-      showError('Failed to load members');
-      console.error('Load members error:', error);
+      showError('Failed to load chapel members');
+      console.error('Load chapel members error:', error);
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ const ChariotMembersList = () => {
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search members..."
+          placeholder="Search chapel members..."
           value={searchTerm}
           onChange={handleSearch}
           className="input pl-9 sm:pl-10 w-full sm:max-w-md text-sm sm:text-base"
@@ -81,7 +81,7 @@ const ChariotMembersList = () => {
         <div className="block sm:hidden divide-y divide-gray-200">
           {members.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
-              No members found
+              No chapel members found
             </div>
           ) : (
             members.map((member) => (
@@ -126,7 +126,7 @@ const ChariotMembersList = () => {
                   Email
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Chapel
+                  Role
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   PIN
@@ -140,7 +140,7 @@ const ChariotMembersList = () => {
               {members.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                    No members found
+                    No chapel members found
                   </td>
                 </tr>
               ) : (
@@ -154,9 +154,7 @@ const ChariotMembersList = () => {
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">
-                        {member.chapel
-                          ? `${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
-                          : 'Not assigned'}
+                        {formatChapelRole(member.chapelRole)}
                       </div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
@@ -205,4 +203,4 @@ const ChariotMembersList = () => {
   );
 };
 
-export default ChariotMembersList;
+export default ChapelMembersList;

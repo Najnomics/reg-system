@@ -8,8 +8,14 @@ const router = express.Router();
 // All routes require chariot leader or assistant authentication
 router.use(authenticateChariotUser);
 
-// Get chariot members
+// Get chariot members (all relevant members)
 router.get('/members', chariotUserController.getChariotMembers);
+
+// Get only chariot members (excluding chapel members)
+router.get('/members/chariot-only', chariotUserController.getChariotOnlyMembers);
+
+// Get only chapel members (for chapel leaders)
+router.get('/members/chapel-only', chariotUserController.getChapelOnlyMembers);
 
 // Get chariot sessions
 router.get('/sessions', chariotUserController.getChariotSessions);

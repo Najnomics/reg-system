@@ -32,8 +32,8 @@ const DashboardPage = () => {
     try {
       setIsLoading(true)
       
-      // Fetch real analytics data
-      const response = await apiService.getAnalytics({ period: '30' })
+      // Fetch real analytics data (force refresh on page load)
+      const response = await apiService.getAnalytics({ period: '30' }, true)
       
       if (response.success && response.data) {
         const { summary, charts } = response.data
