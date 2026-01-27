@@ -16,6 +16,7 @@ const getMembers = async (req, res) => {
       email,
       chapelRole,
       chapelId,
+      chariotId,
     } = req.query;
     
     const skip = (page - 1) * limit;
@@ -55,6 +56,37 @@ const getMembers = async (req, res) => {
         where.chapelId = null;
       } else {
         where.chapelId = chapelId;
+      }
+    }
+
+    // Filter by chariot if specified
+    if (chariotId) {
+      if (chariotId === 'UNASSIGNED') {
+        // Members not assigned to any chariot (not leader, assistant, or member)
+        where.AND = [
+          {
+            chariotLeader: {
+              none: {},
+            },
+          },
+          {
+            chariotAssistants: {
+              none: {},
+            },
+          },
+          {
+            chariotMembers: {
+              none: {},
+            },
+          },
+        ];
+      } else {
+        // Members assigned to a specific chariot (as leader, assistant, or member)
+        where.OR = [
+          { chariotLeader: { some: { id: chariotId } } },
+          { chariotAssistants: { some: { chariotId: chariotId } } },
+          { chariotMembers: { some: { chariotId: chariotId } } },
+        ];
       }
     }
 

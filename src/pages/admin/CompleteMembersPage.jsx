@@ -29,8 +29,11 @@ const CompleteMembersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [chapelRoleFilter, setChapelRoleFilter] = useState('all');
   const [chapelFilter, setChapelFilter] = useState('all');
+  const [chariotFilter, setChariotFilter] = useState('all');
   const [chapels, setChapels] = useState([]);
   const [loadingChapels, setLoadingChapels] = useState(false);
+  const [filterChariots, setFilterChariots] = useState([]);
+  const [loadingFilterChariots, setLoadingFilterChariots] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -52,6 +55,9 @@ const CompleteMembersPage = () => {
   const [roleMember, setRoleMember] = useState(null);
   const [roleSelection, setRoleSelection] = useState('worker');
   const [roleSaving, setRoleSaving] = useState(false);
+  const [chariots, setChariots] = useState([]);
+  const [chariotSelection, setChariotSelection] = useState('unassigned');
+  const [loadingChariots, setLoadingChariots] = useState(false);
   const [chapelModalOpen, setChapelModalOpen] = useState(false);
   const [chapelMember, setChapelMember] = useState(null);
   const [chapelSelection, setChapelSelection] = useState('unassigned');
@@ -106,6 +112,12 @@ const CompleteMembersPage = () => {
         : chapelFilter === 'unassigned'
           ? 'UNASSIGNED'
           : chapelFilter;
+      
+      const chariotFilterParam = chariotFilter === 'all'
+        ? undefined
+        : chariotFilter === 'unassigned'
+          ? 'UNASSIGNED'
+          : chariotFilter;
 
       const response = await apiService.getMembers({
         page,
@@ -115,6 +127,7 @@ const CompleteMembersPage = () => {
         query: searchTerm.trim() || undefined,
         chapelRole: chapelRoleParam,
         chapelId: chapelFilterParam,
+        chariotId: chariotFilterParam,
         forceRefresh,
       });
       
@@ -131,7 +144,7 @@ const CompleteMembersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, chapelFilter, membersPerPage, showError]);
+  }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, chapelFilter, chariotFilter, membersPerPage, showError]);
 
   const fetchChapels = useCallback(async () => {
     try {
@@ -147,10 +160,25 @@ const CompleteMembersPage = () => {
     }
   }, [showError]);
 
+  const fetchFilterChariots = useCallback(async () => {
+    try {
+      setLoadingFilterChariots(true);
+      const response = await apiService.getChariots(true);
+      const chariotList = response?.data?.chariots || response?.chariots || [];
+      setFilterChariots(Array.isArray(chariotList) ? chariotList.filter(c => c.isActive) : []);
+    } catch (error) {
+      console.error('Failed to fetch chariots:', error);
+      showError('Failed to load chariots');
+    } finally {
+      setLoadingFilterChariots(false);
+    }
+  }, [showError]);
+
   useEffect(() => {
     // Fetch members on mount - show cached data immediately if available
     fetchMembers(1, false); // Use cache first for instant display
     fetchChapels();
+    fetchFilterChariots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -171,7 +199,7 @@ const CompleteMembersPage = () => {
     } else {
       fetchMembers(1, true);
     }
-  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter, chapelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchTerm, sortBy, sortOrder, chapelRoleFilter, chapelFilter, chariotFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle page change
   useEffect(() => {
@@ -256,18 +284,87 @@ const CompleteMembersPage = () => {
     setRoleModalOpen(false);
     setRoleMember(null);
     setRoleSelection('worker');
+    setChariotSelection('unassigned');
   };
 
   const handleRoleUpdate = async () => {
     if (!roleMember) return;
     setRoleSaving(true);
     try {
-      const response = await apiService.updateMember(roleMember.id, {
+      // Check if member is a leader - if so, skip chariot assignment changes
+      const isLeader = roleMember?.chariotLeader && roleMember.chariotLeader.length > 0;
+      
+      // Get current chariot assignments (excluding leaders)
+      const currentChariotAssignments = [];
+      if (roleMember?.chariotAssistants && roleMember.chariotAssistants.length > 0) {
+        roleMember.chariotAssistants.forEach(a => {
+          if (a.chariot?.id) {
+            currentChariotAssignments.push({ chariotId: a.chariot.id, type: 'assistant' });
+          }
+        });
+      }
+      if (roleMember?.chariotMembers && roleMember.chariotMembers.length > 0) {
+        roleMember.chariotMembers.forEach(cm => {
+          if (cm.chariot?.id) {
+            currentChariotAssignments.push({ chariotId: cm.chariot.id, type: 'member' });
+          }
+        });
+      }
+
+      // Update role first (this doesn't affect chariot assignments)
+      await apiService.updateMember(roleMember.id, {
         chapelRole: roleSelection,
       });
-      const updatedMember = response?.data?.member || response?.member || response;
-      setMembers((prev) => prev.map((m) => (m.id === roleMember.id ? updatedMember : m)));
-      showSuccess(`Role updated to ${roleSelection}`);
+
+      // Handle chariot assignment if changed (skip if member is a leader)
+      if (!isLeader) {
+        if (chariotSelection !== 'unassigned') {
+          const targetChariotId = chariotSelection;
+          const isCurrentlyAssigned = currentChariotAssignments.some(c => c.chariotId === targetChariotId);
+          
+          if (!isCurrentlyAssigned) {
+            // Remove from all current chariots first
+            for (const current of currentChariotAssignments) {
+              try {
+                if (current.type === 'assistant') {
+                  await apiService.removeChariotAssistants(current.chariotId, [roleMember.id]);
+                } else if (current.type === 'member') {
+                  await apiService.removeChariotMembers(current.chariotId, [roleMember.id]);
+                }
+              } catch (error) {
+                console.error(`Failed to remove from chariot ${current.chariotId}:`, error);
+              }
+            }
+            
+            // Add to new chariot
+            await apiService.addChariotMembers(targetChariotId, [roleMember.id]);
+          }
+        } else {
+          // Remove from all chariots if unassigned
+          for (const current of currentChariotAssignments) {
+            try {
+              if (current.type === 'assistant') {
+                await apiService.removeChariotAssistants(current.chariotId, [roleMember.id]);
+              } else if (current.type === 'member') {
+                await apiService.removeChariotMembers(current.chariotId, [roleMember.id]);
+              }
+            } catch (error) {
+              console.error(`Failed to remove from chariot ${current.chariotId}:`, error);
+            }
+          }
+        }
+      }
+
+      // Refresh member data to get updated chariot assignments
+      await fetchMembers(currentPage, true);
+      const chariotMsg = isLeader 
+        ? '' 
+        : chariotSelection !== 'unassigned' 
+          ? ' and chariot assigned' 
+          : currentChariotAssignments.length > 0 
+            ? ' and chariot unassigned' 
+            : '';
+      showSuccess(`Role updated to ${roleSelection}${chariotMsg}`);
       closeRoleModal();
     } catch (error) {
       console.error('Failed to update role:', error);
@@ -792,6 +889,21 @@ const CompleteMembersPage = () => {
             {chapels.map((chapel) => (
               <option key={chapel.id} value={chapel.id}>
                 {chapel.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={chariotFilter}
+            onChange={(e) => setChariotFilter(e.target.value)}
+            disabled={loadingFilterChariots}
+            className="block px-3 py-2.5 sm:py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Chariots</option>
+            <option value="unassigned">Unassigned</option>
+            {filterChariots.map((chariot) => (
+              <option key={chariot.id} value={chariot.id}>
+                {chariot.name}
               </option>
             ))}
           </select>
@@ -1469,6 +1581,42 @@ const CompleteMembersPage = () => {
                   <option value="chapel_leader">Chapel Leader</option>
                   <option value="unassigned">Unassigned</option>
                 </select>
+              </div>
+              <div>
+                <label htmlFor="chariotSelection" className="block text-sm font-medium text-gray-700">
+                  Chariot Assignment
+                </label>
+                {roleMember?.chariotLeader && roleMember.chariotLeader.length > 0 ? (
+                  <div className="mt-1">
+                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded border">
+                      {roleMember.chariotLeader[0].name} (Leader)
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Chariot leaders cannot be reassigned via this interface. Update the chariot directly to change leadership.
+                    </p>
+                  </div>
+                ) : loadingChariots ? (
+                  <div className="mt-1 text-sm text-gray-500">Loading chariots...</div>
+                ) : (
+                  <>
+                    <select
+                      id="chariotSelection"
+                      value={chariotSelection}
+                      onChange={(e) => setChariotSelection(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    >
+                      <option value="unassigned">Unassigned</option>
+                      {chariots.map((chariot) => (
+                        <option key={chariot.id} value={chariot.id}>
+                          {chariot.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Note: Changing role or chapel will not affect chariot assignment unless you change it here.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">

@@ -214,6 +214,7 @@ class ApiService {
     if (params.query) queryParams.append('query', params.query);
     if (params.chapelRole) queryParams.append('chapelRole', params.chapelRole);
     if (params.chapelId) queryParams.append('chapelId', params.chapelId);
+    if (params.chariotId) queryParams.append('chariotId', params.chariotId);
     
     // Use cache for GET requests (cache for 30 seconds)
     const cacheKey = `/members?${queryParams.toString()}`;
