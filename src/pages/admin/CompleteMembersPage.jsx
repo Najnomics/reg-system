@@ -160,19 +160,35 @@ const CompleteMembersPage = () => {
     }
   }, [showError]);
 
+  // Helper function to extract chariot number for sorting
+  const getChariotNumber = useCallback((name = '') => {
+    const match = String(name).match(/(\d+)/);
+    return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+  }, []);
+
   const fetchFilterChariots = useCallback(async () => {
     try {
       setLoadingFilterChariots(true);
       const response = await apiService.getChariots(true);
       const chariotList = response?.data?.chariots || response?.chariots || [];
-      setFilterChariots(Array.isArray(chariotList) ? chariotList.filter(c => c.isActive) : []);
+      const activeChariots = Array.isArray(chariotList) ? chariotList.filter(c => c.isActive) : [];
+      
+      // Sort chariots numerically (Chariot 1, Chariot 2, ..., Chariot 30)
+      const sortedChariots = [...activeChariots].sort((a, b) => {
+        const numA = getChariotNumber(a?.name);
+        const numB = getChariotNumber(b?.name);
+        if (numA !== numB) return numA - numB;
+        return String(a?.name || '').localeCompare(String(b?.name || ''));
+      });
+      
+      setFilterChariots(sortedChariots);
     } catch (error) {
       console.error('Failed to fetch chariots:', error);
       showError('Failed to load chariots');
     } finally {
       setLoadingFilterChariots(false);
     }
-  }, [showError]);
+  }, [showError, getChariotNumber]);
 
   useEffect(() => {
     // Fetch members on mount - show cached data immediately if available

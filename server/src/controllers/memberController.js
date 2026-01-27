@@ -30,11 +30,13 @@ const getMembers = async (req, res) => {
       },
     };
     
+    // Build search query conditions
+    const searchConditions = [];
     if (query) {
-      where.OR = [
+      searchConditions.push(
         { name: { contains: query, mode: 'insensitive' } },
-        { email: { contains: query, mode: 'insensitive' } },
-      ];
+        { email: { contains: query, mode: 'insensitive' } }
+      );
     } else {
       // Individual field filters
       if (name) {
@@ -59,11 +61,13 @@ const getMembers = async (req, res) => {
       }
     }
 
-    // Filter by chariot if specified
+    // Build chariot filter conditions
+    const chariotConditions = [];
     if (chariotId) {
       if (chariotId === 'UNASSIGNED') {
         // Members not assigned to any chariot (not leader, assistant, or member)
         where.AND = [
+          ...(where.AND || []),
           {
             chariotLeader: {
               none: {},
@@ -82,12 +86,33 @@ const getMembers = async (req, res) => {
         ];
       } else {
         // Members assigned to a specific chariot (as leader, assistant, or member)
-        where.OR = [
+        chariotConditions.push(
           { chariotLeader: { some: { id: chariotId } } },
           { chariotAssistants: { some: { chariotId: chariotId } } },
-          { chariotMembers: { some: { chariotId: chariotId } } },
-        ];
+          { chariotMembers: { some: { chariotId: chariotId } } }
+        );
       }
+    }
+
+    // Combine search and chariot conditions properly
+    if (searchConditions.length > 0 && chariotConditions.length > 0) {
+      // Both search and chariot filter: need to combine with AND
+      // (member matches search query) AND (member is in specified chariot)
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: searchConditions,
+        },
+        {
+          OR: chariotConditions,
+        },
+      ];
+    } else if (searchConditions.length > 0) {
+      // Only search query
+      where.OR = searchConditions;
+    } else if (chariotConditions.length > 0) {
+      // Only chariot filter
+      where.OR = chariotConditions;
     }
 
     // Get members and total count in parallel
