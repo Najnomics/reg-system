@@ -75,7 +75,15 @@ const Header = () => {
                   {user?.name || 'User'}
                 </div>
                 <div className="text-xs text-gray-600">
-                  {userType === 'admin' ? 'Administrator' : 'Registration Rep'}
+                  {userType === 'admin' 
+                    ? 'Administrator' 
+                    : userType === 'reg-rep'
+                    ? 'Registration Rep'
+                    : userType === 'chariot-leader'
+                    ? `Chariot Leader${user?.isChapelLeader ? ' & Chapel Leader' : ''}`
+                    : userType === 'chariot-assistant'
+                    ? 'Chariot Assistant'
+                    : 'User'}
                 </div>
               </div>
             </button>
@@ -96,8 +104,22 @@ const Header = () => {
                         {user?.email}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {userType === 'admin' ? 'Administrator' : 'Registration Representative'}
+                        {userType === 'admin' 
+                          ? 'Administrator' 
+                          : userType === 'reg-rep'
+                          ? 'Registration Representative'
+                          : userType === 'chariot-leader'
+                          ? `Chariot Leader${user?.isChapelLeader ? ' & Chapel Leader' : ''}`
+                          : userType === 'chariot-assistant'
+                          ? 'Chariot Assistant'
+                          : 'User'}
                       </div>
+                      {/* Show chapel names if user is a chapel leader */}
+                      {user?.isChapelLeader && user?.chapelNames && user.chapelNames.length > 0 && (
+                        <div className="text-xs text-purple-600 mt-1">
+                          Chapel: {user.chapelNames.join(', ')}
+                        </div>
+                      )}
                     </div>
                     
                     <Link

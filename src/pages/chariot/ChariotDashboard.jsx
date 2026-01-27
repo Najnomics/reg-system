@@ -81,7 +81,7 @@ const ChariotDashboard = () => {
           <p className="mt-1 text-sm sm:text-base text-gray-600 break-words">
             Welcome, {user?.name}! 
             {userType === 'chariot-leader' 
-              ? ` You are leading "${chariotInfo.name}"`
+              ? ` You are leading "${chariotInfo.name}"${user?.isChapelLeader && user?.chapelNames?.length > 0 ? ` and ${user.chapelNames.length} chapel(s)` : ''}`
               : ` You are assisting ${chariotInfo.names?.length || 0} chariot(s)`
             }
           </p>
@@ -188,10 +188,26 @@ const ChariotDashboard = () => {
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Chariot Information</h3>
             {userType === 'chariot-leader' ? (
-              <div>
+              <div className="space-y-3">
                 <p className="text-sm text-gray-600 break-words">
                   <span className="font-medium">Chariot:</span> {chariotInfo.name}
                 </p>
+                {/* Show chapel information if user is also a chapel leader */}
+                {user?.isChapelLeader && user?.chapelNames && user.chapelNames.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-sm font-medium text-gray-900 mb-2">Chapel Leadership:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {user.chapelNames.map((chapelName, index) => (
+                        <li key={user.chapelIds[index]} className="text-sm text-gray-600 break-words">
+                          {chapelName}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-gray-500 mt-2">
+                      You can view attendance for all members, invitees, and workers in your chapel(s)
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
