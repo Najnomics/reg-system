@@ -39,11 +39,28 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/checkin/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, proxy-revalidate"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
-      "source": "/((?!.*\\.).*)$",
+      "source": "/checkin/:sessionId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|assets|.*\\.).*)",
       "destination": "/index.html"
     }
   ]
