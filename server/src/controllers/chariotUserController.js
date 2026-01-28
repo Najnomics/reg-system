@@ -1,6 +1,39 @@
 const prisma = require('../config/database');
 
 /**
+ * Resolve chapel IDs for a user who may be a chapel leader.
+ * Falls back to member chapel role or chapel leadership fields.
+ */
+const resolveChapelLeaderIds = async (user) => {
+  const chapelIds = new Set(Array.isArray(user.chapelIds) ? user.chapelIds : []);
+
+  if (chapelIds.size === 0) {
+    const [memberRecord, leaderChapels] = await Promise.all([
+      prisma.member.findUnique({
+        where: { id: user.id },
+        select: { chapelId: true, chapelRole: true },
+      }),
+      prisma.chapel.findMany({
+        where: {
+          OR: [{ leaderId: user.id }, { subLeaderId: user.id }],
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (memberRecord?.chapelRole === 'CHAPEL_LEADER' && memberRecord.chapelId) {
+      chapelIds.add(memberRecord.chapelId);
+    }
+
+    leaderChapels.forEach((chapel) => {
+      if (chapel?.id) chapelIds.add(chapel.id);
+    });
+  }
+
+  return Array.from(chapelIds);
+};
+
+/**
  * Helper function to get all relevant member IDs for a chariot leader or assistant
  * Includes: leader, assistants, members, and chapel members (if user is also a chapel leader)
  */
@@ -31,10 +64,11 @@ const getRelevantMemberIds = async (user) => {
 
     // If user is also a chapel leader, add all chapel members
     // This includes: chapel leader (themselves), invitees, members, and workers
-    if (user.isChapelLeader && user.chapelIds && user.chapelIds.length > 0) {
+    const chapelIds = await resolveChapelLeaderIds(user);
+    if (chapelIds.length > 0) {
       const chapelMembers = await prisma.member.findMany({
         where: {
-          chapelId: { in: user.chapelIds },
+          chapelId: { in: chapelIds },
           isActive: { not: false },
           // Include all roles: INVITEE, MEMBER, WORKER, CHAPEL_LEADER
         },
@@ -127,10 +161,11 @@ const getChariotOnlyMemberIds = async (user) => {
 const getChapelOnlyMemberIds = async (user) => {
   let memberIds = new Set();
 
-  if (user.isChapelLeader && user.chapelIds && user.chapelIds.length > 0) {
+  const chapelIds = await resolveChapelLeaderIds(user);
+  if (chapelIds.length > 0) {
     const chapelMembers = await prisma.member.findMany({
       where: {
-        chapelId: { in: user.chapelIds },
+        chapelId: { in: chapelIds },
         isActive: { not: false },
         // Include all roles: INVITEE, MEMBER, WORKER, CHAPEL_LEADER
       },
@@ -348,9 +383,7 @@ const getChapelOnlyMembers = async (req, res) => {
     let memberIds = [];
 
     // Only chapel leaders can access this
-    if (req.user.isChapelLeader && req.user.chapelIds && req.user.chapelIds.length > 0) {
-      memberIds = await getChapelOnlyMemberIds(req.user);
-    }
+    memberIds = await getChapelOnlyMemberIds(req.user);
 
     // Build search conditions
     let where = {
@@ -432,10 +465,10 @@ const getChariotSessions = async (req, res) => {
     // Get member IDs and sessions in parallel for better performance
     const [memberIds, sessions] = await Promise.all([
       req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant'
-        ? type === 'chariot-only'
-          ? getChariotOnlyMemberIds(req.user)
-          : type === 'chapel-only' && req.user.isChapelLeader
-            ? getChapelOnlyMemberIds(req.user)
+        ? type === 'chapel-only'
+          ? getChapelOnlyMemberIds(req.user)
+          : type === 'chariot-only'
+            ? getChariotOnlyMemberIds(req.user)
             : getRelevantMemberIds(req.user)
         : Promise.resolve([]),
       // Get sessions in parallel (without attendance first for faster initial load)
@@ -513,10 +546,10 @@ const getChariotSession = async (req, res) => {
     // Get member IDs based on type
     let memberIds = [];
     if (req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant') {
-      if (type === 'chariot-only') {
-        memberIds = await getChariotOnlyMemberIds(req.user);
-      } else if (type === 'chapel-only' && req.user.isChapelLeader) {
+      if (type === 'chapel-only') {
         memberIds = await getChapelOnlyMemberIds(req.user);
+      } else if (type === 'chariot-only') {
+        memberIds = await getChariotOnlyMemberIds(req.user);
       } else {
         // Default: get all relevant member IDs
         memberIds = await getRelevantMemberIds(req.user);
