@@ -19,14 +19,19 @@ const ChapelMembersList = () => {
     members: 0,
     workers: 0,
   });
-  const [totalChariotMembers, setTotalChariotMembers] = useState(0);
+  const [chapelTotals, setChapelTotals] = useState({
+    total: 0,
+    members: 0,
+    workers: 0,
+    invitees: 0,
+  });
 
   useEffect(() => {
     loadMembers();
   }, [pagination.page, searchTerm]);
 
   useEffect(() => {
-    loadChariotTotal();
+    loadChapelTotals();
   }, []);
 
   const loadMembers = async () => {
@@ -74,15 +79,18 @@ const ChapelMembersList = () => {
     }
   };
 
-  const loadChariotTotal = async () => {
+  const loadChapelTotals = async () => {
     try {
-      const response = await apiService.getChariotOnlyMembers({
-        page: 1,
-        limit: 1,
+      const response = await apiService.getChariotDashboardStats(true);
+      const data = response?.data || {};
+      setChapelTotals({
+        total: data.totalChapelMembers || 0,
+        members: data.totalChapelMembersByRole || 0,
+        workers: data.totalChapelWorkers || 0,
+        invitees: data.totalChapelInvitees || 0,
       });
-      setTotalChariotMembers(response?.data?.pagination?.total || 0);
     } catch (error) {
-      console.error('Load chariot total error:', error);
+      console.error('Load chapel totals error:', error);
     }
   };
 
@@ -121,22 +129,24 @@ const ChapelMembersList = () => {
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 text-center">
           <div className="text-xs sm:text-sm text-blue-700">Chapel Members</div>
-          <div className="text-lg sm:text-xl font-semibold text-blue-900">{pagination.total}</div>
-        </div>
-        <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 sm:p-4 text-center">
-          <div className="text-xs sm:text-sm text-purple-700">Chariot Members</div>
-          <div className="text-lg sm:text-xl font-semibold text-purple-900">{totalChariotMembers}</div>
+          <div className="text-lg sm:text-xl font-semibold text-blue-900">
+            {chapelTotals.total || pagination.total}
+          </div>
         </div>
         <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 sm:p-4 text-center">
           <div className="text-xs sm:text-sm text-amber-700">Workers</div>
-          <div className="text-lg sm:text-xl font-semibold text-amber-900">{roleSummary.workers}</div>
+          <div className="text-lg sm:text-xl font-semibold text-amber-900">
+            {chapelTotals.workers || roleSummary.workers}
+          </div>
         </div>
         <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 text-center">
           <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
-          <div className="text-lg sm:text-xl font-semibold text-indigo-900">{roleSummary.invitees}</div>
+          <div className="text-lg sm:text-xl font-semibold text-indigo-900">
+            {chapelTotals.invitees || roleSummary.invitees}
+          </div>
         </div>
       </div>
 
