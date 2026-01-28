@@ -332,14 +332,10 @@ class EmailService {
 
     const chariotLeaderPassword = process.env.CHARIOT_LEADER_PASSWORD || 'blessingikpia';
     const chariotAssistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD || 'food123';
-    // Use correct frontend URL - default to reg-system-mu.vercel.app
     const rawPortalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
     const portalUrl = rawPortalUrl.startsWith('http')
       ? (rawPortalUrl.endsWith('/') ? rawPortalUrl : `${rawPortalUrl}/`)
       : 'https://reg-system-mu.vercel.app/';
-    
-    // Ensure URL is always set to reg-system-mu.vercel.app
-    const finalPortalUrl = 'https://reg-system-mu.vercel.app/';
 
     let chariotName = 'Not assigned';
     let roleLabel = 'Member';
@@ -377,7 +373,7 @@ class EmailService {
       roleLabel,
       leaderName,
       leaderEmail,
-      portalUrl: finalPortalUrl,
+      portalUrl,
       loginPassword,
       showLogin,
     };

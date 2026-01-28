@@ -6,50 +6,12 @@ const PDFDocument = require('pdfkit');
  */
 class QRCodeService {
   /**
-   * Normalize frontend URL to ensure consistent format
-   */
-  normalizeFrontendUrl(url) {
-    if (!url) return null;
-    
-    // Remove trailing slashes
-    let normalized = url.trim().replace(/\/+$/, '');
-    
-    // Ensure it starts with http:// or https://
-    if (!normalized.match(/^https?:\/\//i)) {
-      // If no protocol, assume https for production, http for localhost
-      if (normalized.includes('localhost') || normalized.includes('127.0.0.1')) {
-        normalized = `http://${normalized}`;
-      } else {
-        normalized = `https://${normalized}`;
-      }
-    }
-    
-    return normalized;
-  }
-
-  /**
-   * Get the correct frontend URL for QR code generation
-   */
-  getFrontendUrl(baseUrl = null) {
-    // Priority: baseUrl > FRONTEND_URL env > default
-    const url = baseUrl || process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app';
-    const normalized = this.normalizeFrontendUrl(url);
-    
-    // Log for debugging
-    console.log(`[QR Code] Using frontend URL: ${normalized} (from ${baseUrl ? 'parameter' : process.env.FRONTEND_URL ? 'env' : 'default'})`);
-    
-    return normalized;
-  }
-
-  /**
    * Generate QR code for a session
    */
   async generateSessionQR(sessionId, baseUrl = null) {
     try {
-      const frontendUrl = this.getFrontendUrl(baseUrl);
+      const frontendUrl = baseUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
       const checkInUrl = `${frontendUrl}/checkin/${sessionId}`;
-      
-      console.log(`[QR Code] Generating QR for session ${sessionId} with URL: ${checkInUrl}`);
 
       // Generate QR code as data URL (base64 image)
       const qrCodeDataUrl = await QRCode.toDataURL(checkInUrl, {
@@ -93,7 +55,7 @@ class QRCodeService {
    */
   async generateQRBuffer(sessionId, format = 'png', baseUrl = null) {
     try {
-      const frontendUrl = this.getFrontendUrl(baseUrl);
+      const frontendUrl = baseUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
       const checkInUrl = `${frontendUrl}/checkin/${sessionId}`;
 
       let buffer;
@@ -141,7 +103,7 @@ class QRCodeService {
    */
   async generatePrintableQR(session, includeDetails = true) {
     try {
-      const frontendUrl = this.getFrontendUrl();
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const checkInUrl = `${frontendUrl}/checkin/${session.id}`;
 
       // Generate base QR code
@@ -330,28 +292,24 @@ class QRCodeService {
 
   /**
    * Validate QR code URL format
-   * Updated to handle UUID session IDs (not just numeric)
    */
   validateQRUrl(url) {
     try {
       const urlObj = new URL(url);
-      // Updated regex to match UUID format: /checkin/{uuid}
-      // UUID format: 8-4-4-4-12 hexadecimal characters
-      const pathMatch = urlObj.pathname.match(/^\/checkin\/([a-f0-9-]{36}|[a-f0-9]{32}|\d+)$/i);
+      const pathMatch = urlObj.pathname.match(/^\/checkin\/(\d+)$/);
       
       if (!pathMatch) {
-        throw new Error(`Invalid QR code URL format. Expected /checkin/{sessionId}, got: ${urlObj.pathname}`);
+        throw new Error('Invalid QR code URL format');
       }
 
-      const sessionId = pathMatch[1];
-      if (!sessionId || sessionId.length === 0) {
+      const sessionId = parseInt(pathMatch[1]);
+      if (isNaN(sessionId) || sessionId <= 0) {
         throw new Error('Invalid session ID in QR code URL');
       }
 
       return { sessionId, isValid: true };
 
     } catch (error) {
-      console.error(`[QR Code Validation] Invalid URL: ${url}`, error);
       return { sessionId: null, isValid: false, error: error.message };
     }
   }
@@ -361,7 +319,7 @@ class QRCodeService {
    */
   async generateMultiFormatQR(sessionId, baseUrl = null) {
     try {
-      const frontendUrl = this.getFrontendUrl(baseUrl);
+      const frontendUrl = baseUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
       const checkInUrl = `${frontendUrl}/checkin/${sessionId}`;
 
       const [dataUrl, svg, pngBuffer, svgBuffer] = await Promise.all([
