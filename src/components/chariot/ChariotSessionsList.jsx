@@ -53,14 +53,6 @@ const ChariotSessionsList = () => {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
   const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
   const roleBreakdown = useMemo(() => {
     const summary = {
@@ -87,6 +79,14 @@ const ChariotSessionsList = () => {
 
     return summary;
   }, [selectedSession]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
