@@ -56,6 +56,14 @@ const ChariotSessionsList = () => {
     });
   };
 
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'MEMBER') return 'Member';
+    return 'Unassigned';
+  };
+
   const roleBreakdown = useMemo(() => {
     const summary = {
       invitees: { total: 0, present: 0, absent: 0 },
@@ -306,6 +314,12 @@ const ChariotSessionsList = () => {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
                               <p className="text-xs text-gray-600 truncate mt-1">{member.email}</p>
+                              <p className="text-xs text-gray-600 truncate mt-1">
+                                Role: {formatChapelRole(member.chapelRole)}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate mt-1">
+                                Chapel: {member.chapel?.name || 'Not assigned'}
+                              </p>
                             </div>
                             <div className="ml-2 flex-shrink-0">
                               {member.status === 'present' ? (
@@ -343,6 +357,12 @@ const ChariotSessionsList = () => {
                             Email
                           </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Role
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Chapel
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Status
                           </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -358,6 +378,12 @@ const ChariotSessionsList = () => {
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                               {member.email}
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {formatChapelRole(member.chapelRole)}
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {member.chapel?.name || 'Not assigned'}
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                               {member.status === 'present' ? (

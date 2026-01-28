@@ -560,6 +560,12 @@ const getChariotSession = async (req, res) => {
               name: true,
               email: true,
               chapelRole: true,
+              chapel: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -575,6 +581,12 @@ const getChariotSession = async (req, res) => {
           name: true,
           email: true,
           chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       }),
     ]);
@@ -588,6 +600,7 @@ const getChariotSession = async (req, res) => {
       name: a.member.name,
       email: a.member.email,
       chapelRole: a.member.chapelRole,
+      chapel: a.member.chapel || null,
       checkedInAt: a.checkedInAt,
       status: 'present',
     }));
@@ -599,6 +612,7 @@ const getChariotSession = async (req, res) => {
         name: m.name,
         email: m.email,
         chapelRole: m.chapelRole,
+        chapel: m.chapel || null,
         checkedInAt: null,
         status: 'absent',
       }));
@@ -636,16 +650,19 @@ const getChariotSession = async (req, res) => {
 const getChariotDashboardStats = async (req, res) => {
   try {
     let memberIds = [];
+    let chariotMemberIds = [];
     let chariotIds = [];
 
     if (req.user.userType === 'chariot-leader') {
       chariotIds = [req.user.chariotId];
       // Get all relevant member IDs (leader, assistants, and members)
       memberIds = await getRelevantMemberIds(req.user);
+      chariotMemberIds = await getChariotOnlyMemberIds(req.user);
     } else if (req.user.userType === 'chariot-assistant') {
       chariotIds = req.user.chariotIds;
       // Get all relevant member IDs (leader, assistants, and members)
       memberIds = await getRelevantMemberIds(req.user);
+      chariotMemberIds = await getChariotOnlyMemberIds(req.user);
     }
 
     const isChapelLeader = req.user.isChapelLeader && Array.isArray(req.user.chapelIds) && req.user.chapelIds.length > 0;
@@ -657,6 +674,8 @@ const getChariotDashboardStats = async (req, res) => {
       recentAttendance,
       totalChapelMembers,
       chapelRoleCounts,
+      totalChariotMembers,
+      chariotRoleCounts,
     ] = await Promise.all([
       // Total members in chariot
       prisma.member.count({
@@ -711,9 +730,39 @@ const getChariotDashboardStats = async (req, res) => {
             _count: { _all: true },
           })
         : Promise.resolve([]),
+      prisma.member.count({
+        where: {
+          id: { in: chariotMemberIds },
+          isActive: { not: false },
+        },
+      }),
+      chariotMemberIds.length > 0
+        ? prisma.member.groupBy({
+            by: ['chapelRole'],
+            where: {
+              id: { in: chariotMemberIds },
+              isActive: { not: false },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     const chapelSummary = chapelRoleCounts.reduce(
+      (acc, row) => {
+        const count = row?._count?._all || 0;
+        if (row.chapelRole === 'INVITEE') {
+          acc.invitees += count;
+        } else if (row.chapelRole === 'WORKER') {
+          acc.workers += count;
+        } else {
+          acc.members += count;
+        }
+        return acc;
+      },
+      { invitees: 0, members: 0, workers: 0 }
+    );
+    const chariotSummary = chariotRoleCounts.reduce(
       (acc, row) => {
         const count = row?._count?._all || 0;
         if (row.chapelRole === 'INVITEE') {
@@ -736,10 +785,14 @@ const getChariotDashboardStats = async (req, res) => {
         totalSessions,
         totalAttendance,
         recentAttendance,
-        totalChariotMembers: totalMembers,
+        totalChariotMembers,
         totalChapelMembers,
-        totalInvitees: chapelSummary.invitees,
-        totalWorkers: chapelSummary.workers,
+        totalChariotInvitees: chariotSummary.invitees,
+        totalChariotWorkers: chariotSummary.workers,
+        totalChariotMembersByRole: chariotSummary.members,
+        totalChapelInvitees: chapelSummary.invitees,
+        totalChapelWorkers: chapelSummary.workers,
+        totalChapelMembersByRole: chapelSummary.members,
         chariotInfo: req.user.userType === 'chariot-leader' 
           ? { id: req.user.chariotId, name: req.user.chariotName }
           : { ids: req.user.chariotIds, names: req.user.chariotNames },
