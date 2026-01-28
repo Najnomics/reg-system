@@ -23,6 +23,10 @@ const ChariotDashboard = () => {
     totalSessions: 0,
     totalAttendance: 0,
     recentAttendance: 0,
+    totalChapelMembers: 0,
+    totalChariotMembers: 0,
+    totalWorkers: 0,
+    totalInvitees: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   
@@ -54,6 +58,10 @@ const ChariotDashboard = () => {
         totalSessions: data.totalSessions || 0,
         totalAttendance: data.totalAttendance || 0,
         recentAttendance: data.recentAttendance || 0,
+        totalChapelMembers: data.totalChapelMembers || 0,
+        totalChariotMembers: data.totalChariotMembers || 0,
+        totalWorkers: data.totalWorkers || 0,
+        totalInvitees: data.totalInvitees || 0,
       });
     } catch (error) {
       showError('Failed to load dashboard data');
@@ -66,6 +74,7 @@ const ChariotDashboard = () => {
   const chariotInfo = userType === 'chariot-leader' 
     ? { name: user.chariotName, id: user.chariotId }
     : { names: user.chariotNames, ids: user.chariotIds };
+  const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: ChartBarIcon },
@@ -138,61 +147,123 @@ const ChariotDashboard = () => {
         <div className="space-y-4 sm:space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-blue-100 rounded-md p-2 sm:p-3">
-                  <UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+            {isChapelLeader ? (
+              <>
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-blue-100 rounded-md p-2 sm:p-3">
+                      <UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Chapel Members</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalChapelMembers}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Members</p>
-                  <p className="text-xl sm:text-2xl font-semibold text-gray-900">
-                    {isLoading ? '...' : stats.totalMembers}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-green-100 rounded-md p-2 sm:p-3">
-                  <CalendarDaysIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-purple-100 rounded-md p-2 sm:p-3">
+                      <ChartBarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Chariot Members</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalChariotMembers}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Sessions</p>
-                  <p className="text-xl sm:text-2xl font-semibold text-gray-900">
-                    {isLoading ? '...' : stats.totalSessions}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-purple-100 rounded-md p-2 sm:p-3">
-                  <ClipboardDocumentCheckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-amber-100 rounded-md p-2 sm:p-3">
+                      <ClipboardDocumentCheckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Workers</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalWorkers}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Attendance</p>
-                  <p className="text-xl sm:text-2xl font-semibold text-gray-900">
-                    {isLoading ? '...' : stats.totalAttendance}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-orange-100 rounded-md p-2 sm:p-3">
-                  <ChartBarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-green-100 rounded-md p-2 sm:p-3">
+                      <CalendarDaysIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Invitees</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalInvitees}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Recent (7 days)</p>
-                  <p className="text-xl sm:text-2xl font-semibold text-gray-900">
-                    {isLoading ? '...' : stats.recentAttendance}
-                  </p>
+              </>
+            ) : (
+              <>
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-blue-100 rounded-md p-2 sm:p-3">
+                      <UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Members</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalMembers}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-green-100 rounded-md p-2 sm:p-3">
+                      <CalendarDaysIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Sessions</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalSessions}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-purple-100 rounded-md p-2 sm:p-3">
+                      <ClipboardDocumentCheckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Attendance</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.totalAttendance}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-orange-100 rounded-md p-2 sm:p-3">
+                      <ChartBarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+                    </div>
+                    <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Recent (7 days)</p>
+                      <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                        {isLoading ? '...' : stats.recentAttendance}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Leadership Information */}
