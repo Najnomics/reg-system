@@ -332,10 +332,7 @@ class EmailService {
 
     const chariotLeaderPassword = process.env.CHARIOT_LEADER_PASSWORD || 'blessingikpia';
     const chariotAssistantPassword = process.env.CHARIOT_ASSISTANT_PASSWORD || 'food123';
-    const rawPortalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
-    const portalUrl = rawPortalUrl.startsWith('http')
-      ? (rawPortalUrl.endsWith('/') ? rawPortalUrl : `${rawPortalUrl}/`)
-      : 'https://reg-system-mu.vercel.app/';
+    const portalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
 
     let chariotName = 'Not assigned';
     let roleLabel = 'Member';
@@ -419,13 +416,7 @@ class EmailService {
             <hr />
 
             <h3>📌 Your Personal Assignment &amp; Check-In Information</h3>
-            <p>${
-              member.roleLabel === 'Leader'
-                ? `You are the leader of <strong>${member.chariotName}</strong>.`
-                : member.roleLabel === 'Assistant'
-                  ? `You are the assistant of <strong>${member.chariotName}</strong>.`
-                  : `For the duration of the conference, you will be in <strong>${member.chariotName}</strong>, and your chariot leader will be <strong>${member.leaderName || 'Not assigned'}</strong>.`
-            }</p>
+            <p>For the duration of the conference, you will be in <strong>${member.chariotName}</strong>, and your chariot leader will be <strong>${member.leaderName || 'Not assigned'}</strong>.</p>
             ${member.leaderEmail ? `<p>You may contact your chariot leader directly via <strong>${member.leaderEmail}</strong> for guidance or coordination before and during the conference.</p>` : ''}
             <p>If you have any serious medical complications, please also contact your chariot leader so that adequate preparations can be made.</p>
             <p>Also, kindly take note of your personal check-in number (PIN):</p>
@@ -515,15 +506,9 @@ HomeComing Conference is a prayer retreat and camping experience, set apart for 
 ---
 
 Your Personal Assignment & Check-In Information
-${
-  member.roleLabel === 'Leader'
-    ? `You are the leader of ${member.chariotName}.`
-    : member.roleLabel === 'Assistant'
-      ? `You are the assistant of ${member.chariotName}.`
-      : `Chariot: ${member.chariotName}
+Chariot: ${member.chariotName}
 Chariot Leader: ${member.leaderName || 'Not assigned'}
-Chariot Leader Email: ${member.leaderEmail || 'Not assigned'}`
-}
+Chariot Leader Email: ${member.leaderEmail || 'Not assigned'}
 Role in Chariot: ${member.roleLabel}
 
 Your 4-digit check-in PIN: ${member.pin}
