@@ -423,16 +423,20 @@ const getChapelOnlyMembers = async (req, res) => {
 };
 
 /**
- * Get chariot sessions with attendance filtered by chariot members
+ * Get chariot sessions with attendance filtered by chariot/chapel members
  * Optimized with parallel queries and selective field loading
  */
 const getChariotSessions = async (req, res) => {
   try {
+    const { type = 'all' } = req.query; // 'chariot-only' | 'chapel-only' | 'all'
     // Get member IDs and sessions in parallel for better performance
     const [memberIds, sessions] = await Promise.all([
-      // Get all relevant member IDs (leader, assistants, and members)
       req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant'
-        ? getRelevantMemberIds(req.user)
+        ? type === 'chariot-only'
+          ? getChariotOnlyMemberIds(req.user)
+          : type === 'chapel-only' && req.user.isChapelLeader
+            ? getChapelOnlyMemberIds(req.user)
+            : getRelevantMemberIds(req.user)
         : Promise.resolve([]),
       // Get sessions in parallel (without attendance first for faster initial load)
       prisma.session.findMany({
@@ -644,12 +648,15 @@ const getChariotDashboardStats = async (req, res) => {
       memberIds = await getRelevantMemberIds(req.user);
     }
 
+    const isChapelLeader = req.user.isChapelLeader && Array.isArray(req.user.chapelIds) && req.user.chapelIds.length > 0;
     const [
       totalMembers,
       activeMembers,
       totalSessions,
       totalAttendance,
       recentAttendance,
+      totalChapelMembers,
+      chapelRoleCounts,
     ] = await Promise.all([
       // Total members in chariot
       prisma.member.count({
@@ -686,7 +693,40 @@ const getChariotDashboardStats = async (req, res) => {
           },
         },
       }),
+      isChapelLeader
+        ? prisma.member.count({
+            where: {
+              chapelId: { in: req.user.chapelIds },
+              isActive: { not: false },
+            },
+          })
+        : Promise.resolve(0),
+      isChapelLeader
+        ? prisma.member.groupBy({
+            by: ['chapelRole'],
+            where: {
+              chapelId: { in: req.user.chapelIds },
+              isActive: { not: false },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
     ]);
+
+    const chapelSummary = chapelRoleCounts.reduce(
+      (acc, row) => {
+        const count = row?._count?._all || 0;
+        if (row.chapelRole === 'INVITEE') {
+          acc.invitees += count;
+        } else if (row.chapelRole === 'WORKER') {
+          acc.workers += count;
+        } else {
+          acc.members += count;
+        }
+        return acc;
+      },
+      { invitees: 0, members: 0, workers: 0 }
+    );
 
     res.status(200).json({
       success: true,
@@ -696,6 +736,10 @@ const getChariotDashboardStats = async (req, res) => {
         totalSessions,
         totalAttendance,
         recentAttendance,
+        totalChariotMembers: totalMembers,
+        totalChapelMembers,
+        totalInvitees: chapelSummary.invitees,
+        totalWorkers: chapelSummary.workers,
         chariotInfo: req.user.userType === 'chariot-leader' 
           ? { id: req.user.chariotId, name: req.user.chariotName }
           : { ids: req.user.chariotIds, names: req.user.chariotNames },

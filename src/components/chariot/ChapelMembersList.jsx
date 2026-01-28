@@ -19,10 +19,15 @@ const ChapelMembersList = () => {
     members: 0,
     workers: 0,
   });
+  const [totalChariotMembers, setTotalChariotMembers] = useState(0);
 
   useEffect(() => {
     loadMembers();
   }, [pagination.page, searchTerm]);
+
+  useEffect(() => {
+    loadChariotTotal();
+  }, []);
 
   const loadMembers = async () => {
     try {
@@ -69,6 +74,18 @@ const ChapelMembersList = () => {
     }
   };
 
+  const loadChariotTotal = async () => {
+    try {
+      const response = await apiService.getChariotOnlyMembers({
+        page: 1,
+        limit: 1,
+      });
+      setTotalChariotMembers(response?.data?.pagination?.total || 0);
+    } catch (error) {
+      console.error('Load chariot total error:', error);
+    }
+  };
+
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -103,19 +120,23 @@ const ChapelMembersList = () => {
         />
       </div>
 
-      {/* Role Summary */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 text-center">
-          <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
-          <div className="text-lg sm:text-xl font-semibold text-indigo-900">{roleSummary.invitees}</div>
+      {/* Totals */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-blue-700">Chapel Members</div>
+          <div className="text-lg sm:text-xl font-semibold text-blue-900">{pagination.total}</div>
         </div>
-        <div className="bg-green-50 border border-green-100 rounded-lg p-3 sm:p-4 text-center">
-          <div className="text-xs sm:text-sm text-green-700">Members</div>
-          <div className="text-lg sm:text-xl font-semibold text-green-900">{roleSummary.members}</div>
+        <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-purple-700">Chariot Members</div>
+          <div className="text-lg sm:text-xl font-semibold text-purple-900">{totalChariotMembers}</div>
         </div>
         <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 sm:p-4 text-center">
           <div className="text-xs sm:text-sm text-amber-700">Workers</div>
           <div className="text-lg sm:text-xl font-semibold text-amber-900">{roleSummary.workers}</div>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
+          <div className="text-lg sm:text-xl font-semibold text-indigo-900">{roleSummary.invitees}</div>
         </div>
       </div>
 

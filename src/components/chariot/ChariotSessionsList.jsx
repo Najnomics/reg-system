@@ -12,14 +12,17 @@ const ChariotSessionsList = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [sessionViewType, setSessionViewType] = useState('chariot'); // 'chariot' or 'chapel'
 
+  const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
+
   useEffect(() => {
     loadSessions();
-  }, []);
+  }, [sessionViewType, isChapelLeader]);
 
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getChariotSessions();
+      const type = isChapelLeader && sessionViewType === 'chapel' ? 'chapel-only' : 'chariot-only';
+      const response = await apiService.getChariotSessions(type);
       setSessions(response?.data?.sessions || []);
     } catch (error) {
       showError('Failed to load sessions');
@@ -53,7 +56,6 @@ const ChariotSessionsList = () => {
     });
   };
 
-  const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
   const roleBreakdown = useMemo(() => {
     const summary = {
       invitees: { total: 0, present: 0, absent: 0 },

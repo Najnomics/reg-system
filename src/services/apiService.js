@@ -1010,8 +1010,11 @@ class ApiService {
     return this.request(`/chariot/members/chapel-only${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getChariotSessions() {
-    return this.request('/chariot/sessions', {}, true); // Enable caching
+  async getChariotSessions(type = 'all') {
+    const queryParams = new URLSearchParams();
+    if (type !== 'all') queryParams.append('type', type);
+    const queryString = queryParams.toString();
+    return this.request(`/chariot/sessions${queryString ? `?${queryString}` : ''}`, {}, true); // Enable caching
   }
 
   async getChariotSession(id, type = 'all') {
