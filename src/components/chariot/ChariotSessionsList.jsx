@@ -1,22 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CalendarDaysIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ChariotSessionsList = () => {
   const { showError } = useApp();
+  const { user, userType } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionViewType, setSessionViewType] = useState('chariot'); // 'chariot' or 'chapel'
+
+  const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
 
   useEffect(() => {
     loadSessions();
-  }, []);
+  }, [sessionViewType, isChapelLeader]);
 
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getChariotSessions();
+      const type = isChapelLeader && sessionViewType === 'chapel' ? 'chapel-only' : 'chariot-only';
+      const response = await apiService.getChariotSessions(type);
       setSessions(response?.data?.sessions || []);
     } catch (error) {
       showError('Failed to load sessions');
@@ -28,7 +34,11 @@ const ChariotSessionsList = () => {
 
   const handleViewSession = async (sessionId) => {
     try {
-      const response = await apiService.getChariotSession(sessionId);
+      // Determine which type to fetch based on current view
+      const type = (userType === 'chariot-leader' && user?.isChapelLeader && sessionViewType === 'chapel') 
+        ? 'chapel-only' 
+        : 'chariot-only';
+      const response = await apiService.getChariotSession(sessionId, type);
       setSelectedSession(response?.data?.session);
     } catch (error) {
       showError('Failed to load session details');
@@ -46,6 +56,40 @@ const ChariotSessionsList = () => {
     });
   };
 
+  const formatChapelRole = (role) => {
+    if (role === 'INVITEE') return 'Invitee';
+    if (role === 'WORKER') return 'Worker';
+    if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'MEMBER') return 'Member';
+    return 'Unassigned';
+  };
+
+  const roleBreakdown = useMemo(() => {
+    const summary = {
+      invitees: { total: 0, present: 0, absent: 0 },
+      members: { total: 0, present: 0, absent: 0 },
+      workers: { total: 0, present: 0, absent: 0 },
+    };
+
+    if (!selectedSession?.members || selectedSession.members.length === 0) {
+      return summary;
+    }
+
+    selectedSession.members.forEach((member) => {
+      const role = member.chapelRole;
+      const bucket =
+        role === 'INVITEE' ? summary.invitees : role === 'WORKER' ? summary.workers : summary.members;
+      bucket.total += 1;
+      if (member.status === 'present') {
+        bucket.present += 1;
+      } else {
+        bucket.absent += 1;
+      }
+    });
+
+    return summary;
+  }, [selectedSession]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -56,6 +100,38 @@ const ChariotSessionsList = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+      {/* Tabs for Chariot/Chapel views (only show if user is chapel leader) */}
+      {isChapelLeader && (
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8">
+            <button
+              onClick={() => setSessionViewType('chariot')}
+              className={`
+                py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
+                ${sessionViewType === 'chariot'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Chariot Attendance
+            </button>
+            <button
+              onClick={() => setSessionViewType('chapel')}
+              className={`
+                py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
+                ${sessionViewType === 'chapel'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Chapel Attendance
+            </button>
+          </nav>
+        </div>
+      )}
+
       {sessions.length === 0 ? (
         <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 px-4">
           <CalendarDaysIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
@@ -101,7 +177,11 @@ const ChariotSessionsList = () => {
                 {/* Attendance Stats */}
                 <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg">
                   <div className="text-xs sm:text-sm">
-                    <span className="text-gray-600">Chariot Members Attendance:</span>{' '}
+                    <span className="text-gray-600">
+                      {isChapelLeader && sessionViewType === 'chapel' 
+                        ? 'Chapel Members Attendance:' 
+                        : 'Chariot Members Attendance:'}
+                    </span>{' '}
                     <span className="font-semibold text-blue-900">
                       {session._count?.attendance || session.attendance?.length || 0}
                     </span>
@@ -179,10 +259,50 @@ const ChariotSessionsList = () => {
                 </div>
               </div>
 
+              {/* Role Breakdown */}
+              <div className="mb-4 sm:mb-6">
+                <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 sm:mb-3">
+                  {isChapelLeader && sessionViewType === 'chapel'
+                    ? 'Chapel Role Breakdown'
+                    : 'Chariot Role Breakdown'}
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                  <div className="bg-indigo-50 border border-indigo-100 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
+                    <div className="text-lg sm:text-xl font-semibold text-indigo-900">
+                      {roleBreakdown.invitees.total}
+                    </div>
+                    <div className="text-xs text-indigo-800">
+                      {roleBreakdown.invitees.present} present • {roleBreakdown.invitees.absent} absent
+                    </div>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-green-700">Members</div>
+                    <div className="text-lg sm:text-xl font-semibold text-green-900">
+                      {roleBreakdown.members.total}
+                    </div>
+                    <div className="text-xs text-green-800">
+                      {roleBreakdown.members.present} present • {roleBreakdown.members.absent} absent
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-100 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-amber-700">Workers</div>
+                    <div className="text-lg sm:text-xl font-semibold text-amber-900">
+                      {roleBreakdown.workers.total}
+                    </div>
+                    <div className="text-xs text-amber-800">
+                      {roleBreakdown.workers.present} present • {roleBreakdown.workers.absent} absent
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Attendance List */}
               <div>
                 <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                  Chariot Members ({selectedSession.totalCount || selectedSession.members?.length || 0})
+                  {isChapelLeader && sessionViewType === 'chapel' 
+                    ? `Chapel Members (${selectedSession.totalCount || selectedSession.members?.length || 0})`
+                    : `Chariot Members (${selectedSession.totalCount || selectedSession.members?.length || 0})`}
                 </h4>
                 {selectedSession.members && selectedSession.members.length > 0 ? (
                   <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -194,6 +314,12 @@ const ChariotSessionsList = () => {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
                               <p className="text-xs text-gray-600 truncate mt-1">{member.email}</p>
+                              <p className="text-xs text-gray-600 truncate mt-1">
+                                Role: {formatChapelRole(member.chapelRole)}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate mt-1">
+                                Chapel: {member.chapel?.name || 'Not assigned'}
+                              </p>
                             </div>
                             <div className="ml-2 flex-shrink-0">
                               {member.status === 'present' ? (
@@ -231,6 +357,12 @@ const ChariotSessionsList = () => {
                             Email
                           </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Role
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Chapel
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Status
                           </th>
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -246,6 +378,12 @@ const ChariotSessionsList = () => {
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                               {member.email}
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {formatChapelRole(member.chapelRole)}
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {member.chapel?.name || 'Not assigned'}
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                               {member.status === 'present' ? (
@@ -276,7 +414,9 @@ const ChariotSessionsList = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
-                    No chariot members found
+                    {isChapelLeader && sessionViewType === 'chapel' 
+                      ? 'No chapel members found'
+                      : 'No chariot members found'}
                   </p>
                 )}
               </div>

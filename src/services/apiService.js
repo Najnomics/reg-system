@@ -10,13 +10,24 @@ if (import.meta.env.PROD) {
 }
 
 class ApiService {
-  async request(endpoint, options = {}, useCache = false, useBatch = false) {
+  async request(endpoint, options = {}, useCache = false, useBatch = false, forceRefresh = false) {
     const url = `${API_BASE_URL}${endpoint}`;
     const cacheKey = `${options.method || 'GET'}:${endpoint}`;
     const isGetRequest = !options.method || options.method === 'GET';
     
+    // Check if this is a page refresh (first request after page load)
+    const isPageRefresh = this._isPageRefresh();
+    
+    // On page refresh, always fetch fresh data for dashboard endpoints
+    const shouldForceRefresh = forceRefresh || (isPageRefresh && this._isDashboardEndpoint(endpoint));
+    
+    // If forcing refresh, clear the cache entry first to ensure fresh data is fetched and cached
+    if (shouldForceRefresh && useCache && isGetRequest) {
+      apiCache.delete(cacheKey);
+    }
+    
     // Check cache for GET requests (stale-while-revalidate pattern)
-    if (useCache && isGetRequest) {
+    if (useCache && isGetRequest && !shouldForceRefresh) {
       const cached = apiCache.get(cacheKey);
       if (cached) {
         // If stale, return cached data but trigger background refresh
@@ -43,12 +54,13 @@ class ApiService {
     }
     
     // Batch GET requests to prevent duplicate calls
-    if (useBatch && isGetRequest) {
+    if (useBatch && isGetRequest && !shouldForceRefresh) {
       return requestBatcher.batch(cacheKey, async () => {
         return this._makeRequest(url, options, cacheKey, useCache, isGetRequest);
       });
     }
     
+    // Fetch fresh data (will update cache if useCache is true)
     return this._makeRequest(url, options, cacheKey, useCache, isGetRequest);
   }
   
@@ -93,9 +105,14 @@ class ApiService {
 
       const data = await response.json();
       
-      // Cache GET requests
+      // Always cache GET requests if caching is enabled
+      // This ensures fresh data fetched on refresh updates the cache
       if (useCache && isGetRequest) {
         apiCache.set(cacheKey, data);
+        // Log cache update for debugging (can be removed in production)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Cache updated: ${cacheKey}`);
+        }
       }
       
       return data;
@@ -108,6 +125,63 @@ class ApiService {
   // Clear cache for a specific endpoint pattern
   clearCache(pattern) {
     apiCache.clearPattern(pattern);
+  }
+
+  // Refresh dashboard cache entries on page load
+  refreshDashboardCache() {
+    const dashboardPatterns = [
+      '/dashboard/stats',
+      '/chariot/dashboard/stats',
+      '/reports/analytics',
+    ];
+    
+    dashboardPatterns.forEach(pattern => {
+      // Clear all cache entries matching dashboard patterns
+      apiCache.clearPattern(pattern);
+    });
+  }
+
+  // Check if this is a page refresh (first request after page load)
+  _isPageRefresh() {
+    // Check if page was just loaded (within last 3 seconds)
+    const pageLoadTime = apiCache.pageLoadTime || Date.now();
+    const timeSinceLoad = Date.now() - pageLoadTime;
+    
+    // If page was loaded less than 3 seconds ago, consider it a refresh
+    if (timeSinceLoad < 3000) {
+      return true;
+    }
+    
+    // Also check performance navigation type if available
+    if (window.performance?.navigation) {
+      const navType = window.performance.navigation.type;
+      // TYPE_RELOAD = 1 means page was reloaded
+      if (navType === 1) {
+        return true;
+      }
+    }
+    
+    // Check performance timing if available
+    if (window.performance?.timing) {
+      const navStart = window.performance.timing.navigationStart;
+      const timeSinceNavStart = Date.now() - navStart;
+      if (timeSinceNavStart < 3000) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Check if endpoint is a dashboard endpoint that should be refreshed on page load
+  _isDashboardEndpoint(endpoint) {
+    const dashboardEndpoints = [
+      '/dashboard/stats',
+      '/chariot/dashboard/stats',
+      '/reports/analytics',
+    ];
+    
+    return dashboardEndpoints.some(de => endpoint.includes(de));
   }
 
   // Auth methods
@@ -139,6 +213,7 @@ class ApiService {
     if (params.query) queryParams.append('query', params.query);
     if (params.chapelRole) queryParams.append('chapelRole', params.chapelRole);
     if (params.chapelId) queryParams.append('chapelId', params.chapelId);
+    if (params.chariotId) queryParams.append('chariotId', params.chariotId);
     
     // Use cache for GET requests (cache for 30 seconds)
     const cacheKey = `/members?${queryParams.toString()}`;
@@ -182,16 +257,21 @@ class ApiService {
   }
 
   async updateMember(id, memberData) {
-    // Transform frontend memberCode to backend pin field
-    const backendData = { ...memberData };
-    if (backendData.memberCode !== undefined) {
-      backendData.pin = backendData.memberCode;
-      delete backendData.memberCode;
+    // SECURITY: Explicitly exclude PIN and ID from update data
+    // PIN cannot be changed - it's permanent
+    const { pin, pinHash, id: memberId, memberCode, ...safeData } = memberData;
+    
+    // Log warning if PIN or ID was attempted to be sent
+    if (pin !== undefined || pinHash !== undefined || memberCode !== undefined) {
+      console.warn('Attempted to update PIN - this is not allowed. PIN field will be ignored.');
+    }
+    if (memberId !== undefined && memberId !== id) {
+      console.warn('Attempted to change member ID - this is not allowed. ID field will be ignored.');
     }
     
     return this.request(`/members/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(backendData),
+      body: JSON.stringify(safeData),
     });
   }
 
@@ -571,9 +651,9 @@ class ApiService {
   }
 
   // Reports methods
-  async getAnalytics(filters = {}) {
+  async getAnalytics(filters = {}, forceRefresh = false) {
     const params = new URLSearchParams(filters);
-    return this.request(`/reports/analytics?${params}`);
+    return this.request(`/reports/analytics?${params}`, {}, true, false, forceRefresh); // Enable caching, but refresh on page load
   }
 
   async getAttendanceReport(filters = {}) {
@@ -601,8 +681,8 @@ class ApiService {
   }
 
   // Dashboard methods
-  async getDashboardStats() {
-    return this.request('/dashboard/stats');
+  async getDashboardStats(forceRefresh = false) {
+    return this.request('/dashboard/stats', {}, true, false, forceRefresh); // Enable caching, but refresh on page load
   }
 
   // Reg-Rep management methods (admin only)
@@ -856,16 +936,42 @@ class ApiService {
     return this.request(`/chariot/members${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getChariotSessions() {
-    return this.request('/chariot/sessions');
+  async getChariotOnlyMembers(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.query) queryParams.append('query', params.query);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/chariot/members/chariot-only${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getChariotSession(id) {
-    return this.request(`/chariot/sessions/${id}`);
+  async getChapelOnlyMembers(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.query) queryParams.append('query', params.query);
+    
+    const queryString = queryParams.toString();
+    return this.request(`/chariot/members/chapel-only${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getChariotDashboardStats() {
-    return this.request('/chariot/dashboard/stats');
+  async getChariotSessions(type = 'all') {
+    const queryParams = new URLSearchParams();
+    if (type !== 'all') queryParams.append('type', type);
+    const queryString = queryParams.toString();
+    return this.request(`/chariot/sessions${queryString ? `?${queryString}` : ''}`, {}, true); // Enable caching
+  }
+
+  async getChariotSession(id, type = 'all') {
+    const queryParams = new URLSearchParams();
+    if (type !== 'all') queryParams.append('type', type);
+    const queryString = queryParams.toString();
+    return this.request(`/chariot/sessions/${id}${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getChariotDashboardStats(forceRefresh = false) {
+    return this.request('/chariot/dashboard/stats', {}, true, false, forceRefresh); // Enable caching, but refresh on page load
   }
 
   // Chariot authentication

@@ -7,6 +7,7 @@ class ApiCache {
     this.maxAge = maxAge;
     this.staleAge = staleAge;
     this.pendingRequests = new Map(); // Track ongoing requests to prevent duplicate calls
+    this.pageLoadTime = Date.now(); // Track when cache was initialized (page load time)
   }
 
   get(key) {
@@ -52,6 +53,10 @@ class ApiCache {
       data,
       timestamp: Date.now(),
     });
+    // Log cache update for debugging (can be removed in production)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`💾 Cache set: ${key} at ${new Date().toISOString()}`);
+    }
   }
 
   clear() {
@@ -73,3 +78,8 @@ class ApiCache {
 }
 
 export const apiCache = new ApiCache(10 * 60 * 1000, 30 * 60 * 1000); // 10 min fresh, 30 min stale
+
+// Make cache accessible globally for page refresh detection
+if (typeof window !== 'undefined') {
+  window.apiCache = apiCache;
+}

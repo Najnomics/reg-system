@@ -164,6 +164,9 @@ const SessionAttendancePage = () => {
     if (roleFilter === 'member') {
       return members.filter(member => member.chapelRole === 'MEMBER');
     }
+    if (roleFilter === 'chapel_leader') {
+      return members.filter(member => member.chapelRole === 'CHAPEL_LEADER');
+    }
     if (roleFilter === 'worker') {
       return members.filter(member => member.chapelRole === 'WORKER');
     }
@@ -416,7 +419,8 @@ const SessionAttendancePage = () => {
                 {[
                   { key: 'all', label: 'All Roles' },
                   { key: 'invitee', label: 'Invitees' },
-                  { key: 'member', label: 'Members' },
+                { key: 'member', label: 'Members' },
+                { key: 'chapel_leader', label: 'Chapel Leaders' },
                   { key: 'worker', label: 'Workers' },
                 ].map((role) => (
                   <button
@@ -469,6 +473,7 @@ const SessionAttendancePage = () => {
           {chapelFilter === 'unassigned' && <> (Unassigned)</>}
           {roleFilter === 'invitee' && <> (Invitees)</>}
           {roleFilter === 'member' && <> (Members)</>}
+          {roleFilter === 'chapel_leader' && <> (Chapel Leaders)</>}
           {roleFilter === 'worker' && <> (Workers)</>}
         </div>
 
@@ -519,7 +524,7 @@ const SessionAttendancePage = () => {
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600 mt-1">
                           {member.chapel?.name
-                            ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : 'Member'})`
+                            ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : member.chapelRole === 'CHAPEL_LEADER' ? 'Chapel Leader' : 'Member'})`
                             : 'Chapel: Not assigned'}
                         </div>
                       </div>

@@ -416,21 +416,21 @@ const updateSession = async (req, res) => {
       select: selectFields,
     });
 
-    // Regenerate QR code if session is still active
+    // Do NOT regenerate QR code - keep existing QR code and URL unchanged
+    // The QR code URL is based on session ID which doesn't change
+    // Only generate QR code images for display if QR code data exists and session is active
     let qrData = null;
-    if (session.isActive) {
+    if (session.qrCodeData && session.isActive) {
       try {
+        // Generate QR code images from existing URL (for display purposes only)
+        // This generates the visual representation but doesn't change the stored URL
         qrData = await qrCodeService.generateSessionQR(session.id);
-        // Update QR code data if URL changed
-        if (qrData.url !== session.qrCodeData) {
-          await prisma.session.update({
-            where: { id: session.id },
-            data: { qrCodeData: qrData.url },
-          });
-          session.qrCodeData = qrData.url;
-        }
+        // Use the existing URL from database, not the generated one
+        // This ensures the URL never changes during updates
+        qrData.url = session.qrCodeData;
       } catch (qrError) {
-        console.error('QR code regeneration failed:', qrError);
+        console.error('QR code image generation failed:', qrError);
+        // Continue without QR code images if generation fails
       }
     }
 

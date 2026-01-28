@@ -1,0 +1,2 @@
+-- Add CHAPEL_LEADER to ChapelRole enum
+ALTER TYPE "ChapelRole" ADD VALUE IF NOT EXISTS 'CHAPEL_LEADER';

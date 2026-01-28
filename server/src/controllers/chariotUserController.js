@@ -1,7 +1,185 @@
 const prisma = require('../config/database');
 
 /**
+ * Resolve chapel IDs for a user who may be a chapel leader.
+ * Falls back to member chapel role or chapel leadership fields.
+ */
+const resolveChapelLeaderIds = async (user) => {
+  const chapelIds = new Set(Array.isArray(user.chapelIds) ? user.chapelIds : []);
+
+  if (chapelIds.size === 0) {
+    const [memberRecord, leaderChapels] = await Promise.all([
+      prisma.member.findUnique({
+        where: { id: user.id },
+        select: { chapelId: true, chapelRole: true },
+      }),
+      prisma.chapel.findMany({
+        where: {
+          OR: [{ leaderId: user.id }, { subLeaderId: user.id }],
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (memberRecord?.chapelRole === 'CHAPEL_LEADER' && memberRecord.chapelId) {
+      chapelIds.add(memberRecord.chapelId);
+    }
+
+    leaderChapels.forEach((chapel) => {
+      if (chapel?.id) chapelIds.add(chapel.id);
+    });
+  }
+
+  return Array.from(chapelIds);
+};
+
+/**
+ * Helper function to get all relevant member IDs for a chariot leader or assistant
+ * Includes: leader, assistants, members, and chapel members (if user is also a chapel leader)
+ */
+const getRelevantMemberIds = async (user) => {
+  let memberIds = new Set();
+
+  if (user.userType === 'chariot-leader') {
+    // Get the chariot with leader and assistants
+    const chariot = await prisma.chariot.findUnique({
+      where: { id: user.chariotId },
+      select: {
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+    });
+
+    if (chariot) {
+      // Add leader ID
+      if (chariot.leaderId) memberIds.add(chariot.leaderId);
+      
+      // Add assistant IDs
+      chariot.assistants.forEach(assistant => memberIds.add(assistant.memberId));
+      
+      // Add member IDs
+      chariot.members.forEach(member => memberIds.add(member.memberId));
+    }
+
+    // If user is also a chapel leader, add all chapel members
+    // This includes: chapel leader (themselves), invitees, members, and workers
+    const chapelIds = await resolveChapelLeaderIds(user);
+    if (chapelIds.length > 0) {
+      const chapelMembers = await prisma.member.findMany({
+        where: {
+          chapelId: { in: chapelIds },
+          isActive: { not: false },
+          // Include all roles: INVITEE, MEMBER, WORKER, CHAPEL_LEADER
+        },
+        select: { id: true },
+      });
+      chapelMembers.forEach(member => memberIds.add(member.id));
+    }
+  } else if (user.userType === 'chariot-assistant') {
+    // Get all chariots the assistant belongs to
+    const chariots = await prisma.chariot.findMany({
+      where: { id: { in: user.chariotIds } },
+      select: {
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+    });
+
+    chariots.forEach(chariot => {
+      // Add leader ID
+      if (chariot.leaderId) memberIds.add(chariot.leaderId);
+      
+      // Add assistant IDs
+      chariot.assistants.forEach(assistant => memberIds.add(assistant.memberId));
+      
+      // Add member IDs
+      chariot.members.forEach(member => memberIds.add(member.memberId));
+    });
+  }
+
+  return Array.from(memberIds);
+};
+
+/**
+ * Helper function to get only chariot member IDs (excluding chapel members)
+ */
+const getChariotOnlyMemberIds = async (user) => {
+  let memberIds = new Set();
+
+  if (user.userType === 'chariot-leader') {
+    // Get the chariot with leader and assistants
+    const chariot = await prisma.chariot.findUnique({
+      where: { id: user.chariotId },
+      select: {
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+    });
+
+    if (chariot) {
+      // Add leader ID
+      if (chariot.leaderId) memberIds.add(chariot.leaderId);
+      
+      // Add assistant IDs
+      chariot.assistants.forEach(assistant => memberIds.add(assistant.memberId));
+      
+      // Add member IDs
+      chariot.members.forEach(member => memberIds.add(member.memberId));
+    }
+  } else if (user.userType === 'chariot-assistant') {
+    // Get all chariots the assistant belongs to
+    const chariots = await prisma.chariot.findMany({
+      where: { id: { in: user.chariotIds } },
+      select: {
+        leaderId: true,
+        assistants: { select: { memberId: true } },
+        members: { select: { memberId: true } },
+      },
+    });
+
+    chariots.forEach(chariot => {
+      // Add leader ID
+      if (chariot.leaderId) memberIds.add(chariot.leaderId);
+      
+      // Add assistant IDs
+      chariot.assistants.forEach(assistant => memberIds.add(assistant.memberId));
+      
+      // Add member IDs
+      chariot.members.forEach(member => memberIds.add(member.memberId));
+    });
+  }
+
+  return Array.from(memberIds);
+};
+
+/**
+ * Helper function to get only chapel member IDs (for chapel leaders)
+ */
+const getChapelOnlyMemberIds = async (user) => {
+  let memberIds = new Set();
+
+  const chapelIds = await resolveChapelLeaderIds(user);
+  if (chapelIds.length > 0) {
+    const chapelMembers = await prisma.member.findMany({
+      where: {
+        chapelId: { in: chapelIds },
+        isActive: { not: false },
+        // Include all roles: INVITEE, MEMBER, WORKER, CHAPEL_LEADER
+      },
+      select: { id: true },
+    });
+    chapelMembers.forEach(member => memberIds.add(member.id));
+  }
+
+  return Array.from(memberIds);
+};
+
+/**
  * Get chariot members (filtered for leader/assistant)
+ * Returns all relevant members (chariot + chapel if applicable)
  */
 const getChariotMembers = async (req, res) => {
   try {
@@ -11,20 +189,116 @@ const getChariotMembers = async (req, res) => {
 
     let memberIds = [];
 
-    if (req.user.userType === 'chariot-leader') {
-      // Get members from the leader's chariot
-      const chariotMembers = await prisma.chariotMember.findMany({
-        where: { chariotId: req.user.chariotId },
-        select: { memberId: true },
-      });
-      memberIds = chariotMembers.map(cm => cm.memberId);
-    } else if (req.user.userType === 'chariot-assistant') {
-      // Get members from all chariots the assistant belongs to
-      const chariotMembers = await prisma.chariotMember.findMany({
-        where: { chariotId: { in: req.user.chariotIds } },
-        select: { memberId: true },
-      });
-      memberIds = [...new Set(chariotMembers.map(cm => cm.memberId))];
+    if (req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant') {
+      // Get all relevant member IDs (leader, assistants, and members)
+      memberIds = await getRelevantMemberIds(req.user);
+    }
+
+    // Build search conditions
+    let where = {
+      id: { in: memberIds },
+      isActive: { not: false },
+    };
+
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ];
+    }
+
+    // Get members, total count, and role summary
+    const [members, total, roleCounts] = await Promise.all([
+      prisma.member.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          pin: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: { attendance: true },
+          },
+        },
+      }),
+      prisma.member.count({ where }),
+      prisma.member.groupBy({
+        by: ['chapelRole'],
+        where,
+        _count: { _all: true },
+      }),
+    ]);
+
+    const summary = roleCounts.reduce(
+      (acc, row) => {
+        const count = row?._count?._all || 0;
+        if (row.chapelRole === 'INVITEE') {
+          acc.invitees += count;
+        } else if (row.chapelRole === 'WORKER') {
+          acc.workers += count;
+        } else {
+          acc.members += count;
+        }
+        return acc;
+      },
+      { invitees: 0, members: 0, workers: 0 }
+    );
+
+    const pages = Math.ceil(total / limit);
+    const hasNext = page < pages;
+    const hasPrev = page > 1;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members,
+        summary,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages,
+          hasNext,
+          hasPrev,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get chariot members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to retrieve chariot members',
+    });
+  }
+};
+
+/**
+ * Get only chariot members (excluding chapel members)
+ */
+const getChariotOnlyMembers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query } = req.query;
+    const skip = (page - 1) * limit;
+    const orderBy = { [sortBy]: sortOrder };
+
+    let memberIds = [];
+
+    if (req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant') {
+      // Get only chariot member IDs (excluding chapel)
+      memberIds = await getChariotOnlyMemberIds(req.user);
     }
 
     // Build search conditions
@@ -89,7 +363,7 @@ const getChariotMembers = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get chariot members error:', error);
+    console.error('Get chariot-only members error:', error);
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to retrieve chariot members',
@@ -98,23 +372,105 @@ const getChariotMembers = async (req, res) => {
 };
 
 /**
- * Get chariot sessions with attendance filtered by chariot members
+ * Get only chapel members (for chapel leaders)
+ */
+const getChapelOnlyMembers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, sortBy = 'name', sortOrder = 'asc', query } = req.query;
+    const skip = (page - 1) * limit;
+    const orderBy = { [sortBy]: sortOrder };
+
+    let memberIds = [];
+
+    // Only chapel leaders can access this
+    memberIds = await getChapelOnlyMemberIds(req.user);
+
+    // Build search conditions
+    let where = {
+      id: { in: memberIds },
+      isActive: { not: false },
+    };
+
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ];
+    }
+
+    // Get members and total count
+    const [members, total] = await Promise.all([
+      prisma.member.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          pin: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: { attendance: true },
+          },
+        },
+      }),
+      prisma.member.count({ where }),
+    ]);
+
+    const pages = Math.ceil(total / limit);
+    const hasNext = page < pages;
+    const hasPrev = page > 1;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages,
+          hasNext,
+          hasPrev,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get chapel-only members error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to retrieve chapel members',
+    });
+  }
+};
+
+/**
+ * Get chariot sessions with attendance filtered by chariot/chapel members
  * Optimized with parallel queries and selective field loading
  */
 const getChariotSessions = async (req, res) => {
   try {
+    const { type = 'all' } = req.query; // 'chariot-only' | 'chapel-only' | 'all'
     // Get member IDs and sessions in parallel for better performance
-    const [chariotMembersResult, sessions] = await Promise.all([
-      // Get member IDs based on user type
-      req.user.userType === 'chariot-leader'
-        ? prisma.chariotMember.findMany({
-            where: { chariotId: req.user.chariotId },
-            select: { memberId: true },
-          })
-        : prisma.chariotMember.findMany({
-            where: { chariotId: { in: req.user.chariotIds } },
-            select: { memberId: true },
-          }),
+    const [memberIds, sessions] = await Promise.all([
+      req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant'
+        ? type === 'chapel-only'
+          ? getChapelOnlyMemberIds(req.user)
+          : type === 'chariot-only'
+            ? getChariotOnlyMemberIds(req.user)
+            : getRelevantMemberIds(req.user)
+        : Promise.resolve([]),
       // Get sessions in parallel (without attendance first for faster initial load)
       prisma.session.findMany({
         where: {
@@ -134,10 +490,6 @@ const getChariotSessions = async (req, res) => {
         },
       }),
     ]);
-
-    const memberIds = req.user.userType === 'chariot-leader'
-      ? chariotMembersResult.map(cm => cm.memberId)
-      : [...new Set(chariotMembersResult.map(cm => cm.memberId))];
 
     // If no members, return empty sessions
     if (memberIds.length === 0) {
@@ -184,41 +536,39 @@ const getChariotSessions = async (req, res) => {
 /**
  * Get a single session with chariot member attendance
  * Optimized with parallel queries
+ * Supports query param 'type' = 'chariot-only' | 'chapel-only' | 'all' (default)
  */
 const getChariotSession = async (req, res) => {
   try {
     const { id } = req.params;
+    const { type = 'all' } = req.query; // 'chariot-only', 'chapel-only', or 'all'
 
-    // Get member IDs and session data in parallel for better performance
-    const [chariotMembersResult, session] = await Promise.all([
-      // Get member IDs based on user type
-      req.user.userType === 'chariot-leader'
-        ? prisma.chariotMember.findMany({
-            where: { chariotId: req.user.chariotId },
-            select: { memberId: true },
-          })
-        : prisma.chariotMember.findMany({
-            where: { chariotId: { in: req.user.chariotIds } },
-            select: { memberId: true },
-          }),
-      // Get session data
-      prisma.session.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          theme: true,
-          startTime: true,
-          endTime: true,
-          location: true,
-          isActive: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+    // Get member IDs based on type
+    let memberIds = [];
+    if (req.user.userType === 'chariot-leader' || req.user.userType === 'chariot-assistant') {
+      if (type === 'chapel-only') {
+        memberIds = await getChapelOnlyMemberIds(req.user);
+      } else if (type === 'chariot-only') {
+        memberIds = await getChariotOnlyMemberIds(req.user);
+      } else {
+        // Default: get all relevant member IDs
+        memberIds = await getRelevantMemberIds(req.user);
+      }
+    }
 
-    const memberIds = req.user.userType === 'chariot-leader'
-      ? chariotMembersResult.map(cm => cm.memberId)
-      : [...new Set(chariotMembersResult.map(cm => cm.memberId))];
+    // Get session data
+    const session = await prisma.session.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        theme: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
 
     if (!session) {
       return res.status(404).json({
@@ -242,6 +592,13 @@ const getChariotSession = async (req, res) => {
               id: true,
               name: true,
               email: true,
+              chapelRole: true,
+              chapel: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -256,16 +613,16 @@ const getChariotSession = async (req, res) => {
           id: true,
           name: true,
           email: true,
+          chapelRole: true,
+          chapel: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       }),
     ]);
-
-    if (!session) {
-      return res.status(404).json({
-        error: 'Session not found',
-        message: 'Session with the specified ID does not exist',
-      });
-    }
 
     // Get IDs of members who attended
     const attendedMemberIds = new Set(attendanceRecords.map(a => a.member.id));
@@ -275,6 +632,8 @@ const getChariotSession = async (req, res) => {
       id: a.member.id,
       name: a.member.name,
       email: a.member.email,
+      chapelRole: a.member.chapelRole,
+      chapel: a.member.chapel || null,
       checkedInAt: a.checkedInAt,
       status: 'present',
     }));
@@ -285,6 +644,8 @@ const getChariotSession = async (req, res) => {
         id: m.id,
         name: m.name,
         email: m.email,
+        chapelRole: m.chapelRole,
+        chapel: m.chapel || null,
         checkedInAt: null,
         status: 'absent',
       }));
@@ -322,30 +683,32 @@ const getChariotSession = async (req, res) => {
 const getChariotDashboardStats = async (req, res) => {
   try {
     let memberIds = [];
+    let chariotMemberIds = [];
     let chariotIds = [];
 
     if (req.user.userType === 'chariot-leader') {
       chariotIds = [req.user.chariotId];
-      const chariotMembers = await prisma.chariotMember.findMany({
-        where: { chariotId: req.user.chariotId },
-        select: { memberId: true },
-      });
-      memberIds = chariotMembers.map(cm => cm.memberId);
+      // Get all relevant member IDs (leader, assistants, and members)
+      memberIds = await getRelevantMemberIds(req.user);
+      chariotMemberIds = await getChariotOnlyMemberIds(req.user);
     } else if (req.user.userType === 'chariot-assistant') {
       chariotIds = req.user.chariotIds;
-      const chariotMembers = await prisma.chariotMember.findMany({
-        where: { chariotId: { in: req.user.chariotIds } },
-        select: { memberId: true },
-      });
-      memberIds = [...new Set(chariotMembers.map(cm => cm.memberId))];
+      // Get all relevant member IDs (leader, assistants, and members)
+      memberIds = await getRelevantMemberIds(req.user);
+      chariotMemberIds = await getChariotOnlyMemberIds(req.user);
     }
 
+    const isChapelLeader = req.user.isChapelLeader && Array.isArray(req.user.chapelIds) && req.user.chapelIds.length > 0;
     const [
       totalMembers,
       activeMembers,
       totalSessions,
       totalAttendance,
       recentAttendance,
+      totalChapelMembers,
+      chapelRoleCounts,
+      totalChariotMembers,
+      chariotRoleCounts,
     ] = await Promise.all([
       // Total members in chariot
       prisma.member.count({
@@ -382,7 +745,70 @@ const getChariotDashboardStats = async (req, res) => {
           },
         },
       }),
+      isChapelLeader
+        ? prisma.member.count({
+            where: {
+              chapelId: { in: req.user.chapelIds },
+              isActive: { not: false },
+            },
+          })
+        : Promise.resolve(0),
+      isChapelLeader
+        ? prisma.member.groupBy({
+            by: ['chapelRole'],
+            where: {
+              chapelId: { in: req.user.chapelIds },
+              isActive: { not: false },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      prisma.member.count({
+        where: {
+          id: { in: chariotMemberIds },
+          isActive: { not: false },
+        },
+      }),
+      chariotMemberIds.length > 0
+        ? prisma.member.groupBy({
+            by: ['chapelRole'],
+            where: {
+              id: { in: chariotMemberIds },
+              isActive: { not: false },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
     ]);
+
+    const chapelSummary = chapelRoleCounts.reduce(
+      (acc, row) => {
+        const count = row?._count?._all || 0;
+        if (row.chapelRole === 'INVITEE') {
+          acc.invitees += count;
+        } else if (row.chapelRole === 'WORKER') {
+          acc.workers += count;
+        } else {
+          acc.members += count;
+        }
+        return acc;
+      },
+      { invitees: 0, members: 0, workers: 0 }
+    );
+    const chariotSummary = chariotRoleCounts.reduce(
+      (acc, row) => {
+        const count = row?._count?._all || 0;
+        if (row.chapelRole === 'INVITEE') {
+          acc.invitees += count;
+        } else if (row.chapelRole === 'WORKER') {
+          acc.workers += count;
+        } else {
+          acc.members += count;
+        }
+        return acc;
+      },
+      { invitees: 0, members: 0, workers: 0 }
+    );
 
     res.status(200).json({
       success: true,
@@ -392,6 +818,14 @@ const getChariotDashboardStats = async (req, res) => {
         totalSessions,
         totalAttendance,
         recentAttendance,
+        totalChariotMembers,
+        totalChapelMembers,
+        totalChariotInvitees: chariotSummary.invitees,
+        totalChariotWorkers: chariotSummary.workers,
+        totalChariotMembersByRole: chariotSummary.members,
+        totalChapelInvitees: chapelSummary.invitees,
+        totalChapelWorkers: chapelSummary.workers,
+        totalChapelMembersByRole: chapelSummary.members,
         chariotInfo: req.user.userType === 'chariot-leader' 
           ? { id: req.user.chariotId, name: req.user.chariotName }
           : { ids: req.user.chariotIds, names: req.user.chariotNames },
@@ -408,6 +842,8 @@ const getChariotDashboardStats = async (req, res) => {
 
 module.exports = {
   getChariotMembers,
+  getChariotOnlyMembers,
+  getChapelOnlyMembers,
   getChariotSessions,
   getChariotSession,
   getChariotDashboardStats,

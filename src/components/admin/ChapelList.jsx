@@ -211,9 +211,18 @@ const ChapelList = () => {
     if (!selectedChapel || !assignType || memberIds.length === 0) return;
 
     try {
-      const role = assignType === 'invitees' ? 'INVITEE' : 'MEMBER';
+      const role =
+        assignType === 'invitees'
+          ? 'INVITEE'
+          : assignType === 'chapel_leaders'
+            ? 'CHAPEL_LEADER'
+            : 'MEMBER';
       await apiService.addChapelMembers(selectedChapel.id, memberIds, role);
-      showSuccess(`Added ${memberIds.length} ${assignType === 'invitees' ? 'invitee(s)' : 'member(s)'} to chapel`);
+      showSuccess(
+        `Added ${memberIds.length} ${
+          assignType === 'invitees' ? 'invitee(s)' : assignType === 'chapel_leaders' ? 'leader(s)' : 'member(s)'
+        } to chapel`
+      );
       setShowAssignModal(false);
       setSelectedChapel(null);
       setAssignType(null);
@@ -255,7 +264,7 @@ const ChapelList = () => {
         <div className="min-w-0 flex-1">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Chapels</h2>
           <p className="mt-1 text-xs sm:text-sm text-gray-600">
-            Manage chapels, invitees, members, and workers
+            Manage chapels, invitees, members, workers, and chapel leaders
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -365,7 +374,7 @@ const ChapelList = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4">
                   <div className="text-center p-2 bg-gray-50 rounded">
                     <div className="text-base sm:text-lg font-semibold text-gray-900">
                       {chapel.members?.filter(member => member.chapelRole === 'INVITEE').length || 0}
@@ -383,6 +392,12 @@ const ChapelList = () => {
                       {chapel.members?.filter(member => member.chapelRole === 'WORKER').length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Workers</div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded">
+                    <div className="text-base sm:text-lg font-semibold text-gray-900">
+                      {chapel.members?.filter(member => member.chapelRole === 'CHAPEL_LEADER').length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Leaders</div>
                   </div>
                 </div>
 
@@ -432,6 +447,14 @@ const ChapelList = () => {
                         <UserGroupIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                         <span className="hidden sm:inline">Add Members</span>
                         <span className="sm:hidden">Members</span>
+                      </button>
+                      <button
+                        onClick={() => handleAssign(chapel, 'chapel_leaders')}
+                        className="px-2 sm:px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-1 flex items-center justify-center gap-1 touch-manipulation"
+                      >
+                        <UserGroupIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Add Leaders</span>
+                        <span className="sm:hidden">Leaders</span>
                       </button>
                     </div>
                   </div>

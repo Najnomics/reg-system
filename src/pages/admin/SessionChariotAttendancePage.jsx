@@ -250,7 +250,9 @@ const SessionChariotAttendancePage = () => {
                       <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">{chariot.description}</p>
                     )}
                     {chariot.leader && (
-                      <p className="text-xs text-gray-400 mt-1 break-words">Leader: {chariot.leader.name}</p>
+                      <p className="text-xs text-gray-400 mt-1 break-words">
+                        Leader: {chariot.leader?.name || 'Not assigned'}
+                      </p>
                     )}
                   </div>
                 </div>

@@ -149,6 +149,7 @@ const exportChapelsPDF = async (req, res) => {
       const invitees = chapel.members.filter(member => member.chapelRole === 'INVITEE');
       const members = chapel.members.filter(member => member.chapelRole === 'MEMBER');
       const workers = chapel.members.filter(member => member.chapelRole === 'WORKER');
+      const leaders = chapel.members.filter(member => member.chapelRole === 'CHAPEL_LEADER');
 
       doc.fontSize(11).text(`Invitees (${invitees.length}):`);
       if (invitees.length === 0) {
@@ -176,6 +177,17 @@ const exportChapelsPDF = async (req, res) => {
         doc.fontSize(10).text('  None');
       } else {
         workers.forEach((member, i) => {
+          doc.fontSize(10).text(`  ${i + 1}. ${member.name} (${member.email})`);
+        });
+      }
+
+      doc.moveDown(0.2);
+
+      doc.fontSize(11).text(`Chapel Leaders (${leaders.length}):`);
+      if (leaders.length === 0) {
+        doc.fontSize(10).text('  None');
+      } else {
+        leaders.forEach((member, i) => {
           doc.fontSize(10).text(`  ${i + 1}. ${member.name} (${member.email})`);
         });
       }
@@ -317,10 +329,10 @@ const addMembers = async (req, res) => {
       });
     }
 
-    if (!['INVITEE', 'MEMBER'].includes(role)) {
+    if (!['INVITEE', 'MEMBER', 'CHAPEL_LEADER'].includes(role)) {
       return res.status(400).json({
         error: 'Invalid role',
-        message: 'role must be INVITEE or MEMBER',
+        message: 'role must be INVITEE, MEMBER, or CHAPEL_LEADER',
       });
     }
 
@@ -382,15 +394,19 @@ const addMembers = async (req, res) => {
     }
 
     if (workerIds.length > 0) {
+      // If assigning CHAPEL_LEADER role, update the role even for workers
+      // Otherwise, just update chapelId to keep worker role
       await prisma.member.updateMany({
         where: { id: { in: workerIds } },
-        data: { chapelId: id },
+        data: role === 'CHAPEL_LEADER' ? { chapelId: id, chapelRole: role } : { chapelId: id },
       });
     }
 
     res.status(200).json({
       success: true,
-      message: `Assigned ${memberIds.length} ${role === 'INVITEE' ? 'invitee(s)' : 'member(s)'} to chapel`,
+      message: `Assigned ${memberIds.length} ${
+        role === 'INVITEE' ? 'invitee(s)' : role === 'CHAPEL_LEADER' ? 'leader(s)' : 'member(s)'
+      } to chapel`,
       data: {
         roleSwitches,
       },

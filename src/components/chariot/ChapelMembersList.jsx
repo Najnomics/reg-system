@@ -3,7 +3,7 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useApp } from '../../contexts/SimpleAppContext';
 
-const ChariotMembersList = () => {
+const ChapelMembersList = () => {
   const { showError } = useApp();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,15 +14,30 @@ const ChariotMembersList = () => {
     total: 0,
     pages: 0,
   });
+  const [roleSummary, setRoleSummary] = useState({
+    invitees: 0,
+    members: 0,
+    workers: 0,
+  });
+  const [chapelTotals, setChapelTotals] = useState({
+    total: 0,
+    members: 0,
+    workers: 0,
+    invitees: 0,
+  });
 
   useEffect(() => {
     loadMembers();
   }, [pagination.page, searchTerm]);
 
+  useEffect(() => {
+    loadChapelTotals();
+  }, []);
+
   const loadMembers = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getChariotOnlyMembers({
+      const response = await apiService.getChapelOnlyMembers({
         page: pagination.page,
         limit: pagination.limit,
         query: searchTerm || undefined,
@@ -33,11 +48,49 @@ const ChariotMembersList = () => {
         total: response?.data?.pagination?.total || 0,
         pages: response?.data?.pagination?.pages || 0,
       }));
+      const summary = response?.data?.summary;
+      if (summary) {
+        setRoleSummary({
+          invitees: summary.invitees || 0,
+          members: summary.members || 0,
+          workers: summary.workers || 0,
+        });
+      } else {
+        const fallback = (response?.data?.members || []).reduce(
+          (acc, member) => {
+            if (member.chapelRole === 'INVITEE') {
+              acc.invitees += 1;
+            } else if (member.chapelRole === 'WORKER') {
+              acc.workers += 1;
+            } else {
+              acc.members += 1;
+            }
+            return acc;
+          },
+          { invitees: 0, members: 0, workers: 0 }
+        );
+        setRoleSummary(fallback);
+      }
     } catch (error) {
-      showError('Failed to load members');
-      console.error('Load members error:', error);
+      showError('Failed to load chapel members');
+      console.error('Load chapel members error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChapelTotals = async () => {
+    try {
+      const response = await apiService.getChariotDashboardStats(true);
+      const data = response?.data || {};
+      setChapelTotals({
+        total: data.totalChapelMembers || 0,
+        members: data.totalChapelMembersByRole || 0,
+        workers: data.totalChapelWorkers || 0,
+        invitees: data.totalChapelInvitees || 0,
+      });
+    } catch (error) {
+      console.error('Load chapel totals error:', error);
     }
   };
 
@@ -68,11 +121,33 @@ const ChariotMembersList = () => {
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search members..."
+          placeholder="Search chapel members..."
           value={searchTerm}
           onChange={handleSearch}
           className="input pl-9 sm:pl-10 w-full sm:max-w-md text-sm sm:text-base"
         />
+      </div>
+
+      {/* Totals */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-blue-700">Chapel Members</div>
+          <div className="text-lg sm:text-xl font-semibold text-blue-900">
+            {chapelTotals.total || pagination.total}
+          </div>
+        </div>
+        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-amber-700">Workers</div>
+          <div className="text-lg sm:text-xl font-semibold text-amber-900">
+            {chapelTotals.workers || roleSummary.workers}
+          </div>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 text-center">
+          <div className="text-xs sm:text-sm text-indigo-700">Invitees</div>
+          <div className="text-lg sm:text-xl font-semibold text-indigo-900">
+            {chapelTotals.invitees || roleSummary.invitees}
+          </div>
+        </div>
       </div>
 
       {/* Members Table */}
@@ -81,7 +156,7 @@ const ChariotMembersList = () => {
         <div className="block sm:hidden divide-y divide-gray-200">
           {members.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
-              No members found
+              No chapel members found
             </div>
           ) : (
             members.map((member) => (
@@ -126,7 +201,7 @@ const ChariotMembersList = () => {
                   Email
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Chapel
+                  Role
                 </th>
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   PIN
@@ -140,7 +215,7 @@ const ChariotMembersList = () => {
               {members.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                    No members found
+                    No chapel members found
                   </td>
                 </tr>
               ) : (
@@ -154,9 +229,7 @@ const ChariotMembersList = () => {
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">
-                        {member.chapel
-                          ? `${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
-                          : 'Not assigned'}
+                        {formatChapelRole(member.chapelRole)}
                       </div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
@@ -205,4 +278,4 @@ const ChariotMembersList = () => {
   );
 };
 
-export default ChariotMembersList;
+export default ChapelMembersList;
