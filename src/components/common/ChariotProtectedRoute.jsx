@@ -19,7 +19,7 @@ const ChariotProtectedRoute = ({ children }) => {
     return <Navigate to="/admin/login" replace />;
   }
 
-  if (userType !== 'chariot-leader' && userType !== 'chariot-assistant') {
+  if (!['chariot-leader', 'chariot-assistant', 'chapel-leader'].includes(userType)) {
     return <Navigate to="/admin/dashboard" replace />;
   }
 

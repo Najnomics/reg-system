@@ -10,9 +10,12 @@ const ChariotSessionsList = () => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
-  const [sessionViewType, setSessionViewType] = useState('chariot'); // 'chariot' or 'chapel'
+  const chapelOnly = userType === 'chapel-leader';
+  const [sessionViewType, setSessionViewType] = useState(chapelOnly ? 'chapel' : 'chariot'); // 'chariot' or 'chapel'
 
-  const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
+  // Chapel leaders of events without chariots only ever see their chapel view
+  const isChapelLeader = chapelOnly || (userType === 'chariot-leader' && user?.isChapelLeader);
+  const showViewTabs = isChapelLeader && !chapelOnly;
 
   useEffect(() => {
     loadSessions();
@@ -35,8 +38,8 @@ const ChariotSessionsList = () => {
   const handleViewSession = async (sessionId) => {
     try {
       // Determine which type to fetch based on current view
-      const type = (userType === 'chariot-leader' && user?.isChapelLeader && sessionViewType === 'chapel') 
-        ? 'chapel-only' 
+      const type = (isChapelLeader && sessionViewType === 'chapel')
+        ? 'chapel-only'
         : 'chariot-only';
       const response = await apiService.getChariotSession(sessionId, type);
       setSelectedSession(response?.data?.session);
@@ -101,7 +104,7 @@ const ChariotSessionsList = () => {
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Tabs for Chariot/Chapel views (only show if user is chapel leader) */}
-      {isChapelLeader && (
+      {showViewTabs && (
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-4 sm:space-x-8">
             <button

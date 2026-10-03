@@ -1,5 +1,15 @@
 const XLSX = require('xlsx');
-const { generateMemberPin } = require('../utils/pinGenerator');
+
+const TEMPLATE_HEADERS = ['First Name', 'Last Name', 'Email', 'Phone Number', 'Role', 'Chapel'];
+const TEMPLATE_EXAMPLE_ROW = ['John', 'Doe', 'john@example.com', '08012345678', 'Member', 'Grace'];
+
+const ROLE_ALIASES = {
+  invitee: 'INVITEE',
+  member: 'MEMBER',
+  worker: 'WORKER',
+  chapelleader: 'CHAPEL_LEADER',
+  leader: 'CHAPEL_LEADER',
+};
 
 /**
  * Parse Excel/CSV file and extract member data
@@ -12,7 +22,8 @@ const parseExcelFile = async (fileBuffer, filename) => {
     if (filename.endsWith('.csv')) {
       // Parse CSV file
       const csvData = fileBuffer.toString('utf8');
-      workbook = XLSX.read(csvData, { type: 'string' });
+      // raw keeps cells as text so phone numbers keep their leading zeros
+      workbook = XLSX.read(csvData, { type: 'string', raw: true });
     } else {
       // Parse Excel file (.xlsx, .xls)
       workbook = XLSX.read(fileBuffer, { type: 'buffer' });
@@ -59,9 +70,13 @@ const parseExcelFile = async (fileBuffer, filename) => {
           memberData.push(member);
         }
       } catch (error) {
+        const fallbackName = [row[columnMapping.firstName], row[columnMapping.lastName]]
+          .map(value => value?.toString().trim())
+          .filter(Boolean)
+          .join(' ');
         errors.push({
           row: rowNumber,
-          name: row[columnMapping.name]?.toString().trim() || 'Unknown',
+          name: row[columnMapping.name]?.toString().trim() || fallbackName || 'Unknown',
           email: row[columnMapping.email]?.toString().trim() || 'Missing',
           error: error.message,
           type: error.message.includes('Invalid email') ? 'invalid_email' : 'validation_error',
@@ -104,6 +119,12 @@ const findColumnMapping = (headers) => {
       mapping.lastName = index;
     } else if (['email', 'emailaddress', 'mail'].includes(normalizedHeader)) {
       mapping.email = index;
+    } else if (['phone', 'phonenumber', 'phoneno', 'mobile', 'telephone'].includes(normalizedHeader)) {
+      mapping.phone = index;
+    } else if (['role', 'chapelrole'].includes(normalizedHeader)) {
+      mapping.role = index;
+    } else if (['chapel', 'chapelname'].includes(normalizedHeader)) {
+      mapping.chapel = index;
     }
   });
   
@@ -124,6 +145,11 @@ const processRow = async (row, columnMapping, rowNumber) => {
   const firstName = columnMapping.firstName !== undefined ? normalizeCell(row[columnMapping.firstName]) : '';
   const lastName = columnMapping.lastName !== undefined ? normalizeCell(row[columnMapping.lastName]) : '';
   const email = columnMapping.email !== undefined ? normalizeCell(row[columnMapping.email]).toLowerCase() : '';
+  const phone = columnMapping.phone !== undefined ? normalizeCell(row[columnMapping.phone]) : '';
+  const roleCell = columnMapping.role !== undefined ? normalizeCell(row[columnMapping.role]) : '';
+  const chapelName = columnMapping.chapel !== undefined
+    ? normalizeCell(row[columnMapping.chapel]).replace(/\s+/g, ' ')
+    : '';
   const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim();
   const name = nameCell || combinedName;
 
@@ -146,14 +172,18 @@ const processRow = async (row, columnMapping, rowNumber) => {
     throw new Error('Name must be between 2 and 100 characters');
   }
 
-  // Generate PIN for the member
-  const { pin, pinHash } = await generateMemberPin();
+  let chapelRole = null;
+  if (roleCell) {
+    chapelRole = ROLE_ALIASES[roleCell.toLowerCase().replace(/[^a-z0-9]/g, '')];
+    if (!chapelRole) {
+      throw new Error(`Invalid role: '${roleCell}'. Use Invitee, Member, Worker, or Chapel Leader`);
+    }
+  }
 
+  // PIN is generated at creation time by the upload controller (PINs are unique per event)
   const member = {
     name,
     email,
-    pin,
-    pinHash,
     rowNumber,
   };
 
@@ -165,6 +195,18 @@ const processRow = async (row, columnMapping, rowNumber) => {
     member.lastName = lastName;
   }
 
+  if (phone) {
+    member.phone = phone;
+  }
+
+  if (chapelRole) {
+    member.chapelRole = chapelRole;
+  }
+
+  if (chapelName) {
+    member.chapelName = chapelName;
+  }
+
   return member;
 };
 
@@ -174,10 +216,8 @@ const processRow = async (row, columnMapping, rowNumber) => {
 const generateTemplate = () => {
   // Create template data
   const templateData = [
-    ['name', 'email'], // Headers
-    ['John Doe', 'john@example.com'], // Sample row 1
-    ['Jane Smith', 'jane@example.com'], // Sample row 2
-    ['Bob Johnson', 'bob@example.com'], // Sample row 3
+    TEMPLATE_HEADERS,
+    TEMPLATE_EXAMPLE_ROW,
   ];
 
   // Create workbook and worksheet
@@ -186,8 +226,12 @@ const generateTemplate = () => {
 
   // Set column widths
   ws['!cols'] = [
-    { width: 20 }, // name
+    { width: 15 }, // first name
+    { width: 15 }, // last name
     { width: 25 }, // email
+    { width: 18 }, // phone number
+    { width: 15 }, // role
+    { width: 15 }, // chapel
   ];
 
   // Style the header row
@@ -288,4 +332,6 @@ module.exports = {
   parseExcelFile,
   generateTemplate,
   validateFileFormat,
+  TEMPLATE_HEADERS,
+  TEMPLATE_EXAMPLE_ROW,
 };

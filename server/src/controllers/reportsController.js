@@ -7,9 +7,10 @@ const XLSX = require('xlsx');
 const getSessionReport = async (req, res) => {
   try {
     const { sessionId } = req.params;
+    const eventId = req.event.id;
 
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, eventId },
       select: {
         id: true,
         theme: true,
@@ -46,7 +47,7 @@ const getSessionReport = async (req, res) => {
     }
 
     // Calculate additional statistics
-    const totalMembers = await prisma.member.count({ where: { isActive: true } });
+    const totalMembers = await prisma.member.count({ where: { eventId, isActive: true } });
     const attendanceRate = totalMembers > 0 ? ((session._count.attendance / totalMembers) * 100).toFixed(1) : 0;
 
     // Group attendance by hour for timeline
@@ -93,15 +94,16 @@ const exportAttendance = async (req, res) => {
   try {
     const { sessionId, format = 'xlsx', includeInactive = false } = req.query;
 
-    let whereClause = {};
+    const eventId = req.event.id;
+    let whereClause = { session: { eventId } };
     let sessionData = null;
 
     if (sessionId) {
       // Single session export
       whereClause.sessionId = sessionId;
       
-      sessionData = await prisma.session.findUnique({
-        where: { id: sessionId },
+      sessionData = await prisma.session.findFirst({
+        where: { id: sessionId, eventId },
         select: { id: true, theme: true, startTime: true },
       });
 
@@ -260,6 +262,9 @@ const getAnalytics = async (req, res) => {
       };
     }
 
+    const eventId = req.event.id;
+    dateFilter.session = { eventId };
+
     // Get comprehensive analytics
     const [
       totalMembers,
@@ -276,17 +281,18 @@ const getAnalytics = async (req, res) => {
       memberEngagement
     ] = await Promise.all([
       // Total members
-      prisma.member.count(),
+      prisma.member.count({ where: { eventId } }),
       
       // Active members
-      prisma.member.count({ where: { isActive: true } }),
+      prisma.member.count({ where: { eventId, isActive: true } }),
       
       // Total sessions
-      prisma.session.count(),
+      prisma.session.count({ where: { eventId } }),
       
       // Active sessions (currently ongoing)
       prisma.session.count({
         where: {
+          eventId,
           isActive: true,
           startTime: { lte: new Date() },
           endTime: { gte: new Date() },
@@ -296,20 +302,21 @@ const getAnalytics = async (req, res) => {
       // Upcoming sessions
       prisma.session.count({
         where: {
+          eventId,
           isActive: true,
           startTime: { gt: new Date() },
         },
       }),
       
       // Total attendance
-      prisma.attendance.count(),
+      prisma.attendance.count({ where: { session: { eventId } } }),
       
       // Recent attendance (based on date filter)
       prisma.attendance.count({ where: dateFilter }),
       
       // Top members by attendance
       prisma.member.findMany({
-        where: { isActive: true },
+        where: { eventId, isActive: true },
         select: {
           id: true,
           name: true,
@@ -324,6 +331,7 @@ const getAnalytics = async (req, res) => {
       
       // Session statistics
       prisma.session.findMany({
+        where: { eventId },
         select: {
           id: true,
           theme: true,
@@ -341,6 +349,7 @@ const getAnalytics = async (req, res) => {
       prisma.attendance.groupBy({
         by: ['checkedInAt'],
         where: {
+          session: { eventId },
           checkedInAt: {
             gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },
@@ -358,6 +367,7 @@ const getAnalytics = async (req, res) => {
       // Member engagement (members with at least one attendance)
       prisma.member.count({
         where: {
+          eventId,
           isActive: true,
           attendance: { some: {} },
         },
@@ -436,8 +446,8 @@ const getMemberAttendance = async (req, res) => {
     const { memberId } = req.params;
     const { fromDate, toDate, limit = 50 } = req.query;
 
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
+    const member = await prisma.member.findFirst({
+      where: { id: memberId, eventId: req.event.id },
       select: { id: true, name: true, email: true, isActive: true },
     });
 
@@ -530,8 +540,10 @@ const getAttendanceTrends = async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
+    const eventId = req.event.id;
     const attendanceData = await prisma.attendance.findMany({
       where: {
+        session: { eventId },
         checkedInAt: { gte: startDate },
       },
       select: {
@@ -571,6 +583,7 @@ const getAttendanceTrends = async (req, res) => {
     // Get recent sessions for context
     const recentSessions = await prisma.session.findMany({
       where: {
+        eventId,
         startTime: { gte: startDate },
       },
       select: {

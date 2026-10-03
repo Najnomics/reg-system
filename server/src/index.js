@@ -32,7 +32,7 @@ const corsOptions = {
   ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Event-Id'],
 };
 app.use(cors(corsOptions));
 
@@ -83,6 +83,8 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
+app.use('/api', require('./middleware/event').resolveEvent);
+app.use('/api/events', require('./routes/events'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/sessions', require('./routes/sessions'));

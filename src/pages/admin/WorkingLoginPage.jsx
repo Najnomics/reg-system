@@ -21,10 +21,10 @@ const WorkingLoginPage = () => {
 
   // Redirect based on user type
   if (isAuthenticated) {
-    if (userType === 'chariot-leader' || userType === 'chariot-assistant') {
+    if (['chariot-leader', 'chariot-assistant', 'chapel-leader'].includes(userType)) {
       return <Navigate to="/chariot/dashboard" replace />;
     }
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/events" replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -131,7 +131,7 @@ const WorkingLoginPage = () => {
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3 sm:p-4">
               <h4 className="text-sm sm:text-base font-medium text-blue-900 mb-1.5 sm:mb-2">Church Attendance System</h4>
               <p className="text-xs sm:text-sm text-blue-700 mb-2">
-                Secure login for administrators, registration representatives, and chariot leaders
+                Secure login for administrators, registration representatives, chariot leaders and chapel leaders
               </p>
               <div className="text-xs bg-blue-100 p-2 sm:p-3 rounded mt-2 space-y-1">
                 <div className="text-blue-800">• Use your registered email and password</div>

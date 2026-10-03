@@ -2,6 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
+const { uploadMiddleware } = require('../middleware/upload');
 const chapelController = require('../controllers/chapelController');
 
 const router = express.Router();
@@ -42,6 +43,12 @@ router.get('/', authenticateUser, allowChapelRead, chapelController.getChapels);
 // Export all chapels as PDF
 router.get('/export/pdf', authenticateUser, allowChapelRead, chapelController.exportChapelsPDF);
 
+// Download chapel upload template (admin only); must come before /:id
+router.get('/template', authenticateAdmin, chapelController.downloadChapelTemplate);
+
+// Upload chapels via CSV/Excel file (admin only); must come before /:id
+router.post('/upload', authenticateAdmin, uploadMiddleware, chapelController.uploadChapels);
+
 // Get a single chapel
 router.get('/:id', authenticateUser, allowChapelRead, validate(schemas.uuidParam, 'params'), chapelController.getChapel);
 
@@ -56,8 +63,8 @@ router.post(
       'array.min': 'At least one member ID is required',
       'any.required': 'Member IDs are required',
     }),
-    role: Joi.string().valid('INVITEE', 'MEMBER', 'CHAPEL_LEADER').optional().messages({
-      'any.only': 'role must be INVITEE, MEMBER, or CHAPEL_LEADER',
+    role: Joi.string().valid('INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER').optional().messages({
+      'any.only': 'role must be INVITEE, MEMBER, WORKER, or CHAPEL_LEADER',
     }),
   })),
   chapelController.addMembers

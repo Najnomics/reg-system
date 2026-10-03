@@ -8,6 +8,7 @@ const PDFDocument = require('pdfkit');
 const getChariots = async (req, res) => {
   try {
     const chariots = await prisma.chariot.findMany({
+      where: { eventId: req.event.id },
       include: {
         leader: {
           select: {
@@ -92,8 +93,8 @@ const getChariot = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const chariot = await prisma.chariot.findUnique({
-      where: { id },
+    const chariot = await prisma.chariot.findFirst({
+      where: { id, eventId: req.event.id },
       include: {
         leader: {
           select: {
@@ -181,6 +182,7 @@ const getChariot = async (req, res) => {
 const exportChariotsPDF = async (req, res) => {
   try {
     const chariots = await prisma.chariot.findMany({
+      where: { eventId: req.event.id },
       include: {
         leader: {
           select: {
@@ -314,6 +316,7 @@ const exportChariotsPDF = async (req, res) => {
 const exportChariotsCSV = async (req, res) => {
   try {
     const chariots = await prisma.chariot.findMany({
+      where: { eventId: req.event.id },
       include: {
         leader: {
           select: {
@@ -436,8 +439,9 @@ const exportChariotsCSV = async (req, res) => {
  */
 const assignUnassignedMembersToChariots = async (req, res) => {
   try {
+    const eventId = req.event.id;
     const chariots = await prisma.chariot.findMany({
-      where: { isActive: true },
+      where: { isActive: true, eventId },
       select: {
         id: true,
         name: true,
@@ -462,6 +466,7 @@ const assignUnassignedMembersToChariots = async (req, res) => {
     });
 
     const existingAssignments = await prisma.chariotMember.findMany({
+      where: { chariot: { eventId } },
       select: { memberId: true },
     });
     const alreadyAssigned = new Set(existingAssignments.map((entry) => entry.memberId));
@@ -497,6 +502,7 @@ const assignUnassignedMembersToChariots = async (req, res) => {
     const [workers, invitees, others] = await Promise.all([
       prisma.member.findMany({
         where: {
+          eventId,
           isActive: { not: false },
           chapelRole: 'WORKER',
           id: { notIn: Array.from(excludedIds) },
@@ -505,6 +511,7 @@ const assignUnassignedMembersToChariots = async (req, res) => {
       }),
       prisma.member.findMany({
         where: {
+          eventId,
           isActive: { not: false },
           chapelRole: 'INVITEE',
           id: { notIn: Array.from(excludedIds) },
@@ -513,6 +520,7 @@ const assignUnassignedMembersToChariots = async (req, res) => {
       }),
       prisma.member.findMany({
         where: {
+          eventId,
           isActive: { not: false },
           id: { notIn: Array.from(excludedIds) },
           OR: [
@@ -575,11 +583,12 @@ const assignUnassignedMembersToChariots = async (req, res) => {
 const createChariot = async (req, res) => {
   try {
     const { name, description, leaderId } = req.body;
+    const eventId = req.event.id;
 
     // Validate leader exists
     const leader = await prisma.member.findUnique({
       where: { id: leaderId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, eventId: true },
     });
 
     if (!leader) {
@@ -589,9 +598,16 @@ const createChariot = async (req, res) => {
       });
     }
 
+    if (leader.eventId !== eventId) {
+      return res.status(400).json({
+        error: 'Invalid leader',
+        message: 'The leader must be a member of the current event',
+      });
+    }
+
     // Check if leader is already a leader of another chariot
     const existingChariot = await prisma.chariot.findFirst({
-      where: { leaderId, isActive: true },
+      where: { leaderId, isActive: true, eventId },
     });
 
     if (existingChariot) {
@@ -607,6 +623,7 @@ const createChariot = async (req, res) => {
         memberId: leaderId,
         chariot: {
           isActive: true,
+          eventId,
         },
       },
       include: {
@@ -631,6 +648,7 @@ const createChariot = async (req, res) => {
         name: name.trim(),
         description: description?.trim() || null,
         leaderId,
+        eventId,
         createdBy: req.user.id,
       },
       include: {
@@ -672,10 +690,11 @@ const updateChariot = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, leaderId } = req.body;
+    const eventId = req.event.id;
 
     // Check if chariot exists
-    const existingChariot = await prisma.chariot.findUnique({
-      where: { id },
+    const existingChariot = await prisma.chariot.findFirst({
+      where: { id, eventId },
     });
 
     if (!existingChariot) {
@@ -689,7 +708,7 @@ const updateChariot = async (req, res) => {
     if (leaderId && leaderId !== existingChariot.leaderId) {
       const leader = await prisma.member.findUnique({
         where: { id: leaderId },
-        select: { id: true },
+        select: { id: true, eventId: true },
       });
 
       if (!leader) {
@@ -699,9 +718,16 @@ const updateChariot = async (req, res) => {
         });
       }
 
+      if (leader.eventId !== eventId) {
+        return res.status(400).json({
+          error: 'Invalid leader',
+          message: 'The leader must be a member of the current event',
+        });
+      }
+
       // Check if new leader is already a leader of another chariot
       const otherChariot = await prisma.chariot.findFirst({
-        where: { leaderId, isActive: true, id: { not: id } },
+        where: { leaderId, isActive: true, eventId, id: { not: id } },
       });
 
       if (otherChariot) {
@@ -717,6 +743,7 @@ const updateChariot = async (req, res) => {
           memberId: leaderId,
           chariot: {
             isActive: true,
+            eventId,
             id: { not: id }, // Exclude current chariot
           },
         },
@@ -783,8 +810,8 @@ const deleteChariot = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const chariot = await prisma.chariot.findUnique({
-      where: { id },
+    const chariot = await prisma.chariot.findFirst({
+      where: { id, eventId: req.event.id },
     });
 
     if (!chariot) {
@@ -826,9 +853,11 @@ const addAssistants = async (req, res) => {
       });
     }
 
+    const eventId = req.event.id;
+
     // Check if chariot exists
-    const chariot = await prisma.chariot.findUnique({
-      where: { id },
+    const chariot = await prisma.chariot.findFirst({
+      where: { id, eventId },
     });
 
     if (!chariot) {
@@ -841,13 +870,20 @@ const addAssistants = async (req, res) => {
     // Validate all members exist
     const members = await prisma.member.findMany({
       where: { id: { in: memberIds } },
-      select: { id: true },
+      select: { id: true, eventId: true },
     });
 
     if (members.length !== memberIds.length) {
       return res.status(404).json({
         error: 'Some members not found',
         message: 'One or more members do not exist',
+      });
+    }
+
+    if (members.some(member => member.eventId !== eventId)) {
+      return res.status(400).json({
+        error: 'Invalid assignment',
+        message: 'All assistants must be members of the current event',
       });
     }
 
@@ -862,6 +898,7 @@ const addAssistants = async (req, res) => {
     // Check if any member is already a leader of another chariot
     const existingLeaders = await prisma.chariot.findMany({
       where: {
+        eventId,
         leaderId: { in: memberIds },
         isActive: true,
         id: { not: id }, // Exclude current chariot
@@ -886,6 +923,7 @@ const addAssistants = async (req, res) => {
         memberId: { in: memberIds },
         chariot: {
           isActive: true,
+          eventId,
           id: { not: id }, // Exclude current chariot
         },
       },
@@ -978,6 +1016,18 @@ const removeAssistants = async (req, res) => {
       });
     }
 
+    const chariot = await prisma.chariot.findFirst({
+      where: { id, eventId: req.event.id },
+      select: { id: true },
+    });
+
+    if (!chariot) {
+      return res.status(404).json({
+        error: 'Chariot not found',
+        message: 'Chariot with the specified ID does not exist',
+      });
+    }
+
     await prisma.chariotAssistant.deleteMany({
       where: {
         chariotId: id,
@@ -1013,9 +1063,11 @@ const addMembers = async (req, res) => {
       });
     }
 
+    const eventId = req.event.id;
+
     // Check if chariot exists
-    const chariot = await prisma.chariot.findUnique({
-      where: { id },
+    const chariot = await prisma.chariot.findFirst({
+      where: { id, eventId },
     });
 
     if (!chariot) {
@@ -1028,13 +1080,20 @@ const addMembers = async (req, res) => {
     // Validate all members exist
     const members = await prisma.member.findMany({
       where: { id: { in: memberIds } },
-      select: { id: true },
+      select: { id: true, eventId: true },
     });
 
     if (members.length !== memberIds.length) {
       return res.status(404).json({
         error: 'Some members not found',
         message: 'One or more members do not exist',
+      });
+    }
+
+    if (members.some(member => member.eventId !== eventId)) {
+      return res.status(400).json({
+        error: 'Invalid assignment',
+        message: 'All members must belong to the current event',
       });
     }
 
@@ -1109,6 +1168,18 @@ const removeMembers = async (req, res) => {
       return res.status(400).json({
         error: 'Invalid input',
         message: 'memberIds must be a non-empty array',
+      });
+    }
+
+    const chariot = await prisma.chariot.findFirst({
+      where: { id, eventId: req.event.id },
+      select: { id: true },
+    });
+
+    if (!chariot) {
+      return res.status(404).json({
+        error: 'Chariot not found',
+        message: 'Chariot with the specified ID does not exist',
       });
     }
 

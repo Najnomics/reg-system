@@ -2,9 +2,13 @@ const express = require('express');
 const Joi = require('joi');
 const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
+const { requireChariotEvent } = require('../middleware/event');
 const chariotController = require('../controllers/chariotController');
 
 const router = express.Router();
+
+// Chariots only exist in events that use them
+router.use(requireChariotEvent);
 
 const allowChariotRead = (req, res, next) => {
   const allowedRoles = ['admin', 'pastoral'];

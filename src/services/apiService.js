@@ -1,5 +1,6 @@
 import { apiCache } from '../utils/cache.js';
 import { requestBatcher } from '../utils/requestBatcher.js';
+import { getCurrentEventId, eventHeaders } from '../utils/currentEvent.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -12,7 +13,7 @@ if (import.meta.env.PROD) {
 class ApiService {
   async request(endpoint, options = {}, useCache = false, useBatch = false, forceRefresh = false) {
     const url = `${API_BASE_URL}${endpoint}`;
-    const cacheKey = `${options.method || 'GET'}:${endpoint}`;
+    const cacheKey = `${options.method || 'GET'}:${endpoint}#${getCurrentEventId()}`;
     const isGetRequest = !options.method || options.method === 'GET';
     
     // Check if this is a page refresh (first request after page load)
@@ -76,6 +77,11 @@ class ApiService {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const eventId = getCurrentEventId();
+    if (eventId) {
+      config.headers['X-Event-Id'] = eventId;
     }
 
     try {
@@ -284,6 +290,7 @@ class ApiService {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
       },
       body: formData,
     });
@@ -566,6 +573,7 @@ class ApiService {
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
+        ...eventHeaders(),
       },
     });
 
@@ -583,6 +591,7 @@ class ApiService {
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
+        ...eventHeaders(),
       },
     });
 
@@ -818,6 +827,7 @@ class ApiService {
     const response = await fetch(url, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
       },
     });
     if (!response.ok) {
@@ -832,6 +842,7 @@ class ApiService {
     const response = await fetch(url, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
       },
     });
     if (!response.ok) {
@@ -846,6 +857,7 @@ class ApiService {
     const response = await fetch(url, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
       },
     });
     if (!response.ok) {
@@ -901,6 +913,7 @@ class ApiService {
     const response = await fetch(url, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
       },
     });
     if (!response.ok) {
@@ -972,6 +985,82 @@ class ApiService {
 
   async getChariotDashboardStats(forceRefresh = false) {
     return this.request('/chariot/dashboard/stats', {}, true, false, forceRefresh); // Enable caching, but refresh on page load
+  }
+
+  // Events
+  async getEvents() {
+    return this.request('/events');
+  }
+
+  async createEvent(eventData) {
+    return this.request('/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData),
+    });
+  }
+
+  async syncEventChapels(id) {
+    return this.request(`/events/${id}/sync-chapels`, { method: 'POST' });
+  }
+
+  async switchEvent(eventId) {
+    return this.request('/auth/switch-event', {
+      method: 'POST',
+      body: JSON.stringify({ eventId }),
+    });
+  }
+
+  async updateEvent(id, eventData) {
+    return this.request(`/events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(eventData),
+    });
+  }
+
+  // CSV uploads for the current event (multipart, so they bypass request())
+  async _uploadFile(endpoint, file, errorMessage) {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
+      },
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || errorMessage);
+    }
+    return data;
+  }
+
+  async uploadChapels(file) {
+    const result = await this._uploadFile('/chapels/upload', file, 'Failed to upload chapels');
+    apiCache.clearPattern('/chapels');
+    return result;
+  }
+
+  async uploadSessions(file) {
+    const result = await this._uploadFile('/sessions/upload', file, 'Failed to upload sessions');
+    apiCache.clearPattern('/sessions');
+    return result;
+  }
+
+  async downloadTemplate(endpoint) {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...eventHeaders(),
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to download template');
+    }
+    return response.blob();
   }
 
   // Chariot authentication

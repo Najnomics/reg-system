@@ -8,6 +8,7 @@ const getDashboardStats = async (req, res) => {
     const currentTime = new Date();
     const todayStart = new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const eventId = req.event.id;
 
     // Get all statistics in parallel for better performance
     const [
@@ -23,6 +24,7 @@ const getDashboardStats = async (req, res) => {
       // This matches the frontend filter: member.isActive !== false
       prisma.member.count({
         where: {
+          eventId,
           isActive: {
             not: false,
           },
@@ -32,6 +34,7 @@ const getDashboardStats = async (req, res) => {
       // Active members count (same as total for consistency)
       prisma.member.count({
         where: {
+          eventId,
           isActive: {
             not: false,
           },
@@ -39,11 +42,12 @@ const getDashboardStats = async (req, res) => {
       }),
 
       // Total sessions
-      prisma.session.count(),
+      prisma.session.count({ where: { eventId } }),
 
       // Active sessions (currently ongoing)
       prisma.session.count({
         where: {
+          eventId,
           isActive: true,
           startTime: { lte: currentTime },
           endTime: { gte: currentTime },
@@ -53,6 +57,7 @@ const getDashboardStats = async (req, res) => {
       // Upcoming sessions (future sessions)
       prisma.session.count({
         where: {
+          eventId,
           isActive: true,
           startTime: { gt: currentTime },
         },
@@ -61,6 +66,7 @@ const getDashboardStats = async (req, res) => {
       // Today's attendance
       prisma.attendance.count({
         where: {
+          session: { eventId },
           checkedInAt: {
             gte: todayStart,
             lt: todayEnd,
@@ -70,6 +76,7 @@ const getDashboardStats = async (req, res) => {
 
       // Recent attendance records with member info for activity feed
       prisma.attendance.findMany({
+        where: { session: { eventId } },
         take: 5,
         orderBy: { checkedInAt: 'desc' },
         include: {
@@ -88,6 +95,7 @@ const getDashboardStats = async (req, res) => {
 
     // Get recent sessions for activity feed
     const recentSessions = await prisma.session.findMany({
+      where: { eventId },
       take: 3,
       orderBy: { createdAt: 'desc' },
       select: {

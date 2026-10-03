@@ -11,7 +11,7 @@ const ChariotLayout = () => {
   const { userType } = useAuth();
 
   // Only show layout for chariot users
-  if (userType !== 'chariot-leader' && userType !== 'chariot-assistant') {
+  if (!['chariot-leader', 'chariot-assistant', 'chapel-leader'].includes(userType)) {
     return null;
   }
 

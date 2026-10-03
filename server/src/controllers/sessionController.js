@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const qrCodeService = require('../services/qrCodeService');
 const PDFDocument = require('pdfkit');
 const { Parser } = require('json2csv');
+const XLSX = require('xlsx');
 
 /**
  * Get all sessions with pagination and filtering
@@ -18,7 +19,7 @@ const getSessions = async (req, res) => {
     const canViewSecretInfo = req.user && (req.user.userType === 'admin' || req.user.userType === 'reg-rep');
 
     // Build filter conditions
-    let where = {};
+    let where = { eventId: req.event.id };
 
     if (status) {
       if (status === 'active') {
@@ -160,8 +161,8 @@ const getSession = async (req, res) => {
       selectFields.secretAnswerPlain = true;
     }
 
-    const session = await prisma.session.findUnique({
-      where: { id },
+    const session = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: selectFields,
     });
 
@@ -266,6 +267,7 @@ const createSession = async (req, res) => {
         secretAnswerPlain: plainAnswer, // Store plain text for admin reference
         isActive: true,
         createdBy: req.user.id,
+        eventId: req.event.id,
       },
       select: {
         id: true,
@@ -345,8 +347,8 @@ const updateSession = async (req, res) => {
     const { theme, startTime, endTime, secretQuestion, secretAnswer, isActive } = req.body;
 
     // Check if session exists
-    const existingSession = await prisma.session.findUnique({
-      where: { id },
+    const existingSession = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: { id: true, startTime: true, endTime: true },
     });
 
@@ -469,8 +471,8 @@ const deleteSession = async (req, res) => {
     const { id } = req.params;
 
     // Check if session exists
-    const existingSession = await prisma.session.findUnique({
-      where: { id },
+    const existingSession = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: { id: true, theme: true, _count: { select: { attendance: true } } },
     });
 
@@ -525,8 +527,8 @@ const downloadQRCode = async (req, res) => {
     }
 
     // Check if session exists and is active
-    const session = await prisma.session.findUnique({
-      where: { id },
+    const session = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: { id: true, theme: true, isActive: true },
     });
 
@@ -597,8 +599,8 @@ const getPrintableQR = async (req, res) => {
     const { id } = req.params;
 
     // Check if session exists
-    const session = await prisma.session.findUnique({
-      where: { id },
+    const session = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: {
         id: true,
         theme: true,
@@ -638,13 +640,15 @@ const getSessionStats = async (req, res) => {
   try {
     const currentTime = new Date();
     const thirtyDaysAgo = new Date(currentTime.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const eventId = req.event.id;
 
     const stats = await Promise.all([
       // Total sessions
-      prisma.session.count(),
+      prisma.session.count({ where: { eventId } }),
       // Active sessions (currently ongoing)
       prisma.session.count({
         where: {
+          eventId,
           isActive: true,
           startTime: { lte: currentTime },
           endTime: { gte: currentTime },
@@ -653,6 +657,7 @@ const getSessionStats = async (req, res) => {
       // Upcoming sessions
       prisma.session.count({
         where: {
+          eventId,
           isActive: true,
           startTime: { gt: currentTime },
         },
@@ -660,14 +665,16 @@ const getSessionStats = async (req, res) => {
       // Recent sessions (last 30 days)
       prisma.session.count({
         where: {
+          eventId,
           createdAt: { gte: thirtyDaysAgo },
         },
       }),
       // Total attendance across all sessions
-      prisma.attendance.count(),
+      prisma.attendance.count({ where: { session: { eventId } } }),
       // Recent attendance (last 30 days)
       prisma.attendance.count({
         where: {
+          session: { eventId },
           checkedInAt: { gte: thirtyDaysAgo },
         },
       }),
@@ -736,13 +743,14 @@ const getSessionAttendance = async (req, res) => {
 
     // Get session details and attendance records in parallel
     // Optimize: Only fetch what we need, use select to reduce data transfer
+    const eventId = req.event.id;
     const [session, attendanceRecords, totalMembersCount] = await Promise.all([
-      prisma.session.findUnique({
-        where: { id },
+      prisma.session.findFirst({
+        where: { id, eventId },
         select: sessionSelectFields,
       }),
       prisma.attendance.findMany({
-        where: { sessionId: id },
+        where: { sessionId: id, session: { eventId } },
         select: {
           id: true,
           checkedInAt: true,
@@ -767,7 +775,7 @@ const getSessionAttendance = async (req, res) => {
       }),
       // Only count active members if we need absent list
       includeAbsent === 'true' 
-        ? prisma.member.count({ where: { isActive: { not: false } } })
+        ? prisma.member.count({ where: { eventId, isActive: { not: false } } })
         : Promise.resolve(0),
     ]);
 
@@ -800,6 +808,7 @@ const getSessionAttendance = async (req, res) => {
       const memberLimit = totalMembersCount > 1000 ? 1000 : undefined;
       allMembers = await prisma.member.findMany({
         where: { 
+          eventId,
           isActive: { not: false },
           // Exclude already attended members for efficiency
           id: { notIn: Array.from(attendedMemberIds) },
@@ -910,12 +919,13 @@ const markMemberPresent = async (req, res) => {
     }
 
     // Verify session exists
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, eventId: req.event.id },
       select: {
         id: true,
         theme: true,
         isActive: true,
+        eventId: true,
       },
     });
 
@@ -927,8 +937,8 @@ const markMemberPresent = async (req, res) => {
     }
 
     // Verify member exists
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
+    const member = await prisma.member.findFirst({
+      where: { id: memberId, eventId: session.eventId },
       select: {
         id: true,
         name: true,
@@ -1026,8 +1036,8 @@ const getSessionChariotAttendance = async (req, res) => {
     const { id: sessionId } = req.params;
 
     // Verify session exists
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, eventId: req.event.id },
       select: {
         id: true,
         theme: true,
@@ -1048,6 +1058,7 @@ const getSessionChariotAttendance = async (req, res) => {
 
     // Get all chariots with their members (include inactive for attendance reporting)
     const chariots = await prisma.chariot.findMany({
+      where: { eventId: req.event.id },
       select: {
         id: true,
         name: true,
@@ -1163,8 +1174,8 @@ const exportSessionAttendanceCSV = async (req, res) => {
     const { id } = req.params;
 
     // Get session and attendance data
-    const session = await prisma.session.findUnique({
-      where: { id },
+    const session = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: {
         id: true,
         theme: true,
@@ -1198,7 +1209,7 @@ const exportSessionAttendanceCSV = async (req, res) => {
 
     // Get all members for absent list
     const allMembers = await prisma.member.findMany({
-      where: { isActive: true },
+      where: { eventId: req.event.id, isActive: true },
       select: {
         id: true,
         name: true,
@@ -1271,8 +1282,8 @@ const exportSessionAttendancePDF = async (req, res) => {
     const { id } = req.params;
 
     // Get session and attendance data (same as CSV)
-    const session = await prisma.session.findUnique({
-      where: { id },
+    const session = await prisma.session.findFirst({
+      where: { id, eventId: req.event.id },
       select: {
         id: true,
         theme: true,
@@ -1306,7 +1317,7 @@ const exportSessionAttendancePDF = async (req, res) => {
 
     // Get all members for absent list
     const allMembers = await prisma.member.findMany({
-      where: { isActive: true },
+      where: { eventId: req.event.id, isActive: true },
       select: {
         id: true,
         name: true,
@@ -1410,6 +1421,222 @@ const exportSessionAttendancePDF = async (req, res) => {
   }
 };
 
+const SESSION_UPLOAD_COLUMNS = {
+  theme: ['theme', 'name', 'title'],
+  startTime: ['starttime', 'start', 'startdatetime'],
+  endTime: ['endtime', 'end', 'enddatetime'],
+  location: ['location'],
+  description: ['description'],
+  secretQuestion: ['secretquestion'],
+  secretAnswer: ['secretanswer'],
+};
+
+/**
+ * Parse a date cell from an uploaded sheet: Excel serial numbers, "YYYY-MM-DD HH:mm[:ss]"
+ * (server local time) or any ISO string. Returns null when the value is not a valid date.
+ */
+const parseUploadDate = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+
+  if (typeof value === 'number') {
+    const parts = XLSX.SSF.parse_date_code(value);
+    if (!parts) return null;
+    return new Date(parts.y, parts.m - 1, parts.d, parts.H, parts.M, Math.floor(parts.S));
+  }
+
+  const text = value.toString().trim();
+  if (/^\d+(\.\d+)?$/.test(text)) {
+    return parseUploadDate(parseFloat(text));
+  }
+
+  const local = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (local) {
+    const [, y, m, d, H, M, S] = local;
+    const date = new Date(Number(y), Number(m) - 1, Number(d), Number(H), Number(M), Number(S || 0));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(text);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+/**
+ * Bulk create sessions from a CSV/Excel file (admin only)
+ */
+const uploadSessions = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User authentication required',
+      });
+    }
+
+    const filename = req.file.originalname.toLowerCase();
+    let workbook;
+    if (filename.endsWith('.csv')) {
+      workbook = XLSX.read(req.file.buffer.toString('utf8'), { type: 'string', raw: true });
+    } else {
+      workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    }
+
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = worksheet
+      ? XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
+      : [];
+
+    if (rows.length === 0) {
+      return res.status(400).json({
+        error: 'Empty file',
+        message: 'The file appears to be empty',
+      });
+    }
+
+    const columns = {};
+    rows[0].forEach((header, index) => {
+      const normalized = header.toString().toLowerCase().replace(/[\s_-]/g, '');
+      Object.entries(SESSION_UPLOAD_COLUMNS).forEach(([key, aliases]) => {
+        if (columns[key] === undefined && aliases.includes(normalized)) {
+          columns[key] = index;
+        }
+      });
+    });
+
+    const missing = ['theme', 'startTime', 'endTime'].filter(key => columns[key] === undefined);
+    if (missing.length > 0) {
+      return res.status(400).json({
+        error: 'Missing columns',
+        message: 'Required columns "Theme", "Start Time" and "End Time" not found in the file',
+      });
+    }
+
+    const cell = (row, key) => {
+      if (columns[key] === undefined) return '';
+      const value = row[columns[key]];
+      return value === undefined || value === null ? '' : value;
+    };
+    const text = (row, key) => cell(row, key).toString().trim();
+
+    const { randomUUID } = require('crypto');
+    const errors = [];
+    const created = [];
+    let total = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNumber = i + 1;
+
+      if (!Array.isArray(row) || !row.some(value => value !== undefined && value !== null && value.toString().trim() !== '')) {
+        continue;
+      }
+      total++;
+
+      try {
+        const theme = text(row, 'theme');
+        if (!theme) throw new Error('Theme is required');
+        if (theme.length < 3 || theme.length > 200) {
+          throw new Error('Theme must be between 3 and 200 characters');
+        }
+
+        const startRaw = cell(row, 'startTime');
+        const endRaw = cell(row, 'endTime');
+        if (startRaw === '') throw new Error('Start Time is required');
+        if (endRaw === '') throw new Error('End Time is required');
+
+        const start = parseUploadDate(startRaw);
+        if (!start) throw new Error(`Invalid Start Time: '${startRaw}'`);
+        const end = parseUploadDate(endRaw);
+        if (!end) throw new Error(`Invalid End Time: '${endRaw}'`);
+        if (start >= end) throw new Error('End time must be after start time');
+
+        const location = text(row, 'location');
+        const description = text(row, 'description');
+        const secretQuestion = text(row, 'secretQuestion');
+        const secretAnswer = text(row, 'secretAnswer');
+
+        const sessionId = randomUUID();
+        await prisma.session.create({
+          data: {
+            id: sessionId,
+            theme,
+            startTime: start,
+            endTime: end,
+            location: location || null,
+            description: description || null,
+            secretQuestion,
+            secretAnswer: secretAnswer ? await bcrypt.hash(secretAnswer.toLowerCase(), 12) : '',
+            secretAnswerPlain: secretAnswer,
+            isActive: true,
+            createdBy: req.user.id,
+            eventId: req.event.id,
+          },
+        });
+
+        const qrData = await qrCodeService.generateSessionQR(sessionId);
+        const session = await prisma.session.update({
+          where: { id: sessionId },
+          data: { qrCodeData: qrData.url },
+          select: {
+            id: true,
+            theme: true,
+            startTime: true,
+            endTime: true,
+            location: true,
+            description: true,
+            secretQuestion: true,
+            qrCodeData: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        created.push({
+          ...session,
+          status: getSessionStatus(session, new Date()),
+          attendanceCount: 0,
+        });
+      } catch (error) {
+        errors.push({ row: rowNumber, message: error.message });
+      }
+    }
+
+    res.status(created.length > 0 ? 201 : 200).json({
+      success: created.length > 0,
+      message: `${created.length} of ${total} session(s) created`,
+      data: {
+        total,
+        created: created.length,
+        failed: errors.length,
+        errors,
+        sessions: created,
+      },
+    });
+
+  } catch (error) {
+    console.error('Upload sessions error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to upload sessions',
+    });
+  }
+};
+
+/**
+ * Download CSV template for session upload
+ */
+const downloadSessionTemplate = (req, res) => {
+  const csv = [
+    'Theme,Start Time,End Time,Location,Description',
+    'Morning Service,2026-12-01 09:00,2026-12-01 12:00,Main Auditorium,Opening session',
+  ].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="sessions-template.csv"');
+  res.send(csv);
+};
+
 /**
  * Helper function to determine session status
  */
@@ -1434,4 +1661,6 @@ module.exports = {
   downloadQRCode,
   getPrintableQR,
   getSessionStats,
+  uploadSessions,
+  downloadSessionTemplate,
 };

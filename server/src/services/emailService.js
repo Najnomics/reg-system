@@ -129,7 +129,7 @@ class EmailService {
   /**
    * Send PIN email to member
    */
-  async sendPin(member) {
+  async sendPin(member, event = null) {
     // Check if email service is properly configured
     if (!this.isConfigured || !this.transporter) {
       const errorMsg = 'Email service not configured. Please configure SENDGRID_API_KEY or SMTP settings in .env file.';
@@ -158,6 +158,11 @@ class EmailService {
       }
       
       throw new Error(errorMsg);
+    }
+
+    const memberEvent = await this.resolveMemberEvent(member, event);
+    if (memberEvent && !memberEvent.hasChariots) {
+      return this.sendEventPin(member, memberEvent);
     }
 
     try {
@@ -567,6 +572,219 @@ Remember, I will not give to the Lord what will cost me nothing!
 Once again — welcome home, Territorial Commander.
 Warm regards,
 HomeComing Conference 2026 Team
+${churchName}
+
+---
+This email was sent to ${member.email}
+    `;
+  }
+
+  async resolveMemberEvent(member, event) {
+    if (event) return event;
+    try {
+      if (member.event) return member.event;
+      const record = await prisma.member.findUnique({
+        where: { id: member.id },
+        select: { event: true },
+      });
+      return record?.event || null;
+    } catch (error) {
+      console.error('Failed to resolve member event for PIN email:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * PIN email for events without chariots (Homecoming keeps its own template above).
+   */
+  async sendEventPin(member, event) {
+    const churchName = process.env.CHURCH_NAME || 'Your Church';
+    const churchEmail = process.env.FROM_EMAIL || 'noreply@yourchurch.com';
+    const churchDisplayName = process.env.FROM_NAME || churchName;
+
+    try {
+      const emailData = await this.buildEventPinEmailData(member, event);
+      const mailOptions = {
+        from: `"${churchDisplayName}" <${churchEmail}>`,
+        to: member.email,
+        subject: `Your ${event.name} Attendance PIN`,
+        html: this.generateEventPinEmailTemplate(emailData, churchName),
+        text: this.generateEventPinEmailText(emailData, churchName),
+      };
+
+      console.log(`📧 Sending ${event.name} PIN email to ${member.email}...`);
+      const result = await this.transporter.sendMail(mailOptions);
+
+      try {
+        await this.logEmail(member.id, 'pin', mailOptions.subject, 'sent');
+      } catch (logError) {
+        console.error('Failed to log email success:', logError);
+      }
+
+      console.log(`✅ PIN email sent successfully to ${member.email}`, { messageId: result.messageId });
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error(`❌ Error sending ${event.name} PIN email to ${member.email}:`, error.message);
+      try {
+        await this.logEmail(member.id, 'pin', `Your ${event.name} Attendance PIN`, 'failed', error.message || 'Unknown error');
+      } catch (logError) {
+        console.error('Failed to log email error:', logError);
+      }
+      throw error;
+    }
+  }
+
+  async buildEventPinEmailData(member, event) {
+    const record = await prisma.member.findUnique({
+      where: { id: member.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        pin: true,
+        chapelRole: true,
+        chapel: { select: { name: true } },
+      },
+    });
+    const fullMember = record || member;
+
+    const roleLabels = {
+      INVITEE: 'Invitee',
+      MEMBER: 'Member',
+      WORKER: 'Worker',
+      CHAPEL_LEADER: 'Chapel Leader',
+    };
+    const rawPortalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
+    const portalUrl = rawPortalUrl.startsWith('http')
+      ? (rawPortalUrl.endsWith('/') ? rawPortalUrl : `${rawPortalUrl}/`)
+      : 'https://reg-system-mu.vercel.app/';
+    const chapelLeaderPassword = process.env.CHAPEL_LEADER_PASSWORD || '';
+    const isChapelLeader = fullMember.chapelRole === 'CHAPEL_LEADER' && fullMember.chapel;
+
+    const formatDate = (value) =>
+      value
+        ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+    const start = formatDate(event.startDate);
+    const end = formatDate(event.endDate);
+    const dateLabel = start && end && start !== end ? `${start} – ${end}` : start || end;
+
+    return {
+      ...fullMember,
+      eventName: event.name,
+      eventDescription: event.description || '',
+      venue: event.venue || '',
+      dateLabel,
+      chapelName: fullMember.chapel?.name || '',
+      roleLabel: roleLabels[fullMember.chapelRole] || '',
+      portalUrl,
+      showLogin: Boolean(isChapelLeader && chapelLeaderPassword),
+      loginPassword: chapelLeaderPassword,
+    };
+  }
+
+  generateEventPinEmailTemplate(member, churchName) {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Attendance PIN</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { text-align: center; border-bottom: 2px solid #3B82F6; padding-bottom: 20px; margin-bottom: 30px; }
+            .church-name { color: #3B82F6; font-size: 24px; font-weight: bold; margin: 0; }
+            .pin-box { background-color: #F3F4F6; border: 2px dashed #6B7280; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; }
+            .pin-number { font-size: 32px; font-weight: bold; color: #1F2937; letter-spacing: 8px; margin: 10px 0; }
+            .pin-label { font-size: 14px; color: #6B7280; text-transform: uppercase; margin-bottom: 5px; }
+            .instructions { background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; margin: 20px 0; }
+            .instructions h3 { color: #1E40AF; margin-top: 0; }
+            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; font-size: 12px; color: #6B7280; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1 class="church-name">${churchName}</h1>
+                <p>${member.eventName}</p>
+            </div>
+
+            <p>Dear ${member.name},</p>
+            <p>Thank you for registering for ${member.eventName}. We are glad to have you with us.</p>
+            ${member.eventDescription ? `<p>${member.eventDescription}</p>` : ''}
+
+            <p>Please keep your personal check-in number (PIN):</p>
+            <div class="pin-box">
+                <div class="pin-label">Your Personal PIN</div>
+                <div class="pin-number">${member.pin}</div>
+            </div>
+
+            ${member.chapelName ? `<p><strong>Chapel:</strong> ${member.chapelName}</p>` : ''}
+            ${member.roleLabel ? `<p><strong>Role:</strong> ${member.roleLabel}</p>` : ''}
+
+            ${member.showLogin ? `
+              <div class="instructions">
+                <h3>🔐 Your Chapel Leader Login</h3>
+                <p><strong>Platform:</strong> <a href="${member.portalUrl}">${member.portalUrl}</a></p>
+                <p><strong>Email:</strong> ${member.email}</p>
+                <p><strong>Password:</strong> ${member.loginPassword}</p>
+              </div>
+            ` : ''}
+
+            <h3>📲 How Check-In Works</h3>
+            <ul>
+              <li>Scan the QR code at the registration point with your phone.</li>
+              <li>Enter your 4-digit PIN.</li>
+              <li>Your attendance for that session will be recorded.</li>
+            </ul>
+            <p><strong>⚠️ Your PIN is required for every session.</strong></p>
+
+            ${member.dateLabel || member.venue ? `
+              <h3>🗓️ Date &amp; Venue</h3>
+              <p>
+                ${member.dateLabel ? `<strong>Date:</strong> ${member.dateLabel}<br />` : ''}
+                ${member.venue ? `<strong>Venue:</strong> ${member.venue}` : ''}
+              </p>
+            ` : ''}
+
+            <p>Warm regards,<br />
+            ${member.eventName} Team<br />
+            ${churchName}</p>
+
+            <div class="footer">
+                <p>This email was sent to ${member.email}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
+  generateEventPinEmailText(member, churchName) {
+    return `
+Dear ${member.name},
+
+Thank you for registering for ${member.eventName}. We are glad to have you with us.
+${member.eventDescription ? `\n${member.eventDescription}\n` : ''}
+Your 4-digit check-in PIN: ${member.pin}
+${member.chapelName ? `Chapel: ${member.chapelName}\n` : ''}${member.roleLabel ? `Role: ${member.roleLabel}\n` : ''}
+${member.showLogin ? `Chapel Leader Login:
+Platform: ${member.portalUrl}
+Email: ${member.email}
+Password: ${member.loginPassword}
+` : ''}
+How Check-In Works:
+- Scan the QR code at the registration point.
+- Enter your 4-digit PIN.
+- Your attendance for that session will be recorded.
+
+Your PIN is required for every session.
+${member.dateLabel ? `\nDate: ${member.dateLabel}` : ''}${member.venue ? `\nVenue: ${member.venue}` : ''}
+
+Warm regards,
+${member.eventName} Team
 ${churchName}
 
 ---

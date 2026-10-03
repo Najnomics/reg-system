@@ -56,6 +56,11 @@ class DataPreloader {
           // Preload chariot members
           apiService.getChariotOnlyMembers({ page: 1, limit: 20 }).catch(() => {}),
         );
+      } else if (userType === 'chapel-leader') {
+        preloadPromises.push(
+          apiService.getChariotSessions().catch(() => {}),
+          apiService.getChapelOnlyMembers({ page: 1, limit: 20 }).catch(() => {}),
+        );
       }
       
       // Preload in parallel for maximum speed

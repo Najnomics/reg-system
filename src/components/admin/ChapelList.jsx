@@ -17,6 +17,7 @@ import { apiService } from '../../services/apiService';
 import ChapelForm from './ChapelForm';
 import ChapelDetailModal from './ChapelDetailModal';
 import AssignChapelMembersModal from './AssignChapelMembersModal';
+import CsvUploadButton from './CsvUploadButton';
 
 const ChapelList = () => {
   const { showError, showSuccess } = useApp();
@@ -277,6 +278,15 @@ const ChapelList = () => {
             <span className="hidden sm:inline">{exportingPDF ? 'Exporting...' : 'Export PDF'}</span>
             <span className="sm:hidden">PDF</span>
           </button>
+          {isAdmin && (
+            <CsvUploadButton
+              label="Upload Chapels"
+              upload={(file) => apiService.uploadChapels(file)}
+              templateEndpoint="/chapels/template"
+              templateFilename="chapels-template.csv"
+              onUploaded={loadChapels}
+            />
+          )}
           {isAdmin && (
             <button
               onClick={handleCreate}

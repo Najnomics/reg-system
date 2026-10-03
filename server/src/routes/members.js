@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const memberController = require('../controllers/memberController');
+const { requireChariotEvent } = require('../middleware/event');
 
 const router = express.Router();
 
@@ -62,6 +63,7 @@ router.post('/upload',
 // Sort-upload CSV (admin only)
 router.post(
   '/sort-upload',
+  requireChariotEvent,
   require('../middleware/upload').uploadMiddleware,
   require('../controllers/uploadController').sortUploadMembers
 );

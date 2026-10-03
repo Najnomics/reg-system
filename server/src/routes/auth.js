@@ -41,6 +41,8 @@ router.post('/login-chariot',
   authController.loginChariotUser
 );
 
+router.post('/switch-event', authenticateUser, authController.switchEvent);
+
 router.post('/logout', 
   authController.logout
 );

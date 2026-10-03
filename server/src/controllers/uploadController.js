@@ -1,5 +1,11 @@
 const prisma = require('../config/database');
-const { parseExcelFile, generateTemplate, validateFileFormat } = require('../services/excelParser');
+const {
+  parseExcelFile,
+  generateTemplate,
+  validateFileFormat,
+  TEMPLATE_HEADERS,
+  TEMPLATE_EXAMPLE_ROW,
+} = require('../services/excelParser');
 const { randomUUID } = require('crypto');
 const { generateMemberPin } = require('../utils/pinGenerator');
 
@@ -74,7 +80,7 @@ const extractCouponCode = (value) => {
  * Helper function to create a member with retry logic
  * Retries up to 3 times for transient errors
  */
-const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
+const createMemberWithRetry = async (memberData, createdBy, eventId, maxRetries = 3) => {
   // Validate required fields
     if (!memberData || !memberData.name || !memberData.email) {
       return {
@@ -104,6 +110,15 @@ const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
     };
   }
 
+  if (!eventId) {
+    return {
+      success: false,
+      error: 'Missing event id for member creation',
+      attempts: 0,
+      permanent: true
+    };
+  }
+
   let lastError = null;
   let attempt = 0;
   
@@ -117,6 +132,7 @@ const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
         pinHash: memberData.pinHash,
         isActive: true,
         createdBy,
+        eventId,
       };
 
       if (memberData.firstName) {
@@ -125,6 +141,18 @@ const createMemberWithRetry = async (memberData, createdBy, maxRetries = 3) => {
 
       if (memberData.lastName) {
         data.lastName = memberData.lastName.trim();
+      }
+
+      if (memberData.phone) {
+        data.phone = memberData.phone.trim();
+      }
+
+      if (memberData.chapelId) {
+        data.chapelId = memberData.chapelId;
+      }
+
+      if (memberData.chapelRole) {
+        data.chapelRole = memberData.chapelRole;
       }
 
       const newMember = await prisma.member.create({
@@ -230,9 +258,11 @@ const uploadMembers = async (req, res) => {
 
     // Pre-check for duplicate names in existing database
     // Names must be unique - duplicate names are not allowed
+    const eventId = req.event.id;
     const namesToCheck = parseResult.data.map(member => member.name.trim());
     const existingMembers = await prisma.member.findMany({
       where: {
+        eventId,
         name: {
           in: namesToCheck
         }
@@ -271,6 +301,31 @@ const uploadMembers = async (req, res) => {
       }
     });
 
+    // Chapels named in the file are matched within the event (case-insensitive); missing ones are created
+    const eventChapels = await prisma.chapel.findMany({
+      where: { eventId },
+      select: { id: true, name: true },
+    });
+    const chapelIdByName = new Map();
+    eventChapels.forEach(chapel => {
+      chapelIdByName.set(normalizeName(chapel.name), chapel.id);
+    });
+    const createdChapels = [];
+
+    const resolveChapelId = async (chapelName) => {
+      const key = normalizeName(chapelName);
+      if (chapelIdByName.has(key)) {
+        return chapelIdByName.get(key);
+      }
+      const chapel = await prisma.chapel.create({
+        data: { name: chapelName.trim(), eventId, createdBy: req.user.id },
+        select: { id: true, name: true },
+      });
+      chapelIdByName.set(key, chapel.id);
+      createdChapels.push(chapel);
+      return chapel.id;
+    };
+
     // Process valid members
     const successfulImports = [];
     const importErrors = [];
@@ -307,8 +362,17 @@ const uploadMembers = async (req, res) => {
           continue;
         }
 
+        if (memberData.chapelName) {
+          memberData.chapelId = await resolveChapelId(memberData.chapelName);
+        }
+
+        // Generated per row (not at parse time) so PINs within one file can't collide
+        const { pin, pinHash } = await generateMemberPin(eventId);
+        memberData.pin = pin;
+        memberData.pinHash = pinHash;
+
         // Create new member with retry logic
-        const result = await createMemberWithRetry(memberData, req.user.id, 3);
+        const result = await createMemberWithRetry(memberData, req.user.id, eventId, 3);
         
         if (result.success) {
           successfulImports.push({
@@ -393,10 +457,12 @@ const uploadMembers = async (req, res) => {
         parsed: parseResult.validRows,
         imported: successfulImports.length,
         failed: allErrors.length,
+        chapelsCreated: createdChapels.length,
         errorBreakdown: errorSummary
       },
       data: {
         importedMembers: Array.isArray(successfulImports) ? successfulImports.map(item => item.member) : [],
+        createdChapels: createdChapels.map(chapel => chapel.name),
         successfulWithRetries: Array.isArray(successfulImports) 
           ? successfulImports.filter(item => item && item.attempts > 1).map(item => ({
               row: item.row,
@@ -512,7 +578,7 @@ const sortUploadMembers = async (req, res) => {
 
     const chapelNames = [...new Set(Object.values(codeToChapelName))];
     const chapels = await prisma.chapel.findMany({
-      where: { name: { in: chapelNames } },
+      where: { eventId: req.event.id, name: { in: chapelNames } },
       select: { id: true, name: true },
     });
     console.log(`[Sort Upload] Chapel lookup: ${chapels.length} found`);
@@ -522,6 +588,7 @@ const sortUploadMembers = async (req, res) => {
     }, {});
 
     const existingMembers = await prisma.member.findMany({
+      where: { eventId: req.event.id },
       select: { id: true, name: true, email: true, chapelId: true, chapelRole: true },
     });
     console.log(`[Sort Upload] Loaded ${existingMembers.length} existing members`);
@@ -597,7 +664,7 @@ const sortUploadMembers = async (req, res) => {
           continue;
         }
 
-        const { pin, pinHash } = await generateMemberPin();
+        const { pin, pinHash } = await generateMemberPin(req.event.id);
         member = await prisma.member.create({
           data: {
             id: randomUUID(),
@@ -607,6 +674,7 @@ const sortUploadMembers = async (req, res) => {
             pinHash,
             isActive: true,
             createdBy: req.user.id,
+            eventId: req.event.id,
           },
           select: { id: true, name: true, email: true, chapelId: true, chapelRole: true },
         });
@@ -715,10 +783,8 @@ const downloadTemplate = async (req, res) => {
     if (format === 'csv') {
       // Generate CSV template with proper formatting
       const csvRows = [
-        ['name', 'email'], // Headers
-        ['John Doe', 'john@example.com'], // Sample row 1
-        ['Jane Smith', 'jane@example.com'], // Sample row 2
-        ['Bob Johnson', 'bob@example.com'], // Sample row 3
+        TEMPLATE_HEADERS,
+        TEMPLATE_EXAMPLE_ROW,
       ];
       
       // Convert to CSV string with proper escaping
@@ -781,6 +847,7 @@ const getUploadHistory = async (req, res) => {
 
     const recentMembers = await prisma.member.findMany({
       where: {
+        eventId: req.event.id,
         createdAt: {
           gte: thirtyDaysAgo,
         },
@@ -801,6 +868,7 @@ const getUploadHistory = async (req, res) => {
         id: true,
       },
       where: {
+        eventId: req.event.id,
         isActive: true,
       },
     });
@@ -810,6 +878,7 @@ const getUploadHistory = async (req, res) => {
         id: true,
       },
       where: {
+        eventId: req.event.id,
         isActive: true,
         createdAt: {
           gte: thirtyDaysAgo,

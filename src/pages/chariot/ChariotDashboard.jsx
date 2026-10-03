@@ -79,10 +79,12 @@ const ChariotDashboard = () => {
     }
   };
 
+  const chapelOnly = userType === 'chapel-leader';
   const chariotInfo = userType === 'chariot-leader' 
     ? { name: user.chariotName, id: user.chariotId }
-    : { names: user.chariotNames, ids: user.chariotIds };
+    : { names: user.chariotNames || [], ids: user.chariotIds || [] };
   const isChapelLeader = userType === 'chariot-leader' && user?.isChapelLeader;
+  const chapelNames = user?.chapelNames || [];
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: ChartBarIcon },
@@ -96,11 +98,18 @@ const ChariotDashboard = () => {
       <div className="page-header">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 break-words">
-            {userType === 'chariot-leader' ? 'Chariot Leader Dashboard' : 'Chariot Assistant Dashboard'}
+            {chapelOnly
+              ? 'Chapel Leader Dashboard'
+              : userType === 'chariot-leader' ? 'Chariot Leader Dashboard' : 'Chariot Assistant Dashboard'}
           </h1>
           <p className="mt-1 text-sm sm:text-base text-gray-600 break-words">
             Welcome, {user?.name}!
           </p>
+          {chapelOnly && chapelNames.length > 0 && (
+            <p className="mt-2 text-sm sm:text-base font-medium text-gray-900 break-words">
+              Chapel(s): {chapelNames.join(', ')}
+            </p>
+          )}
           {userType === 'chariot-leader' && (
             <div className="mt-2 space-y-1">
               <p className="text-sm sm:text-base font-medium text-gray-900 break-words">
@@ -154,7 +163,58 @@ const ChariotDashboard = () => {
       {activeTab === 'overview' && (
         <div className="space-y-4 sm:space-y-6">
           {/* Stats Cards */}
-          {isChapelLeader ? (
+          {chapelOnly ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Chapel Members</p>
+                    <p className="text-xl sm:text-2xl font-semibold text-gray-900">
+                      {isLoading ? '...' : stats.totalChapelMembers}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 bg-blue-100 rounded-md p-2 sm:p-3">
+                    <UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="bg-green-50 border border-green-100 rounded-lg p-3 text-center">
+                    <div className="text-xs text-green-700">Members</div>
+                    <div className="text-lg font-semibold text-green-900">
+                      {isLoading ? '...' : stats.totalChapelMembersByRole}
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
+                    <div className="text-xs text-amber-700">Workers</div>
+                    <div className="text-lg font-semibold text-amber-900">
+                      {isLoading ? '...' : stats.totalChapelWorkers}
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-center">
+                    <div className="text-xs text-indigo-700">Invitees</div>
+                    <div className="text-lg font-semibold text-indigo-900">
+                      {isLoading ? '...' : stats.totalChapelInvitees}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                {[
+                  ['Sessions', stats.totalSessions, CalendarDaysIcon, 'bg-green-100 text-green-600'],
+                  ['Total Attendance', stats.totalAttendance, ClipboardDocumentCheckIcon, 'bg-purple-100 text-purple-600'],
+                ].map(([label, value, Icon, color]) => (
+                  <div key={label} className="bg-white rounded-lg shadow p-4 sm:p-6">
+                    <div className={`inline-flex rounded-md p-2 sm:p-3 ${color.split(' ')[0]}`}>
+                      <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${color.split(' ')[1]}`} />
+                    </div>
+                    <p className="mt-3 text-xs sm:text-sm font-medium text-gray-600">{label}</p>
+                    <p className="text-xl sm:text-2xl font-semibold text-gray-900">{isLoading ? '...' : value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : isChapelLeader ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div className="bg-white rounded-lg shadow p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -287,7 +347,17 @@ const ChariotDashboard = () => {
           {/* Leadership Information */}
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Leadership Information</h3>
-            {userType === 'chariot-leader' ? (
+            {chapelOnly ? (
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <p className="text-sm font-medium text-purple-900 mb-1">Chapel Leadership</p>
+                <p className="text-sm text-purple-800 break-words">
+                  You are leading: <span className="font-semibold">{chapelNames.join(', ') || '—'}</span>
+                </p>
+                <p className="text-xs text-purple-700 mt-2">
+                  You can view attendance for all members, invitees, and workers in your chapel(s)
+                </p>
+              </div>
+            ) : userType === 'chariot-leader' ? (
               <div className="space-y-3">
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm font-medium text-blue-900 mb-1">Chariot Leadership</p>
@@ -357,7 +427,9 @@ const ChariotDashboard = () => {
               </nav>
             </div>
           )}
-          {membersSubTab === 'chariot' ? (
+          {chapelOnly ? (
+            <ChapelMembersList />
+          ) : membersSubTab === 'chariot' ? (
             <ChariotMembersList />
           ) : (
             userType === 'chariot-leader' && user?.isChapelLeader ? (

@@ -25,6 +25,7 @@ const getMembers = async (req, res) => {
     // Build search conditions
     // Match frontend filter: isActive !== false (includes true and null)
     let where = {
+      eventId: req.event.id,
       isActive: {
         not: false,
       },
@@ -127,6 +128,7 @@ const getMembers = async (req, res) => {
           id: true,
           name: true,
           email: true,
+          phone: true,
           pin: true,
           isActive: true,
           createdAt: true,
@@ -191,12 +193,13 @@ const getMember = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const member = await prisma.member.findUnique({
-      where: { id },
+    const member = await prisma.member.findFirst({
+      where: { id, eventId: req.event.id },
       select: {
         id: true,
         name: true,
         email: true,
+        phone: true,
         pin: true,
         isActive: true,
         createdAt: true,
@@ -299,8 +302,9 @@ const createMember = async (req, res) => {
     console.log('Request user:', req.user ? { id: req.user.id, email: req.user.email, userType: req.user.userType } : 'MISSING');
     console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
     
-    const { name, email } = req.body;
+    const { name, email, phone } = req.body;
     const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    const normalizedPhone = phone ? String(phone).trim() : '';
     const blockedEmails = new Set([
       'nosakhareochuko@gmail.com',
       'dennisozobor@gmail.com',
@@ -323,9 +327,9 @@ const createMember = async (req, res) => {
       });
     }
 
-    // Enforce unique full name (same name combination)
-    const existingMember = await prisma.member.findUnique({
-      where: { name: name.trim() },
+    // Enforce unique full name (same name combination) within the event
+    const existingMember = await prisma.member.findFirst({
+      where: { eventId: req.event.id, name: name.trim() },
       select: { id: true },
     });
 
@@ -337,7 +341,7 @@ const createMember = async (req, res) => {
     }
 
     // Generate PIN and hash
-    const { pin, pinHash } = await generateMemberPin();
+    const { pin, pinHash } = await generateMemberPin(req.event.id);
 
     // Generate UUID for member ID
     const { randomUUID } = require('crypto');
@@ -349,15 +353,18 @@ const createMember = async (req, res) => {
         id: memberId,
         name: name.trim(),
         email: normalizedEmail,
+        phone: normalizedPhone || null,
         pin,
         pinHash,
         isActive: true,
         createdBy: req.user.id,
+        eventId: req.event.id,
       },
       select: {
         id: true,
         name: true,
         email: true,
+        phone: true,
         pin: true,
         isActive: true,
         createdAt: true,
@@ -409,7 +416,7 @@ const createMember = async (req, res) => {
 const updateMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, isActive, chapelRole, chapelId, pin, pinHash, id: bodyId, ...otherFields } = req.body;
+    const { name, email, phone, isActive, chapelRole, chapelId, pin, pinHash, id: bodyId, ...otherFields } = req.body;
 
     // SECURITY: Explicitly reject any attempt to update PIN or member ID
     if (pin !== undefined || pinHash !== undefined) {
@@ -427,7 +434,7 @@ const updateMember = async (req, res) => {
     }
 
     // Reject any unexpected fields that could cause issues
-    const allowedFields = ['name', 'email', 'isActive', 'chapelRole', 'chapelId'];
+    const allowedFields = ['name', 'email', 'phone', 'isActive', 'chapelRole', 'chapelId'];
     const unexpectedFields = Object.keys(otherFields).filter(field => !allowedFields.includes(field));
     if (unexpectedFields.length > 0) {
       console.warn(`Unexpected fields in update request: ${unexpectedFields.join(', ')}`);
@@ -435,8 +442,8 @@ const updateMember = async (req, res) => {
     }
 
     // Check if member exists - MUST use the provided ID (prevents creating new member)
-    const existingMember = await prisma.member.findUnique({
-      where: { id },
+    const existingMember = await prisma.member.findFirst({
+      where: { id, eventId: req.event.id },
       select: { id: true, email: true, name: true, pin: true },
     });
 
@@ -449,8 +456,8 @@ const updateMember = async (req, res) => {
 
     // Check if name is being changed and if it conflicts with ANOTHER member
     if (name && name.trim() !== existingMember.name) {
-      const nameConflict = await prisma.member.findUnique({
-        where: { name: name.trim() },
+      const nameConflict = await prisma.member.findFirst({
+        where: { eventId: req.event.id, name: name.trim() },
         select: { id: true },
       });
 
@@ -468,6 +475,7 @@ const updateMember = async (req, res) => {
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.toLowerCase();
+    if (phone !== undefined) updateData.phone = phone ? String(phone).trim() || null : null;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     if (chapelRole !== undefined) {
@@ -492,6 +500,16 @@ const updateMember = async (req, res) => {
         updateData.chapelId = null;
         updateData.chapelRole = updateData.chapelRole ?? null;
       } else {
+        const chapel = await prisma.chapel.findFirst({
+          where: { id: chapelId, eventId: req.event.id },
+          select: { id: true },
+        });
+        if (!chapel) {
+          return res.status(404).json({
+            error: 'Chapel not found',
+            message: 'Chapel with the specified ID does not exist',
+          });
+        }
         updateData.chapelId = chapelId;
       }
     }
@@ -505,6 +523,7 @@ const updateMember = async (req, res) => {
         id: true,
         name: true,
         email: true,
+        phone: true,
         pin: true, // PIN is returned but never changed
         isActive: true,
         createdAt: true,
@@ -548,8 +567,8 @@ const deleteMember = async (req, res) => {
     const { id } = req.params;
 
     // Check if member exists
-    const existingMember = await prisma.member.findUnique({
-      where: { id },
+    const existingMember = await prisma.member.findFirst({
+      where: { id, eventId: req.event.id },
       select: { id: true, name: true, email: true },
     });
 
@@ -614,6 +633,7 @@ const bulkDeleteMembers = async (req, res) => {
     const existingMembers = await prisma.member.findMany({
       where: {
         id: { in: memberIds },
+        eventId: req.event.id,
       },
       select: {
         id: true,
@@ -632,6 +652,7 @@ const bulkDeleteMembers = async (req, res) => {
     const result = await prisma.member.deleteMany({
       where: {
         id: { in: memberIds },
+        eventId: req.event.id,
       },
     });
 
@@ -665,7 +686,7 @@ const searchMembers = async (req, res) => {
     const orderBy = { [sortBy]: sortOrder };
 
     // Build search conditions
-    let where = {};
+    let where = { eventId: req.event.id };
     
     if (query) {
       where.OR = [
@@ -764,8 +785,8 @@ const toggleMemberStatus = async (req, res) => {
     const { id } = req.params;
 
     // Check if member exists
-    const existingMember = await prisma.member.findUnique({
-      where: { id },
+    const existingMember = await prisma.member.findFirst({
+      where: { id, eventId: req.event.id },
       select: { id: true, isActive: true, name: true },
     });
 
@@ -816,8 +837,8 @@ const resendPin = async (req, res) => {
     const { id } = req.params;
 
     // Check if member exists
-    const member = await prisma.member.findUnique({
-      where: { id },
+    const member = await prisma.member.findFirst({
+      where: { id, eventId: req.event.id },
       select: {
         id: true,
         name: true,
@@ -851,7 +872,7 @@ const resendPin = async (req, res) => {
       console.log(`📧 Attempting to send PIN email to ${member.email}...`);
       
       // Add timeout wrapper to prevent hanging (increased to 45 seconds for Railway/Gmail)
-      const emailPromise = emailService.sendPin(member);
+      const emailPromise = emailService.sendPin(member, req.event);
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Email sending timeout after 45 seconds. This may be due to Gmail blocking Railway IPs. Consider using SendGrid or another email service.')), 45000);
       });
@@ -959,6 +980,7 @@ const bulkResendPin = async (req, res) => {
     const members = await prisma.member.findMany({
       where: {
         id: { in: memberIds },
+        eventId: req.event.id,
         isActive: true, // Only send to active members
       },
       select: {
@@ -986,7 +1008,7 @@ const bulkResendPin = async (req, res) => {
 
     for (const member of members) {
       try {
-        await emailService.sendPin(member);
+        await emailService.sendPin(member, req.event);
         results.successful.push({
           id: member.id,
           email: member.email,
@@ -1029,9 +1051,10 @@ const bulkResendPin = async (req, res) => {
  */
 const resendPinToAll = async (req, res) => {
   try {
-    // Get all active members
+    // Get all active members of the current event
     const members = await prisma.member.findMany({
       where: {
+        eventId: req.event.id,
         isActive: true,
       },
       select: {
@@ -1059,7 +1082,7 @@ const resendPinToAll = async (req, res) => {
 
     for (const member of members) {
       try {
-        await emailService.sendPin(member);
+        await emailService.sendPin(member, req.event);
         results.successful.push({
           id: member.id,
           email: member.email,
@@ -1102,6 +1125,7 @@ const resendPinToAll = async (req, res) => {
 const exportMembersCSV = async (req, res) => {
   try {
     const members = await prisma.member.findMany({
+      where: { eventId: req.event.id },
       select: {
         id: true,
         name: true,

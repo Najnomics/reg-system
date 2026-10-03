@@ -18,14 +18,17 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import QRCodeModal from '../../components/admin/QRCodeModal';
+import CsvUploadButton from '../../components/admin/CsvUploadButton';
 import { apiCache } from '../../utils/cache';
+import { useEvent } from '../../contexts/EventContext';
 
 const SessionsPage = () => {
   const navigate = useNavigate();
   const { sessions, fetchSessions, loading, showSuccess, showError, setSessions } = useApp();
   const { userType } = useAuth();
+  const { hasChariots } = useEvent();
   const isAdmin = userType === 'admin';
-  const canViewChariotAttendance = isAdmin || userType === 'pastoral';
+  const canViewChariotAttendance = hasChariots && (isAdmin || userType === 'pastoral');
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -161,15 +164,24 @@ const SessionsPage = () => {
           </p>
         </div>
         {isAdmin && (
-          <button
-            type="button"
-            onClick={handleCreateSession}
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            <span className="hidden sm:inline">Create Session</span>
-            <span className="sm:hidden">Create</span>
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <CsvUploadButton
+              label="Upload Sessions"
+              upload={(file) => apiService.uploadSessions(file)}
+              templateEndpoint="/sessions/template"
+              templateFilename="sessions-template.csv"
+              onUploaded={() => fetchSessions(true)}
+            />
+            <button
+              type="button"
+              onClick={handleCreateSession}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              <span className="hidden sm:inline">Create Session</span>
+              <span className="sm:hidden">Create</span>
+            </button>
+          </div>
         )}
       </div>
 

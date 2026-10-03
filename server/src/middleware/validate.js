@@ -65,6 +65,9 @@ const schemas = {
       'string.email': 'Email must be a valid email address',
       'any.required': 'Email is required',
     }),
+    phone: Joi.string().trim().max(30).allow('', null).optional().messages({
+      'string.max': 'Phone number must not exceed 30 characters',
+    }),
   }),
 
   memberUpdate: Joi.object({
@@ -74,6 +77,9 @@ const schemas = {
     }),
     email: Joi.string().email().optional().messages({
       'string.email': 'Email must be a valid email address',
+    }),
+    phone: Joi.string().trim().max(30).allow('', null).optional().messages({
+      'string.max': 'Phone number must not exceed 30 characters',
     }),
     chapelRole: Joi.string()
       .valid(

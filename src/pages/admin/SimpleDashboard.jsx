@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/SimpleAppContext';
+import { useEvent } from '../../contexts/EventContext';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../../services/apiService';
 
@@ -8,6 +9,7 @@ const SimpleDashboard = () => {
   const navigate = useNavigate();
   const { user, userType, logout } = useAuth();
   const { showSuccess, showError } = useApp();
+  const { hasChariots } = useEvent();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sortUploadBusy, setSortUploadBusy] = useState(false);
@@ -252,7 +254,7 @@ const SimpleDashboard = () => {
                   </a>
                 )}
 
-                {userType === 'admin' && (
+                {userType === 'admin' && hasChariots && (
                   <button
                     onClick={handleAssignUnassignedToChariots}
                     className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 bg-orange-50 hover:bg-orange-100 rounded-md border border-orange-200 transition-colors touch-manipulation"
@@ -266,7 +268,7 @@ const SimpleDashboard = () => {
                   </button>
                 )}
 
-                {userType === 'admin' && (
+                {userType === 'admin' && hasChariots && (
                   <>
                     <button
                       onClick={handleSortUploadClick}

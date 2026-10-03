@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEvent } from '../../contexts/EventContext';
 import { apiService } from '../../services/apiService';
+import { eventHeaders } from '../../utils/currentEvent';
 import { debounce } from '../../utils/debounce';
 import { TableRowSkeleton } from '../../components/common/SkeletonLoader';
 import {
@@ -25,6 +27,7 @@ import {
 const CompleteMembersPage = () => {
   const { showSuccess, showError } = useApp();
   const { logout, userType } = useAuth();
+  const { hasChariots, currentEvent } = useEvent();
   const isAdmin = userType === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [chapelRoleFilter, setChapelRoleFilter] = useState('all');
@@ -194,9 +197,12 @@ const CompleteMembersPage = () => {
     // Fetch members on mount - show cached data immediately if available
     fetchMembers(1, false); // Use cache first for instant display
     fetchChapels();
-    fetchFilterChariots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (hasChariots) fetchFilterChariots();
+  }, [hasChariots, fetchFilterChariots]);
 
   // Debounced search handler
   const debouncedSearch = useMemo(
@@ -241,6 +247,10 @@ const CompleteMembersPage = () => {
         name: `${memberData.firstName} ${memberData.lastName}`,
         email: memberData.email
       };
+      const phone = (memberData.phone || '').trim();
+      if (phone || selectedMember?.phone) {
+        apiData.phone = phone;
+      }
 
       if (selectedMember?.id) {
         const response = await apiService.updateMember(selectedMember.id, apiData);
@@ -648,7 +658,8 @@ const CompleteMembersPage = () => {
       const response = await fetch(`${API_BASE_URL}/members/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          ...eventHeaders(),
           // Don't set Content-Type header - browser will set it with boundary for FormData
         },
         body: formData
@@ -909,6 +920,7 @@ const CompleteMembersPage = () => {
             ))}
           </select>
 
+          {hasChariots && (
           <select
             value={chariotFilter}
             onChange={(e) => setChariotFilter(e.target.value)}
@@ -923,6 +935,7 @@ const CompleteMembersPage = () => {
               </option>
             ))}
           </select>
+          )}
 
           {/* Sort By Dropdown */}
           <select
@@ -1166,9 +1179,11 @@ const CompleteMembersPage = () => {
                               <div className="text-xs text-gray-600 mt-1">
                                 Role: {getMemberRoleLabel(member)}
                               </div>
+                              {hasChariots && (
                               <div className="text-xs text-gray-600 mt-1">
                                 Chariot: {getMemberChariotLabel(member)}
                               </div>
+                              )}
                               </div>
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
                                 member.isActive !== false 
@@ -1275,9 +1290,11 @@ const CompleteMembersPage = () => {
                         <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Role
                         </th>
+                        {hasChariots && (
                         <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Chariot
                         </th>
+                        )}
                           <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           PIN
                         </th>
@@ -1350,11 +1367,13 @@ const CompleteMembersPage = () => {
                                 {getMemberRoleLabel(member)}
                               </div>
                             </td>
+                            {hasChariots && (
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {getMemberChariotLabel(member)}
                               </div>
                             </td>
+                            )}
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               {member.pin || '12345'}
@@ -1558,6 +1577,7 @@ const CompleteMembersPage = () => {
       {/* Bulk Upload Modal */}
       {showUploadModal && (
         <BulkUploadModal
+          eventName={currentEvent?.name}
           onUpload={handleBulkUpload}
           onCancel={() => setShowUploadModal(false)}
         />
@@ -1599,6 +1619,7 @@ const CompleteMembersPage = () => {
                   <option value="unassigned">Unassigned</option>
                 </select>
               </div>
+              {hasChariots && (
               <div>
                 <label htmlFor="chariotSelection" className="block text-sm font-medium text-gray-700">
                   Chariot Assignment
@@ -1635,6 +1656,7 @@ const CompleteMembersPage = () => {
                   </>
                 )}
               </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
               <button
@@ -1767,6 +1789,7 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
     firstName: member?.firstName || initialNames.firstName,
     lastName: member?.lastName || initialNames.lastName,
     email: member?.email || '',
+    phone: member?.phone || '',
     dateOfBirth: member?.dateOfBirth || '',
     address: member?.address || '',
     emergencyContact: member?.emergencyContact || '',
@@ -1778,6 +1801,7 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
       firstName: member?.firstName || updatedNames.firstName,
       lastName: member?.lastName || updatedNames.lastName,
       email: member?.email || '',
+      phone: member?.phone || '',
       dateOfBirth: member?.dateOfBirth || '',
       address: member?.address || '',
       emergencyContact: member?.emergencyContact || '',
@@ -1875,6 +1899,16 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
@@ -1910,7 +1944,7 @@ const AddMemberModal = ({ member, onSave, onCancel, isSubmitting = false }) => {
 };
 
 // Bulk Upload Modal Component
-const BulkUploadModal = ({ onUpload, onCancel }) => {
+const BulkUploadModal = ({ eventName, onUpload, onCancel }) => {
   const { showSuccess, showError } = useApp();
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -1941,7 +1975,8 @@ const BulkUploadModal = ({ onUpload, onCancel }) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/members/template?format=${format}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...eventHeaders(),
         }
       });
       
@@ -1997,7 +2032,16 @@ const BulkUploadModal = ({ onUpload, onCancel }) => {
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Bulk Upload Members</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-1">Bulk Upload Members</h3>
+        {eventName && (
+          <p className="text-sm text-gray-500 mb-3">
+            Members will be added to <span className="font-medium text-gray-700">{eventName}</span>
+          </p>
+        )}
+        <p className="text-xs text-gray-600 mb-4">
+          Columns: <span className="font-medium">First Name, Last Name, Email, Phone Number, Role, Chapel</span>.
+          Role is Invitee, Member, Worker or Chapel Leader. Chapels that don&apos;t exist yet are created automatically.
+        </p>
         
         <div className="mb-4">
           <div className="flex gap-3">

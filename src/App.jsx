@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { AppProvider } from './contexts/SimpleAppContext';
+import { EventProvider } from './contexts/EventContext';
 import SimpleProtectedRoute from './components/common/SimpleProtectedRoute';
 import ChariotProtectedRoute from './components/common/ChariotProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
@@ -23,6 +24,7 @@ const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const RegRepsPage = lazy(() => import('./pages/admin/RegRepsPage'));
 const ChariotsPage = lazy(() => import('./pages/admin/ChariotsPage'));
 const ChapelsPage = lazy(() => import('./pages/admin/ChapelsPage'));
+const EventPickerPage = lazy(() => import('./pages/EventPickerPage'));
 const CheckInPage = lazy(() => import('./pages/public/CheckinPage'));
 const ChariotDashboard = lazy(() => import('./pages/chariot/ChariotDashboard'));
 
@@ -40,6 +42,7 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
+        <EventProvider>
         <AppProvider>
           <Router>
             <Suspense fallback={<PageLoader />}>
@@ -47,6 +50,12 @@ function App() {
                 {/* Public Routes */}
                 <Route path="/admin/login" element={<WorkingLoginPage />} />
                 <Route path="/checkin/:sessionId" element={<CheckInPage />} />
+
+                <Route path="/events" element={
+                  <SimpleProtectedRoute>
+                    <EventPickerPage />
+                  </SimpleProtectedRoute>
+                } />
                 
                 {/* Protected Admin Routes */}
                 <Route path="/admin" element={
@@ -88,7 +97,7 @@ function App() {
                   <Route
                     path="sessions/:sessionId/chariot-attendance"
                     element={
-                      <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
+                      <RoleBasedRoute allowedRoles={['admin', 'pastoral']} requireChariots={true}>
                         <SessionChariotAttendancePage />
                       </RoleBasedRoute>
                     }
@@ -107,10 +116,11 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   <Route path="chariots" element={
-                    <RoleBasedRoute allowedRoles={['admin', 'pastoral']}>
+                    <RoleBasedRoute allowedRoles={['admin', 'pastoral']} requireChariots={true}>
                       <ChariotsPage />
                     </RoleBasedRoute>
                   } />
+                  <Route path="events" element={<Navigate to="/events" replace />} />
                   <Route path="chapels" element={
                     <RoleBasedRoute
                       allowedRoles={['admin', 'pastoral', 'reg-rep']}
@@ -134,8 +144,8 @@ function App() {
                 </Route>
                 
                 {/* Default Redirects */}
-                <Route path="/" element={<Navigate to="/admin" replace />} />
-                <Route path="*" element={<Navigate to="/admin" replace />} />
+                <Route path="/" element={<Navigate to="/events" replace />} />
+                <Route path="*" element={<Navigate to="/events" replace />} />
               </Routes>
             </Suspense>
             
@@ -143,6 +153,7 @@ function App() {
             <SimpleNotificationContainer />
           </Router>
         </AppProvider>
+        </EventProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

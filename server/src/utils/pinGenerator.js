@@ -2,9 +2,13 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 
 /**
- * Generate a unique 4-digit PIN for a member
+ * Generate a 4-digit PIN that is unique within the given event
  */
-const generateUniquePin = async () => {
+const generateUniquePin = async (eventId) => {
+  if (!eventId) {
+    throw new Error('eventId is required to generate a member PIN');
+  }
+
   let attempts = 0;
   const maxAttempts = 100;
 
@@ -12,9 +16,9 @@ const generateUniquePin = async () => {
     // Generate random 4-digit PIN
     const pin = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Check if PIN already exists
-    const existingMember = await prisma.member.findUnique({
-      where: { pin },
+    // Check if PIN already exists in this event
+    const existingMember = await prisma.member.findFirst({
+      where: { eventId, pin },
       select: { id: true },
     });
 
@@ -45,8 +49,8 @@ const verifyPin = async (pin, hash) => {
 /**
  * Generate PIN and hash for a new member
  */
-const generateMemberPin = async () => {
-  const pin = await generateUniquePin();
+const generateMemberPin = async (eventId) => {
+  const pin = await generateUniquePin(eventId);
   const pinHash = await hashPin(pin);
   
   return { pin, pinHash };

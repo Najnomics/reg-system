@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEvent } from '../../contexts/EventContext';
 import { prefetcher } from '../../utils/prefetch';
 import {
   HomeIcon,
@@ -10,11 +11,12 @@ import {
   UserGroupIcon,
   Cog6ToothIcon,
   XMarkIcon,
+  RectangleStackIcon,
 } from '@heroicons/react/24/outline';
 
-const getNavigationItems = (userType, user) => {
+const getNavigationItems = (userType, user, hasChariots) => {
   // Chariot users navigation
-  if (userType === 'chariot-leader' || userType === 'chariot-assistant') {
+  if (['chariot-leader', 'chariot-assistant', 'chapel-leader'].includes(userType)) {
     return [
       { name: 'Dashboard', href: '/chariot/dashboard', icon: HomeIcon },
       { name: 'Members', href: '/chariot/members', icon: UsersIcon },
@@ -76,14 +78,24 @@ const getNavigationItems = (userType, user) => {
     });
   }
 
-  return baseNavigation.filter(item => !item.roles || item.roles.includes(userType));
+  baseNavigation.push({
+    name: 'All events',
+    href: '/events',
+    icon: RectangleStackIcon,
+    roles: ['admin', 'reg-rep', 'pastoral'],
+  });
+
+  return baseNavigation
+    .filter(item => !item.roles || item.roles.includes(userType))
+    .filter(item => hasChariots || item.href !== '/admin/chariots');
 };
 
 const Sidebar = () => {
   const { sidebarOpen, setSidebar } = useApp();
   const { userType, user } = useAuth();
+  const { hasChariots, currentEvent } = useEvent();
   
-  const navigation = getNavigationItems(userType, user);
+  const navigation = getNavigationItems(userType, user, hasChariots);
 
   return (
     <>
@@ -116,10 +128,16 @@ const Sidebar = () => {
                    userType === 'pastoral' ? 'Pastoral Team' :
                    userType === 'chariot-leader' ? 'Chariot Leader' :
                    userType === 'chariot-assistant' ? 'Chariot Assistant' :
+                   userType === 'chapel-leader' ? 'Chapel Leader' :
                    'Church Portal'}
                 </h1>
                 {userType === 'reg-rep' && (
                   <p className="text-xs text-gray-400">Registration Rep</p>
+                )}
+                {currentEvent && (
+                  <p className="text-xs text-indigo-300 truncate max-w-[10rem]" title={currentEvent.name}>
+                    {currentEvent.name}
+                  </p>
                 )}
               </div>
             </div>

@@ -2,6 +2,103 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { generateToken, verifyToken } = require('../middleware/auth');
 
+const eventSummary = (event) =>
+  event
+    ? { id: event.id, name: event.name, slug: event.slug, hasChariots: event.hasChariots }
+    : null;
+
+/**
+ * Chapel leaders log in with their email and the shared CHAPEL_LEADER_PASSWORD.
+ * When the same email leads chapels in several events, the most recent active
+ * event wins. Returns the response, or null when this is not a chapel-leader login.
+ */
+const findChapelLeaderRecords = (email, extraWhere = {}) =>
+  prisma.member.findMany({
+    where: {
+      email: { equals: email.trim(), mode: 'insensitive' },
+      isActive: true,
+      chapelRole: 'CHAPEL_LEADER',
+      chapelId: { not: null },
+      event: { isActive: true },
+      ...extraWhere,
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      isActive: true,
+      eventId: true,
+      chapel: { select: { id: true, name: true } },
+      event: true,
+    },
+    orderBy: { event: { createdAt: 'desc' } },
+  });
+
+const chapelLeaderSession = (leader, message) => {
+  const { chapel, event, ...member } = leader;
+  const token = generateToken({ ...member, userType: 'chapel-leader' }, 'chapel-leader');
+  return {
+    success: true,
+    message,
+    token,
+    user: {
+      ...member,
+      userType: 'chapel-leader',
+      chapelIds: [chapel.id],
+      chapelNames: [chapel.name],
+      isChapelLeader: true,
+      event: eventSummary(event),
+    },
+    userType: 'chapel-leader',
+  };
+};
+
+const tryChapelLeaderLogin = async (email, password, res) => {
+  const chapelLeaderPassword = process.env.CHAPEL_LEADER_PASSWORD;
+  if (!chapelLeaderPassword || password !== chapelLeaderPassword) {
+    return null;
+  }
+
+  const leader = (await findChapelLeaderRecords(email)).find((m) => m.chapel);
+  if (!leader) {
+    return null;
+  }
+
+  return res.status(200).json(chapelLeaderSession(leader, 'Login successful'));
+};
+
+/**
+ * Chapel leaders exist once per event, so moving to another event means
+ * swapping to a token for their record in that event.
+ */
+const switchEvent = async (req, res) => {
+  try {
+    if (req.user?.userType !== 'chapel-leader') {
+      return res.status(400).json({
+        error: 'Not supported',
+        message: 'Only chapel leaders switch events with a new token',
+      });
+    }
+    const { eventId } = req.body || {};
+    if (!eventId) {
+      return res.status(400).json({ error: 'Validation error', message: 'eventId is required' });
+    }
+
+    const leader = (await findChapelLeaderRecords(req.user.email, { eventId: String(eventId) })).find((m) => m.chapel);
+    if (!leader) {
+      return res.status(404).json({
+        error: 'Not found',
+        message: 'You are not a chapel leader in that event',
+      });
+    }
+
+    res.status(200).json(chapelLeaderSession(leader, 'Event switched'));
+  } catch (error) {
+    console.error('Switch event error:', error);
+    res.status(500).json({ error: 'Internal server error', message: 'Failed to switch event' });
+  }
+};
+
 /**
  * Universal login controller for admin, reg-rep, chariot leaders, and chariot assistants
  */
@@ -149,20 +246,26 @@ const login = async (req, res) => {
     // If not admin/reg-rep, check if it's a chariot leader or assistant
     // Use findFirst instead of findUnique since emails can now be duplicate
     // We'll check all members with this email and find one that is a leader/assistant
+    // Chariot roles only exist in events that use chariots (Homecoming).
     const membersWithEmail = await prisma.member.findMany({
       where: { 
         email: email.toLowerCase(),
         isActive: true,
+        event: { hasChariots: true },
       },
       select: {
         id: true,
         email: true,
         name: true,
         isActive: true,
+        eventId: true,
       },
     });
 
     if (membersWithEmail.length === 0) {
+      const chapelLeaderResponse = await tryChapelLeaderLogin(email, password, res);
+      if (chapelLeaderResponse) return chapelLeaderResponse;
+
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'Invalid email or password',
@@ -210,6 +313,9 @@ const login = async (req, res) => {
     }
 
     if (!member) {
+      const chapelLeaderResponse = await tryChapelLeaderLogin(email, password, res);
+      if (chapelLeaderResponse) return chapelLeaderResponse;
+
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'No chariot leader or assistant found with this email',
@@ -240,6 +346,9 @@ const login = async (req, res) => {
     if (chariotAsLeader) {
       // Verify password matches leader password
       if (password !== leaderPassword) {
+        const chapelLeaderResponse = await tryChapelLeaderLogin(email, password, res);
+        if (chapelLeaderResponse) return chapelLeaderResponse;
+
         return res.status(401).json({
           error: 'Authentication failed',
           message: 'Invalid email or password',
@@ -301,6 +410,9 @@ const login = async (req, res) => {
     if (chariotAssistants.length > 0) {
       // Verify password matches assistant password
       if (password !== assistantPassword) {
+        const chapelLeaderResponse = await tryChapelLeaderLogin(email, password, res);
+        if (chapelLeaderResponse) return chapelLeaderResponse;
+
         return res.status(401).json({
           error: 'Authentication failed',
           message: 'Invalid email or password',
@@ -672,4 +784,5 @@ module.exports = {
   verify,
   refresh,
   changePassword,
+  switchEvent,
 };

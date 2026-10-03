@@ -15,6 +15,26 @@ enum ChapelRole {
   CHAPEL_LEADER
 }
 
+model Event {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  venue       String?
+  startDate   DateTime?
+  endDate     DateTime?
+  hasChariots Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  members     Member[]
+  sessions    Session[]
+  chapels     Chapel[]
+  chariots    Chariot[]
+
+  @@map("events")
+}
+
 model Admin {
   id             String           @id
   email          String           @unique
@@ -53,7 +73,8 @@ model Member {
   firstName             String?
   lastName              String?
   email                 String              // Removed @unique to allow duplicate emails
-  pin                   String              @unique
+  phone                 String?
+  pin                   String
   dateOfBirth           DateTime?
   gender                String?
   address               String?
@@ -64,8 +85,10 @@ model Member {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   createdBy             String
-  name                  String              @unique  // Name must be unique to prevent duplicate members
+  name                  String
   pinHash               String?
+  eventId               String
+  event                 Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendance            attendance[]
   admins                Admin               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
   chariotLeader         Chariot[]           @relation("ChariotLeader")
@@ -75,6 +98,9 @@ model Member {
   chapelRole            ChapelRole?
   chapel                Chapel?             @relation(fields: [chapelId], references: [id], onDelete: SetNull)
 
+  @@unique([eventId, name])
+  @@unique([eventId, pin])
+  @@index([eventId])
   @@index([isActive])
   @@index([email])
   @@index([name])
@@ -102,9 +128,12 @@ model Session {
   qrCodeData        String?
   startTime         DateTime
   theme             String
+  eventId           String
+  event             Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendance        attendance[]
   admins            Admin        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
+  @@index([eventId])
   @@index([isActive])
   @@index([startTime])
   @@index([endTime])
@@ -154,9 +183,12 @@ model Chariot {
   updatedAt   DateTime          @updatedAt
   createdBy   String
   admins      Admin             @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  eventId     String
+  event       Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   assistants  ChariotAssistant[]
   members     ChariotMember[]
 
+  @@index([eventId])
   @@index([leaderId])
   @@index([isActive])
   @@map("chariots")
@@ -199,8 +231,11 @@ model Chapel {
   updatedAt   DateTime       @updatedAt
   createdBy   String
   admins      Admin          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  eventId     String
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   members     Member[]
 
+  @@index([eventId])
   @@index([isActive])
   @@map("chapels")
 }

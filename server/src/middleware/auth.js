@@ -1,5 +1,52 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
+const { getEventById } = require('./event');
+
+/**
+ * Chariot roles exist only in events with chariots. Pins the request to the
+ * member's own event; returns false when that event has no chariots.
+ */
+const pinChariotMemberEvent = async (req, eventId) => {
+  const event = await getEventById(eventId);
+  if (!event || !event.hasChariots) return false;
+  req.event = event;
+  return true;
+};
+
+/**
+ * Loads a chapel-leader login: an active member whose chapel role is CHAPEL_LEADER.
+ * Also pins the request to the member's event.
+ */
+const loadChapelLeader = async (req, memberId) => {
+  const member = await prisma.member.findUnique({
+    where: { id: memberId, isActive: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      eventId: true,
+      chapelRole: true,
+      chapel: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!member || member.chapelRole !== 'CHAPEL_LEADER' || !member.chapel) return null;
+
+  const event = await getEventById(member.eventId);
+  if (!event) return null;
+  req.event = event;
+
+  return {
+    id: member.id,
+    email: member.email,
+    name: member.name,
+    eventId: member.eventId,
+    userType: 'chapel-leader',
+    chapelIds: [member.chapel.id],
+    chapelNames: [member.chapel.name],
+    isChapelLeader: true,
+  };
+};
 
 /**
  * JWT Authentication middleware for admin routes (admin only)
@@ -247,10 +294,11 @@ const authenticateUser = async (req, res, next) => {
               id: true,
               email: true,
               name: true,
+              eventId: true,
             },
           });
 
-          if (member) {
+          if (member && await pinChariotMemberEvent(req, member.eventId)) {
             // Check if member is a leader of any active chariot
             const chariot = await prisma.chariot.findFirst({
               where: {
@@ -318,10 +366,11 @@ const authenticateUser = async (req, res, next) => {
               id: true,
               email: true,
               name: true,
+              eventId: true,
             },
           });
 
-          if (member) {
+          if (member && await pinChariotMemberEvent(req, member.eventId)) {
             // Check if member is an assistant of any active chariot
             const chariotAssistants = await prisma.chariotAssistant.findMany({
               where: {
@@ -357,6 +406,12 @@ const authenticateUser = async (req, res, next) => {
         } catch (error) {
           console.error('Chariot assistant verification error:', error);
           // Don't throw, just leave user as null
+        }
+      } else if (decoded.userType === 'chapel-leader') {
+        try {
+          user = await loadChapelLeader(req, decoded.userId);
+        } catch (error) {
+          console.error('Chapel leader verification error:', error);
         }
       }
 
@@ -474,6 +529,8 @@ const generateToken = (user, userType) => {
     audience = 'church-chariot-leader';
   } else if (userType === 'chariot-assistant') {
     audience = 'church-chariot-assistant';
+  } else if (userType === 'chapel-leader') {
+    audience = 'church-chapel-leader';
   }
 
   const options = {
@@ -546,7 +603,7 @@ const authenticateChariotLeader = async (req, res, next) => {
         },
       });
 
-      if (!member || member.chariotLeader.length === 0) {
+      if (!member || member.chariotLeader.length === 0 || !(await pinChariotMemberEvent(req, member.eventId))) {
         return res.status(401).json({
           error: 'Unauthorized',
           message: 'You are not assigned as a chariot leader',
@@ -646,7 +703,7 @@ const authenticateChariotAssistant = async (req, res, next) => {
         },
       });
 
-      if (!member || member.chariotAssistants.length === 0) {
+      if (!member || member.chariotAssistants.length === 0 || !(await pinChariotMemberEvent(req, member.eventId))) {
         return res.status(401).json({
           error: 'Unauthorized',
           message: 'You are not assigned as a chariot assistant',
@@ -738,7 +795,7 @@ const authenticateChariotUser = async (req, res, next) => {
           },
         });
 
-        if (!member || member.chariotLeader.length === 0) {
+        if (!member || member.chariotLeader.length === 0 || !(await pinChariotMemberEvent(req, member.eventId))) {
           return res.status(401).json({
             error: 'Unauthorized',
             message: 'You are not assigned as a chariot leader',
@@ -805,7 +862,7 @@ const authenticateChariotUser = async (req, res, next) => {
           },
         });
 
-        if (!member || member.chariotAssistants.length === 0) {
+        if (!member || member.chariotAssistants.length === 0 || !(await pinChariotMemberEvent(req, member.eventId))) {
           return res.status(401).json({
             error: 'Unauthorized',
             message: 'You are not assigned as a chariot assistant',
@@ -823,6 +880,15 @@ const authenticateChariotUser = async (req, res, next) => {
           chariotIds,
           chariotNames,
         };
+      } else if (decoded.userType === 'chapel-leader') {
+        const chapelLeader = await loadChapelLeader(req, decoded.userId);
+        if (!chapelLeader) {
+          return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'You are not assigned as a chapel leader',
+          });
+        }
+        req.user = chapelLeader;
       } else {
         return res.status(401).json({
           error: 'Unauthorized',

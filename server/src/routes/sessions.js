@@ -1,6 +1,8 @@
 const express = require('express');
 const { authenticateAdmin, authenticateUser } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
+const { requireChariotEvent } = require('../middleware/event');
+const { uploadMiddleware } = require('../middleware/upload');
 const sessionController = require('../controllers/sessionController');
 
 const router = express.Router();
@@ -17,9 +19,22 @@ router.get('/stats',
   sessionController.getSessionStats
 );
 
+// Session upload template and bulk upload (admin only) - MUST be before /:id routes
+router.get('/template',
+  authenticateAdmin,
+  sessionController.downloadSessionTemplate
+);
+
+router.post('/upload',
+  authenticateAdmin,
+  uploadMiddleware,
+  sessionController.uploadSessions
+);
+
 // Get chariot attendance overview for a session (admin or pastoral) - MUST be before /:id route
 router.get('/:id/chariot-attendance',
   authenticateUser,
+  requireChariotEvent,
   (req, res, next) => {
     const allowedRoles = ['admin', 'pastoral'];
     if (!req.user || !allowedRoles.includes(req.user.userType)) {

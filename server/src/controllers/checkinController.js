@@ -1,6 +1,19 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
-const { verifyPin } = require('../utils/pinGenerator');
+
+// A bcrypt compare costs ~300ms of CPU, and most people in a session type the
+// same answer, so remember each (hash, answer) result instead of recomputing it.
+const answerResults = new Map();
+const checkSecretAnswer = async (answer, hash) => {
+  const key = `${hash}\u0000${answer}`;
+  if (!answerResults.has(key)) {
+    const pending = bcrypt.compare(answer, hash);
+    answerResults.set(key, pending);
+    pending.catch(() => answerResults.delete(key));
+    if (answerResults.size > 2000) answerResults.delete(answerResults.keys().next().value);
+  }
+  return answerResults.get(key);
+};
 
 /**
  * Validate session for check-in
@@ -153,7 +166,7 @@ const verifySecretAnswer = async (req, res) => {
         message: 'Answer is required',
       });
     }
-    const isCorrect = await bcrypt.compare(answer.toLowerCase().trim(), session.secretAnswer);
+    const isCorrect = await checkSecretAnswer(answer.toLowerCase().trim(), session.secretAnswer);
 
     if (!isCorrect) {
       return res.status(400).json({
@@ -209,6 +222,7 @@ const submitAttendance = async (req, res) => {
         startTime: true,
         endTime: true,
         isActive: true,
+        eventId: true,
       },
     });
 
@@ -242,9 +256,9 @@ const submitAttendance = async (req, res) => {
       });
     }
 
-    // Find member by PIN
-    const member = await prisma.member.findUnique({
-      where: { pin },
+    // Find member by PIN within the session's event (the public request's event header is not trusted)
+    const member = await prisma.member.findFirst({
+      where: { eventId: session.eventId, pin },
       select: {
         id: true,
         name: true,
@@ -267,16 +281,6 @@ const submitAttendance = async (req, res) => {
         success: false,
         error: 'Member inactive',
         message: 'Your membership is currently inactive. Please contact administration.',
-      });
-    }
-
-    // Verify PIN hash (additional security check)
-    const isPinValid = await verifyPin(pin, member.pinHash);
-    if (!isPinValid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid PIN',
-        message: 'The PIN provided is not valid',
       });
     }
 
@@ -370,24 +374,44 @@ const submitAttendance = async (req, res) => {
 /**
  * Get session info for check-in (public endpoint)
  */
+// Everyone scanning a session's QR code asks for the same row at the same time,
+// so share one database read per session for a few seconds. Concurrent misses
+// wait on the same in-flight query instead of each taking a connection.
+const SESSION_INFO_TTL_MS = 10 * 1000;
+const sessionInfoCache = new Map();
+
+const loadSessionInfo = (sessionId) => {
+  const cached = sessionInfoCache.get(sessionId);
+  if (cached && Date.now() - cached.at < SESSION_INFO_TTL_MS) return cached.promise;
+
+  const promise = prisma.session.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true,
+      theme: true,
+      startTime: true,
+      endTime: true,
+      secretQuestion: true,
+      isActive: true,
+      event: {
+        select: { id: true, name: true },
+      },
+      _count: {
+        select: { attendance: true },
+      },
+    },
+  });
+  sessionInfoCache.set(sessionId, { at: Date.now(), promise });
+  promise.catch(() => sessionInfoCache.delete(sessionId));
+  if (sessionInfoCache.size > 500) sessionInfoCache.delete(sessionInfoCache.keys().next().value);
+  return promise;
+};
+
 const getSessionInfo = async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
-      select: {
-        id: true,
-        theme: true,
-        startTime: true,
-        endTime: true,
-        secretQuestion: true,
-        isActive: true,
-        _count: {
-          select: { attendance: true },
-        },
-      },
-    });
+    const session = await loadSessionInfo(sessionId);
 
     if (!session) {
       return res.status(404).json({
@@ -429,6 +453,7 @@ const getSessionInfo = async (req, res) => {
           status,
           canCheckIn,
           attendanceCount: session._count.attendance,
+          event: session.event,
         },
       },
     });
@@ -450,8 +475,8 @@ const getCheckInStats = async (req, res) => {
     const { sessionId } = req.params;
 
     // Verify session exists and admin has access
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, eventId: req.event.id },
       select: {
         id: true,
         theme: true,

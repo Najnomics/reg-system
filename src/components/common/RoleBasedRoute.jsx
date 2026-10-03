@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEvent } from '../../contexts/EventContext';
 
 const RoleBasedRoute = ({
   children,
@@ -7,10 +8,12 @@ const RoleBasedRoute = ({
   adminOnly = false,
   regRepOnly = false,
   allowRegRepChapelAssign = false,
+  requireChariots = false,
 }) => {
   const { isAuthenticated, userType, user, isLoading } = useAuth();
+  const { hasChariots, loading: eventsLoading } = useEvent();
 
-  if (isLoading) {
+  if (isLoading || (requireChariots && eventsLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -66,6 +69,10 @@ const RoleBasedRoute = ({
         </div>
       </div>
     );
+  }
+
+  if (requireChariots && !hasChariots) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return children;

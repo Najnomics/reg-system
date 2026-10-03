@@ -9,11 +9,44 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
 import { useApp } from '../../contexts/SimpleAppContext'
+import { useEvent } from '../../contexts/EventContext'
+
+const EVENT_SWITCHER_ROLES = ['admin', 'reg-rep', 'pastoral']
+
+const roleLabel = (userType, user, long = false) => {
+  switch (userType) {
+    case 'admin':
+      return 'Administrator'
+    case 'reg-rep':
+      return long ? 'Registration Representative' : 'Registration Rep'
+    case 'pastoral':
+      return 'Pastoral Team'
+    case 'chariot-leader':
+      return `Chariot Leader${user?.isChapelLeader ? ' & Chapel Leader' : ''}`
+    case 'chariot-assistant':
+      return 'Chariot Assistant'
+    case 'chapel-leader':
+      return 'Chapel Leader'
+    default:
+      return 'User'
+  }
+}
 
 const Header = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const { user, userType, logout } = useAuth()
-  const { toggleSidebar, notifications, clearNotifications } = useApp()
+  const { toggleSidebar, notifications, clearNotifications, showError } = useApp()
+  const { events, currentEvent, currentEventId, selectEvent } = useEvent()
+  const isStaff = EVENT_SWITCHER_ROLES.includes(userType)
+  const canSwitchEvents = userType === 'chapel-leader' && events.length > 1
+
+  const handleSelectEvent = async (eventId) => {
+    try {
+      await selectEvent(eventId)
+    } catch (error) {
+      showError?.(error.message || 'Could not switch event')
+    }
+  }
 
   const handleLogout = () => {
     logout()
@@ -34,16 +67,41 @@ const Header = () => {
             <Bars3Icon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
           </button>
           
-          <div className="hidden sm:block">
+          <div className="hidden md:block">
             <h2 className="text-lg font-semibold text-gray-900">
               Church Attendance System
             </h2>
           </div>
-          <div className="sm:hidden">
-            <h2 className="text-base font-semibold text-gray-900">
-              Church Admin
-            </h2>
-          </div>
+
+          {canSwitchEvents ? (
+            <select
+              value={currentEventId}
+              onChange={(e) => handleSelectEvent(e.target.value)}
+              className="max-w-[11rem] sm:max-w-xs rounded-lg border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+              aria-label="Current event"
+              title="Switch event"
+            >
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name}{event.isActive ? '' : ' (inactive)'}
+                </option>
+              ))}
+            </select>
+          ) : currentEvent ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-medium text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg truncate max-w-[9rem] sm:max-w-xs">
+                {currentEvent.name}
+              </span>
+              {isStaff && (
+                <Link
+                  to="/events"
+                  className="whitespace-nowrap text-sm font-medium text-gray-600 hover:text-indigo-700 underline-offset-2 hover:underline"
+                >
+                  Change event
+                </Link>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-4">
@@ -75,15 +133,7 @@ const Header = () => {
                   {user?.name || 'User'}
                 </div>
                 <div className="text-xs text-gray-600">
-                  {userType === 'admin' 
-                    ? 'Administrator' 
-                    : userType === 'reg-rep'
-                    ? 'Registration Rep'
-                    : userType === 'chariot-leader'
-                    ? `Chariot Leader${user?.isChapelLeader ? ' & Chapel Leader' : ''}`
-                    : userType === 'chariot-assistant'
-                    ? 'Chariot Assistant'
-                    : 'User'}
+                  {roleLabel(userType, user)}
                 </div>
               </div>
             </button>
@@ -104,15 +154,7 @@ const Header = () => {
                         {user?.email}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {userType === 'admin' 
-                          ? 'Administrator' 
-                          : userType === 'reg-rep'
-                          ? 'Registration Representative'
-                          : userType === 'chariot-leader'
-                          ? `Chariot Leader${user?.isChapelLeader ? ' & Chapel Leader' : ''}`
-                          : userType === 'chariot-assistant'
-                          ? 'Chariot Assistant'
-                          : 'User'}
+                        {roleLabel(userType, user, true)}
                       </div>
                       {/* Show chapel names if user is a chapel leader */}
                       {user?.isChapelLeader && user?.chapelNames && user.chapelNames.length > 0 && (
