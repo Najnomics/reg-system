@@ -1,186 +1,172 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEvent } from '../../contexts/EventContext';
-import { prefetcher } from '../../utils/prefetch';
+import { formatDateRange } from '../../utils/eventFormat';
 import {
-  HomeIcon,
+  Squares2X2Icon,
   UsersIcon,
   CalendarDaysIcon,
-  DocumentChartBarIcon,
-  UserGroupIcon,
-  Cog6ToothIcon,
+  ChartBarIcon,
+  TruckIcon,
+  BuildingLibraryIcon,
+  IdentificationIcon,
   XMarkIcon,
-  RectangleStackIcon,
+  ArrowsRightLeftIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 
+const STAFF_ROLES = ['admin', 'reg-rep', 'pastoral'];
+
 const getNavigationItems = (userType, user, hasChariots) => {
-  // Chariot users navigation
   if (['chariot-leader', 'chariot-assistant', 'chapel-leader'].includes(userType)) {
     return [
-      { name: 'Dashboard', href: '/chariot/dashboard', icon: HomeIcon },
+      { name: 'Overview', href: '/chariot/dashboard', icon: Squares2X2Icon },
       { name: 'Members', href: '/chariot/members', icon: UsersIcon },
       { name: 'Sessions', href: '/chariot/sessions', icon: CalendarDaysIcon },
     ];
   }
 
-  // Admin/Reg-rep navigation
-  const baseNavigation = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
-    { name: 'Members', href: '/admin/members', icon: UsersIcon, roles: ['admin', 'reg-rep', 'pastoral'] },
-    { name: 'Sessions', href: '/admin/sessions', icon: CalendarDaysIcon, roles: ['admin', 'reg-rep', 'pastoral'] },
-    { name: 'Reports', href: '/admin/reports', icon: DocumentChartBarIcon, roles: ['admin', 'reg-rep', 'pastoral'] },
+  const items = [
+    { name: 'Overview', href: '/admin/dashboard', icon: Squares2X2Icon },
+    { name: 'Members', href: '/admin/members', icon: UsersIcon },
+    { name: 'Sessions', href: '/admin/sessions', icon: CalendarDaysIcon },
   ];
 
-  // Add admin-only items
+  if (userType === 'admin' || userType === 'pastoral') {
+    items.push({ name: 'Chapels', href: '/admin/chapels', icon: BuildingLibraryIcon });
+    if (hasChariots) items.push({ name: 'Chariots', href: '/admin/chariots', icon: TruckIcon });
+  } else if (userType === 'reg-rep' && user?.canAssignChapels) {
+    items.push({ name: 'Chapels', href: '/admin/chapels', icon: BuildingLibraryIcon });
+  }
+
+  items.push({ name: 'Reports', href: '/admin/reports', icon: ChartBarIcon });
+
   if (userType === 'admin') {
-    baseNavigation.splice(4, 0, {
-      name: 'Chariots',
-      href: '/admin/chariots',
-      icon: UserGroupIcon,
-      roles: ['admin']
-    });
-    baseNavigation.splice(5, 0, {
-      name: 'Chapels',
-      href: '/admin/chapels',
-      icon: UserGroupIcon,
-      roles: ['admin']
-    });
-    baseNavigation.push({
-      name: 'Reg-Reps',
-      href: '/admin/reg-reps',
-      icon: UserGroupIcon,
-      roles: ['admin']
-    });
+    items.push({ name: 'Reg-Reps', href: '/admin/reg-reps', icon: IdentificationIcon });
   }
 
-  if (userType === 'pastoral') {
-    baseNavigation.splice(4, 0, {
-      name: 'Chariots',
-      href: '/admin/chariots',
-      icon: UserGroupIcon,
-      roles: ['pastoral']
-    });
-    baseNavigation.splice(5, 0, {
-      name: 'Chapels',
-      href: '/admin/chapels',
-      icon: UserGroupIcon,
-      roles: ['pastoral']
-    });
+  return items;
+};
+
+const roleTitle = (userType) => {
+  switch (userType) {
+    case 'admin': return 'Administrator';
+    case 'pastoral': return 'Pastoral team';
+    case 'reg-rep': return 'Registration rep';
+    case 'chariot-leader': return 'Chariot leader';
+    case 'chariot-assistant': return 'Chariot assistant';
+    case 'chapel-leader': return 'Chapel leader';
+    default: return 'Church portal';
   }
-
-  if (userType === 'reg-rep' && user?.canAssignChapels) {
-    baseNavigation.splice(4, 0, {
-      name: 'Chapels',
-      href: '/admin/chapels',
-      icon: UserGroupIcon,
-      roles: ['reg-rep'],
-    });
-  }
-
-  baseNavigation.push({
-    name: 'All events',
-    href: '/events',
-    icon: RectangleStackIcon,
-    roles: ['admin', 'reg-rep', 'pastoral'],
-  });
-
-  return baseNavigation
-    .filter(item => !item.roles || item.roles.includes(userType))
-    .filter(item => hasChariots || item.href !== '/admin/chariots');
 };
 
 const Sidebar = () => {
   const { sidebarOpen, setSidebar } = useApp();
   const { userType, user } = useAuth();
   const { hasChariots, currentEvent } = useEvent();
-  
+  const isStaff = STAFF_ROLES.includes(userType);
+
   const navigation = getNavigationItems(userType, user, hasChariots);
+  const dates = currentEvent ? formatDateRange(currentEvent.startDate, currentEvent.endDate) : null;
 
   return (
     <>
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+        <div
+          className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-[2px] lg:hidden animate-fade-in"
           onClick={() => setSidebar(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:inset-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 border-r border-line bg-paper
+          transition-transform duration-300 ease-out
+          lg:static lg:translate-x-0 lg:w-60
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
         <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 flex-shrink-0 items-center justify-between px-4 bg-gray-800">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">CA</span>
-                </div>
-              </div>
-              <div className="ml-3">
-                <h1 className="text-white text-lg font-semibold">
-                  {userType === 'admin' ? 'Church Admin' : 
-                   userType === 'pastoral' ? 'Pastoral Team' :
-                   userType === 'chariot-leader' ? 'Chariot Leader' :
-                   userType === 'chariot-assistant' ? 'Chariot Assistant' :
-                   userType === 'chapel-leader' ? 'Chapel Leader' :
-                   'Church Portal'}
-                </h1>
-                {userType === 'reg-rep' && (
-                  <p className="text-xs text-gray-400">Registration Rep</p>
-                )}
-                {currentEvent && (
-                  <p className="text-xs text-indigo-300 truncate max-w-[10rem]" title={currentEvent.name}>
-                    {currentEvent.name}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            {/* Close button for mobile */}
+          <div className="flex h-14 flex-shrink-0 items-center justify-between px-5">
+            <Link to={isStaff ? '/events' : '/chariot/dashboard'} className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-indigo-600" />
+              <span className="text-[13px] font-semibold tracking-tight text-ink">Attendance</span>
+            </Link>
             <button
-              className="lg:hidden p-1 text-gray-400 hover:text-white"
+              className="lg:hidden rounded-md p-1 text-gray-500 hover:text-ink"
               onClick={() => setSidebar(false)}
+              aria-label="Close menu"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-2 py-4">
+          {currentEvent && (
+            <div className="px-3 pb-3">
+              {isStaff ? (
+                <Link
+                  to="/events"
+                  onClick={() => setSidebar(false)}
+                  className="group flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2.5 transition-colors hover:border-gray-300"
+                  title="Switch event"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-ink">{currentEvent.name}</div>
+                    <div className="truncate text-[11px] text-gray-500">{dates || 'Dates to be set'}</div>
+                  </div>
+                  <ArrowsRightLeftIcon className="h-4 w-4 flex-shrink-0 text-gray-400 transition-colors group-hover:text-indigo-600" />
+                </Link>
+              ) : (
+                <div className="rounded-lg border border-line bg-white px-3 py-2.5">
+                  <div className="truncate text-[13px] font-medium text-ink">{currentEvent.name}</div>
+                  <div className="truncate text-[11px] text-gray-500">{roleTitle(userType)}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
             {navigation.map((item) => (
               <NavLink
-                key={item.name}
+                key={item.href}
                 to={item.href}
                 onClick={() => setSidebar(false)}
                 className={({ isActive }) =>
-                  `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                  `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors duration-150 ${
                     isActive
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      ? 'bg-white text-ink font-medium shadow-[inset_0_0_0_1px_#E7E5DF]'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-ink'
                   }`
                 }
               >
-                <item.icon className="mr-3 h-6 w-6 flex-shrink-0" />
-                {item.name}
+                {({ isActive }) => (
+                  <>
+                    <item.icon
+                      className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'}`}
+                    />
+                    {item.name}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
 
-          {/* Footer */}
-          <div className="flex-shrink-0 p-4 border-t border-gray-700">
-            <div className="text-xs text-gray-400 text-center">
-              <p>Church Attendance System</p>
-              <p>v1.0.0</p>
-            </div>
+          <div className="flex-shrink-0 border-t border-line px-5 py-4">
+            {isStaff ? (
+              <Link
+                to="/events"
+                onClick={() => setSidebar(false)}
+                className="inline-flex items-center gap-1.5 text-xs text-gray-500 transition-colors hover:text-ink"
+              >
+                <ArrowLeftIcon className="h-3.5 w-3.5" /> All events
+              </Link>
+            ) : (
+              <p className="text-xs text-gray-500">{roleTitle(userType)}</p>
+            )}
           </div>
         </div>
-      </div>
+      </aside>
     </>
   );
 };

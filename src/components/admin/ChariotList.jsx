@@ -471,7 +471,7 @@ const ChariotList = () => {
                       </button>
                       <button
                         onClick={() => handleDelete(chariot)}
-                        className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center justify-center touch-manipulation"
+                        className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-red-600 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center justify-center touch-manipulation"
                         title="Delete"
                       >
                         <TrashIcon className="h-4 w-4" />

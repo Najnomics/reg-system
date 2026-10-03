@@ -1,43 +1,67 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { 
-  Bars3Icon, 
-  BellIcon, 
-  UserCircleIcon,
-  Cog6ToothIcon,
-  ArrowRightOnRectangleIcon 
+import { Link, useLocation } from 'react-router-dom'
+import {
+  Bars3Icon,
+  BellIcon,
+  ArrowRightOnRectangleIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../contexts/AuthContext'
 import { useApp } from '../../contexts/SimpleAppContext'
 import { useEvent } from '../../contexts/EventContext'
 
-const EVENT_SWITCHER_ROLES = ['admin', 'reg-rep', 'pastoral']
+const STAFF_ROLES = ['admin', 'reg-rep', 'pastoral']
 
-const roleLabel = (userType, user, long = false) => {
+const PAGE_TITLES = [
+  [/\/sessions\/[^/]+\/chariot-attendance/, 'Chariot attendance'],
+  [/\/sessions\/[^/]+\/attendance/, 'Session attendance'],
+  [/\/sessions\/new/, 'New session'],
+  [/\/dashboard$/, 'Overview'],
+  [/\/members/, 'Members'],
+  [/\/sessions/, 'Sessions'],
+  [/\/chapels/, 'Chapels'],
+  [/\/chariots/, 'Chariots'],
+  [/\/reports/, 'Reports'],
+  [/\/reg-reps/, 'Reg-Reps'],
+  [/\/settings/, 'Settings'],
+]
+
+const pageTitle = (pathname) => PAGE_TITLES.find(([re]) => re.test(pathname))?.[1] || 'Overview'
+
+const roleLabel = (userType, user) => {
   switch (userType) {
     case 'admin':
       return 'Administrator'
     case 'reg-rep':
-      return long ? 'Registration Representative' : 'Registration Rep'
+      return 'Registration rep'
     case 'pastoral':
-      return 'Pastoral Team'
+      return 'Pastoral team'
     case 'chariot-leader':
-      return `Chariot Leader${user?.isChapelLeader ? ' & Chapel Leader' : ''}`
+      return `Chariot leader${user?.isChapelLeader ? ' · Chapel leader' : ''}`
     case 'chariot-assistant':
-      return 'Chariot Assistant'
+      return 'Chariot assistant'
     case 'chapel-leader':
-      return 'Chapel Leader'
+      return 'Chapel leader'
     default:
       return 'User'
   }
 }
 
+const initials = (name = '') =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'U'
+
 const Header = () => {
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const { pathname } = useLocation()
   const { user, userType, logout } = useAuth()
-  const { toggleSidebar, notifications, clearNotifications, showError } = useApp()
+  const { toggleSidebar, notifications, showError } = useApp()
   const { events, currentEvent, currentEventId, selectEvent } = useEvent()
-  const isStaff = EVENT_SWITCHER_ROLES.includes(userType)
+  const isStaff = STAFF_ROLES.includes(userType)
   const canSwitchEvents = userType === 'chapel-leader' && events.length > 1
 
   const handleSelectEvent = async (eventId) => {
@@ -48,139 +72,110 @@ const Header = () => {
     }
   }
 
-  const handleLogout = () => {
-    logout()
-    setProfileDropdownOpen(false)
-  }
-
-  const unreadNotifications = notifications.filter(n => !n.read).length
+  const unread = notifications.filter((n) => !n.read).length
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
-        <div className="flex items-center space-x-2 sm:space-x-4">
+    <header className="sticky top-0 z-30 border-b border-line bg-paper/85 backdrop-blur">
+      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-10">
+        <div className="flex min-w-0 items-center gap-2">
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 touch-manipulation"
-            aria-label="Toggle sidebar"
+            className="-ml-1 rounded-md p-1.5 text-gray-600 hover:bg-gray-100 lg:hidden"
+            aria-label="Open menu"
           >
-            <Bars3Icon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
+            <Bars3Icon className="h-5 w-5" />
           </button>
-          
-          <div className="hidden md:block">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Church Attendance System
-            </h2>
-          </div>
 
-          {canSwitchEvents ? (
-            <select
-              value={currentEventId}
-              onChange={(e) => handleSelectEvent(e.target.value)}
-              className="max-w-[11rem] sm:max-w-xs rounded-lg border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
-              aria-label="Current event"
-              title="Switch event"
-            >
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.name}{event.isActive ? '' : ' (inactive)'}
-                </option>
-              ))}
-            </select>
-          ) : currentEvent ? (
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-medium text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg truncate max-w-[9rem] sm:max-w-xs">
-                {currentEvent.name}
-              </span>
-              {isStaff && (
-                <Link
-                  to="/events"
-                  className="whitespace-nowrap text-sm font-medium text-gray-600 hover:text-indigo-700 underline-offset-2 hover:underline"
-                >
-                  Change event
-                </Link>
-              )}
-            </div>
-          ) : null}
+          <nav className="flex min-w-0 items-center gap-1.5 text-[13px]" aria-label="Breadcrumb">
+            {isStaff ? (
+              <Link to="/events" className="hidden text-gray-500 transition-colors hover:text-ink sm:inline">
+                Events
+              </Link>
+            ) : (
+              <span className="hidden text-gray-500 sm:inline">Attendance</span>
+            )}
+            <span className="hidden text-gray-300 sm:inline">/</span>
+
+            {canSwitchEvents ? (
+              <select
+                value={currentEventId}
+                onChange={(e) => handleSelectEvent(e.target.value)}
+                className="max-w-[11rem] truncate rounded-md border-line bg-white py-1 pl-2 pr-7 text-[13px] text-ink focus:border-indigo-500 focus:ring-indigo-500"
+                aria-label="Current event"
+              >
+                {events.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.name}
+                    {event.isActive ? '' : ' (inactive)'}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              currentEvent && <span className="truncate text-gray-500">{currentEvent.name}</span>
+            )}
+
+            <span className="text-gray-300">/</span>
+            <span className="truncate font-medium text-ink">{pageTitle(pathname)}</span>
+          </nav>
         </div>
 
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          {/* Notifications */}
-          <div className="relative">
-            <button 
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 relative touch-manipulation"
-              aria-label="Notifications"
-            >
-              <BellIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                </span>
-              )}
-            </button>
-          </div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            className="relative rounded-md p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-ink"
+            aria-label="Notifications"
+          >
+            <BellIcon className="h-[18px] w-[18px]" />
+            {unread > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600" />
+            )}
+          </button>
 
-          {/* Profile Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center space-x-1 sm:space-x-2 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 touch-manipulation"
-              aria-label="User menu"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-gray-100"
+              aria-label="Account menu"
+              aria-expanded={menuOpen}
             >
-              <UserCircleIcon className="h-7 w-7 sm:h-8 sm:w-8 text-gray-600" />
-              <div className="hidden sm:block text-left">
-                <div className="text-sm font-medium text-gray-900">
-                  {user?.name || 'User'}
-                </div>
-                <div className="text-xs text-gray-600">
-                  {roleLabel(userType, user)}
-                </div>
-              </div>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[11px] font-medium text-paper">
+                {initials(user?.name)}
+              </span>
+              <span className="hidden text-[13px] font-medium text-ink sm:block">{user?.name || 'User'}</span>
+              <ChevronDownIcon className={`hidden h-3.5 w-3.5 text-gray-400 transition-transform sm:block ${menuOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {profileDropdownOpen && (
+            {menuOpen && (
               <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setProfileDropdownOpen(false)}
-                ></div>
-                <div className="absolute right-0 mt-2 w-56 sm:w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
-                  <div className="py-2">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <div className="text-sm font-medium text-gray-900">
-                        {user?.name || 'User'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {user?.email}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {roleLabel(userType, user, true)}
-                      </div>
-                      {/* Show chapel names if user is a chapel leader */}
-                      {user?.isChapelLeader && user?.chapelNames && user.chapelNames.length > 0 && (
-                        <div className="text-xs text-purple-600 mt-1">
-                          Chapel: {user.chapelNames.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <Link
-                      to="/admin/settings"
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      onClick={() => setProfileDropdownOpen(false)}
-                    >
-                      <Cog6ToothIcon className="h-4 w-4" />
-                      <span>Settings</span>
-                    </Link>
-                    
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                      <span>Sign Out</span>
-                    </button>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 z-20 mt-2 w-64 origin-top-right animate-scale-in rounded-xl border border-line bg-white p-1.5 shadow-xl">
+                  <div className="px-3 py-2.5">
+                    <div className="text-[13px] font-medium text-ink">{user?.name || 'User'}</div>
+                    {user?.email && <div className="truncate text-xs text-gray-500">{user.email}</div>}
+                    <div className="mt-1.5 text-[11px] text-gray-500">{roleLabel(userType, user)}</div>
+                    {user?.isChapelLeader && user?.chapelNames?.length > 0 && (
+                      <div className="mt-0.5 text-[11px] text-indigo-700">Chapel: {user.chapelNames.join(', ')}</div>
+                    )}
                   </div>
+                  <div className="my-1 h-px bg-line" />
+                  {isStaff && (
+                    <Link
+                      to="/events"
+                      onClick={() => setMenuOpen(false)}
+                      className="block rounded-lg px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-100"
+                    >
+                      Switch event
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
+                      logout()
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] text-red-700 hover:bg-red-50"
+                  >
+                    <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                    Sign out
+                  </button>
                 </div>
               </>
             )}

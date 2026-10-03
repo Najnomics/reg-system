@@ -199,7 +199,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                     {isAdmin && (
                       <button
                         onClick={() => handleRemoveAssistant(assistant.member.id)}
-                        className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
+                        className="px-2 py-1 text-xs sm:text-sm font-medium text-red-600 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                         disabled={loading}
                       >
                         <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -256,7 +256,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                     {isAdmin && (
                       <button
                         onClick={() => handleRemoveMember(chariotMember.member.id)}
-                        className="px-2 py-1 text-xs sm:text-sm font-medium text-white bg-red-600 border border-red-600 rounded-md shadow-sm hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
+                        className="px-2 py-1 text-xs sm:text-sm font-medium text-red-600 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-red-50 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 touch-manipulation"
                         disabled={loading}
                       >
                         <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />

@@ -143,6 +143,71 @@ const getDashboardStats = async (req, res) => {
     // Sort by most recent first and take top 5
     const activityFeed = recentActivity.slice(0, 5);
 
+    const [totalCheckins, sessionRows, chapels] = await Promise.all([
+      prisma.attendance.count({ where: { session: { eventId } } }),
+      prisma.session.findMany({
+        where: { eventId },
+        orderBy: { startTime: 'desc' },
+        take: 12,
+        select: {
+          id: true,
+          theme: true,
+          name: true,
+          startTime: true,
+          _count: { select: { attendance: true } },
+        },
+      }),
+      prisma.chapel.findMany({
+        where: { eventId, isActive: true },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { members: { where: { isActive: { not: false } } } } },
+        },
+      }),
+    ]);
+
+    const lastSession = sessionRows.find(
+      (s) => new Date(s.startTime) <= currentTime && s._count.attendance > 0
+    ) || null;
+
+    const presentByChapel = new Map();
+    if (lastSession) {
+      const rows = await prisma.attendance.findMany({
+        where: { sessionId: lastSession.id },
+        select: { member: { select: { chapelId: true } } },
+      });
+      rows.forEach(({ member }) => {
+        if (!member?.chapelId) return;
+        presentByChapel.set(member.chapelId, (presentByChapel.get(member.chapelId) || 0) + 1);
+      });
+    }
+
+    const sessionAttendance = sessionRows
+      .slice()
+      .reverse()
+      .map((s) => ({
+        id: s.id,
+        label: s.theme || s.name || 'Session',
+        startTime: s.startTime,
+        count: s._count.attendance,
+      }));
+
+    const chapelAttendance = chapels
+      .map((c) => {
+        const total = c._count.members;
+        const present = presentByChapel.get(c.id) || 0;
+        return {
+          id: c.id,
+          name: c.name,
+          present,
+          total,
+          rate: total > 0 ? Math.round((present / total) * 100) : 0,
+        };
+      })
+      .sort((a, b) => b.rate - a.rate);
+
     res.status(200).json({
       success: true,
       data: {
@@ -153,7 +218,14 @@ const getDashboardStats = async (req, res) => {
           upcomingSessions: upcomingSessions || 0,
           todaysAttendance: todaysAttendance || 0,
           attendanceRate,
+          totalSessions: totalSessions || 0,
+          totalCheckins: totalCheckins || 0,
         },
+        sessionAttendance,
+        chapelAttendance,
+        lastSession: lastSession
+          ? { id: lastSession.id, label: lastSession.theme || lastSession.name, startTime: lastSession.startTime }
+          : null,
         recentActivity: activityFeed,
         timestamp: currentTime.toISOString(),
       },

@@ -19,12 +19,20 @@ export const EventProvider = ({ children }) => {
   const [events, setEvents] = useState([]);
   const [currentEventId, setCurrentEventIdState] = useState(getCurrentEventId());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const loadEvents = useCallback(async () => {
     try {
-      const response = await apiService.getEvents();
+      let response;
+      try {
+        response = await apiService.getEvents();
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        response = await apiService.getEvents();
+      }
       const list = response?.data?.events || [];
       setEvents(list);
+      setLoadError('');
 
       // A chapel leader's token belongs to exactly one event; that one is current.
       const stored = sessionEventId || getCurrentEventId();
@@ -36,6 +44,7 @@ export const EventProvider = ({ children }) => {
       return list;
     } catch (error) {
       console.error('Failed to load events:', error);
+      setLoadError(error.message || 'Could not load events');
       return [];
     } finally {
       setLoading(false);
@@ -101,6 +110,7 @@ export const EventProvider = ({ children }) => {
     currentEventId,
     hasChariots: Boolean(currentEvent?.hasChariots),
     loading,
+    loadError,
     selectEvent,
     refreshEvents: loadEvents,
     createEvent,
