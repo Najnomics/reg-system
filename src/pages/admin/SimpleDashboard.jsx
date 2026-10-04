@@ -54,10 +54,34 @@ const shortTime = (date) =>
 
 const MOBILE_BARS = 7;
 
+// Monotone cubic through the bar tops: smooth, but never overshoots the data.
+const curvePath = (points) => {
+  if (points.length < 2) return '';
+  const n = points.length;
+  const slopes = points.slice(0, -1).map(([x, y], i) => (points[i + 1][1] - y) / (points[i + 1][0] - x));
+  const tangents = points.map((_, i) => {
+    if (i === 0) return slopes[0];
+    if (i === n - 1) return slopes[n - 2];
+    const a = slopes[i - 1];
+    const b = slopes[i];
+    return a * b <= 0 ? 0 : (2 * a * b) / (a + b);
+  });
+  return points.reduce((d, [x, y], i) => {
+    if (i === 0) return `M ${x} ${y}`;
+    const [px, py] = points[i - 1];
+    const h = (x - px) / 3;
+    return `${d} C ${px + h} ${py + tangents[i - 1] * h}, ${x - h} ${y - tangents[i] * h}, ${x} ${y}`;
+  }, '');
+};
+
 const SessionChart = ({ sessions, loading }) => {
   const mobileHidden = (i) => (i < sessions.length - MOBILE_BARS ? 'hidden sm:flex' : 'flex');
   const max = Math.max(1, ...sessions.map((s) => s.count));
   const latestIndex = sessions.reduce((acc, s, i) => (s.count > 0 ? i : acc), -1);
+  const barHeight = (count) => Math.max(1, (count / max) * 88);
+  const curve = curvePath(
+    sessions.flatMap((s, i) => (s.count > 0 ? [[i + 0.5, 100 - barHeight(s.count)]] : []))
+  );
 
   if (loading) {
     return <div className="mt-6 h-[260px] animate-pulse rounded-lg bg-gray-50" />;
@@ -74,9 +98,24 @@ const SessionChart = ({ sessions, loading }) => {
 
   return (
     <div className="mt-6">
-      <div className="flex h-[260px] items-end gap-2 border-b border-line sm:gap-3">
+      <div className="relative flex h-[260px] items-end gap-2 border-b border-line sm:gap-3">
+        {curve && (
+          <svg
+            className="draw-line pointer-events-none absolute inset-0 z-10 hidden h-full w-full overflow-visible sm:dark:block"
+            viewBox={`0 0 ${sessions.length} 100`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              d={curve}
+              className="fill-none stroke-indigo-600"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        )}
         {sessions.map((s, i) => {
-          const height = Math.max(1, (s.count / max) * 88);
+          const height = barHeight(s.count);
           return (
             <div key={s.id} className={`group relative h-full min-w-0 flex-1 flex-col justify-end ${mobileHidden(i)}`} title={`${s.label} · ${formatNumber(s.count)} check-ins`}>
               <span
@@ -87,7 +126,9 @@ const SessionChart = ({ sessions, loading }) => {
               </span>
               <div
                 className={`grow-y rounded-t-[3px] transition-colors ${
-                  i === latestIndex ? 'bg-indigo-600' : 'bg-ink group-hover:bg-gray-700'
+                  i === latestIndex
+                    ? 'bg-indigo-600 dark:bg-indigo-600/70'
+                    : 'bg-ink group-hover:bg-gray-700 dark:bg-gray-200 dark:group-hover:bg-gray-300'
                 }`}
                 style={{ height: `${height}%`, '--i': i }}
               />

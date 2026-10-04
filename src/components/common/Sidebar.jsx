@@ -135,7 +135,7 @@ const Sidebar = () => {
                 className={({ isActive }) =>
                   `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors duration-150 ${
                     isActive
-                      ? 'bg-white text-ink font-medium shadow-[inset_0_0_0_1px_#E7E5DF]'
+                      ? 'bg-white text-ink font-medium ring-1 ring-inset ring-line'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-ink'
                   }`
                 }

@@ -94,7 +94,74 @@ const brass = {
   600: '#A88546',
 }
 
+// "Sanctuary" dark palette. Same shade names as above; neutral and accent
+// scales run the other way so a class like bg-gray-50 stays "the subtle
+// surface" and text-gray-900 stays "the strongest text" in both themes.
+const dark = {
+  warm: {
+    50: '#1B1914', 100: '#221F19', 200: '#2E2A22', 300: '#3D382E', 400: '#5F594C',
+    500: '#8D8676', 600: '#A8A090', 700: '#C5BDAB', 800: '#DCD4C2', 900: '#EDE6D6', 950: '#F6F1E6',
+  },
+  // Brass stands in for the green accent: it is the only colour in Sanctuary.
+  forest: {
+    50: '#1F1A10', 100: '#2A2314', 200: '#3D321C', 300: '#5C4A27', 400: '#8C7038',
+    500: '#B08E4F', 600: '#C9A35E', 700: '#D6B574', 800: '#E3C88F', 900: '#EFDDB3', 950: '#F6EBD0',
+  },
+  leaf: {
+    50: '#141A14', 100: '#1A231B', 200: '#243225', 300: '#35493A', 400: '#557560',
+    500: '#7A9A82', 600: '#8FAE96', 700: '#A9C2AE', 800: '#C3D6C6', 900: '#DAE6DB', 950: '#EBF2EC',
+  },
+  brick: {
+    50: '#1E1311', 100: '#2A1814', 200: '#3D221C', 300: '#5C3328', 400: '#8A4E3E',
+    500: '#B06A57', 600: '#C27D69', 700: '#D19A89', 800: '#E0B8AA', 900: '#EDD3CA', 950: '#F6E7E2',
+  },
+  ochre: {
+    50: '#1D180E', 100: '#272012', 200: '#3A2F19', 300: '#574624', 400: '#846A35',
+    500: '#A9874A', 600: '#C29E5C', 700: '#D3B479', 800: '#E2CA98', 900: '#EEDDB8', 950: '#F6ECD5',
+  },
+  plum: {
+    50: '#1A1517', 100: '#231C1F', 200: '#33292D', 300: '#4C3D43', 400: '#73606A',
+    500: '#95818B', 600: '#A8949E', 700: '#BEADB5', 800: '#D4C7CD', 900: '#E6DCE1', 950: '#F2ECEF',
+  },
+}
+
+const singles = {
+  light: { white: '#FFFFFF', ink: '#151513', paper: '#FAFAF7', line: '#E7E5DF' },
+  dark: { white: '#16140F', ink: '#EDE6D6', paper: '#0E0D0B', line: '#2A261E' },
+}
+
+const light = { warm, forest, leaf, brick, ochre, plum }
+
+const rgb = (hex) => {
+  const n = parseInt(hex.slice(1), 16)
+  return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`
+}
+
+const cssVars = (palettes, single) => {
+  const out = {}
+  for (const [name, scale] of Object.entries(palettes)) {
+    for (const [shade, hex] of Object.entries(scale)) out[`--c-${name}-${shade}`] = rgb(hex)
+  }
+  for (const [name, hex] of Object.entries(single)) out[`--c-${name}`] = rgb(hex)
+  return out
+}
+
+const varScale = (name) =>
+  Object.fromEntries(Object.keys(warm).map((shade) => [shade, `rgb(var(--c-${name}-${shade}) / <alpha-value>)`]))
+
+const v = (name) => `rgb(var(--c-${name}) / <alpha-value>)`
+
+const scales = {
+  warm: varScale('warm'),
+  forest: varScale('forest'),
+  leaf: varScale('leaf'),
+  brick: varScale('brick'),
+  ochre: varScale('ochre'),
+  plum: varScale('plum'),
+}
+
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -102,27 +169,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        gray: warm,
-        slate: warm,
-        indigo: forest,
-        blue: forest,
-        purple: plum,
-        violet: plum,
-        green: leaf,
-        emerald: leaf,
-        red: brick,
-        rose: brick,
-        yellow: ochre,
-        amber: ochre,
-        orange: ochre,
-        primary: forest,
-        secondary: warm,
-        success: leaf,
-        warning: ochre,
-        error: brick,
-        ink: '#151513',
-        paper: '#FAFAF7',
-        line: '#E7E5DF',
+        white: v('white'),
+        gray: scales.warm,
+        slate: scales.warm,
+        indigo: scales.forest,
+        blue: scales.forest,
+        purple: scales.plum,
+        violet: scales.plum,
+        green: scales.leaf,
+        emerald: scales.leaf,
+        red: scales.brick,
+        rose: scales.brick,
+        yellow: scales.ochre,
+        amber: scales.ochre,
+        orange: scales.ochre,
+        primary: scales.forest,
+        secondary: scales.warm,
+        success: scales.leaf,
+        warning: scales.ochre,
+        error: scales.brick,
+        ink: v('ink'),
+        paper: v('paper'),
+        line: v('line'),
         brass,
         sanctuary: {
           bg: '#0E0D0B',
@@ -179,5 +247,11 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    ({ addBase }) =>
+      addBase({
+        ':root': cssVars(light, singles.light),
+        '.dark': cssVars(dark, singles.dark),
+      }),
+  ],
 }

@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { useApp } from '../../contexts/SimpleAppContext'
 import { useEvent } from '../../contexts/EventContext'
+import ThemeToggle from './ThemeToggle'
 
 const STAFF_ROLES = ['admin', 'reg-rep', 'pastoral']
 
@@ -120,6 +121,7 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          <ThemeToggle />
           <button
             className="relative rounded-md p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-ink"
             aria-label="Notifications"

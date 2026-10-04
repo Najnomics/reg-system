@@ -21,12 +21,26 @@
   }
 
   ::selection {
-    background: rgba(30, 90, 60, 0.16);
+    background: rgb(var(--c-forest-600) / 0.18);
   }
 
   :focus-visible {
-    outline: 2px solid #1E5A3C;
+    outline: 2px solid rgb(var(--c-forest-600));
     outline-offset: 2px;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  :where(.dark) :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
+    background-color: rgb(var(--c-white));
+    color: rgb(var(--c-ink));
+  }
+
+  .dark body {
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgb(201 163 94 / 0.06), transparent 70%);
+    background-attachment: fixed;
   }
 
   input, select, textarea {
@@ -74,6 +88,54 @@
     animation: grow-y 0.9s cubic-bezier(.2,.7,.1,1) both;
     animation-delay: calc(0.2s + var(--i, 0) * 55ms);
   }
+}
+
+/* Modal backdrops written as light greys would glow in the dark theme. */
+.dark .bg-opacity-50.bg-gray-600,
+.dark .bg-opacity-75.bg-gray-500 {
+  background-color: rgb(0 0 0 / 0.65);
+}
+
+/* Sanctuary: an event card becomes an arched doorway with a beam of light. */
+.door {
+  position: relative;
+  isolation: isolate;
+}
+
+.dark .door {
+  border-radius: 50% 50% 10px 10px / 170px 170px 10px 10px;
+  transition: border-color 0.6s, translate 0.8s cubic-bezier(.2,.7,.1,1);
+}
+
+.dark .door::before {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  z-index: -1;
+  background: conic-gradient(from 200deg at 50% 0%, transparent 0deg, rgb(201 163 94 / 0.16) 20deg, transparent 40deg);
+  opacity: 0;
+  transform: rotate(-12deg);
+  transition: opacity 1s, transform 2.4s cubic-bezier(.2,.7,.1,1);
+  pointer-events: none;
+}
+
+.dark .door:hover {
+  border-color: rgb(201 163 94 / 0.45);
+  translate: 0 -4px;
+}
+
+.dark .door:hover::before {
+  opacity: 1;
+  transform: rotate(10deg);
+}
+
+.draw-line {
+  clip-path: inset(-10% 100% -10% 0);
+  animation: draw-line 2.2s cubic-bezier(.3,.6,.1,1) 0.5s forwards;
+}
+
+@keyframes draw-line {
+  to { clip-path: inset(-10% 0 -10% 0); }
 }
 
 @keyframes rise {

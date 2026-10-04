@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { AppProvider } from './contexts/SimpleAppContext';
 import { EventProvider } from './contexts/EventContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import SimpleProtectedRoute from './components/common/SimpleProtectedRoute';
 import ChariotProtectedRoute from './components/common/ChariotProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
@@ -41,6 +42,7 @@ const PageLoader = () => (
 function App() {
   return (
     <ErrorBoundary>
+      <ThemeProvider>
       <AuthProvider>
         <EventProvider>
         <AppProvider>
@@ -155,6 +157,7 @@ function App() {
         </AppProvider>
         </EventProvider>
       </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

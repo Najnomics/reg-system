@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/SimpleAppContext';
 import { useEvent } from '../contexts/EventContext';
 import { EventFormModal } from './admin/EventsPage';
+import ThemeToggle from '../components/common/ThemeToggle';
 import { formatDateRange, formatNumber, toDateInput } from '../utils/eventFormat';
 
 const STAFF_ROLES = ['admin', 'reg-rep', 'pastoral'];
@@ -28,14 +29,14 @@ const EventTile = ({ event, index, isAdmin, opening, syncing, onOpen, onEdit, on
   const isOpening = opening === event.id;
 
   return (
-    <div className="rise group relative flex flex-col bg-white" style={{ '--i': index + 2 }}>
+    <div className="door rise group relative flex flex-col overflow-hidden bg-white dark:min-h-[420px] dark:border dark:border-line" style={{ '--i': index + 2 }}>
       <button
         onClick={() => onOpen(event)}
         disabled={Boolean(opening)}
-        className="flex flex-1 flex-col p-6 text-left transition-colors duration-150 hover:bg-gray-50/60 disabled:cursor-wait"
+        className="flex flex-1 flex-col p-6 text-left transition-colors duration-150 hover:bg-gray-50/60 disabled:cursor-wait dark:px-8 dark:pt-28 dark:hover:bg-transparent"
       >
         <div className="flex items-center justify-between gap-3">
-          <span className="font-mono text-[11px] text-gray-500">{dates || 'Dates to be set'}</span>
+          <span className="font-mono text-[11px] text-gray-500 dark:font-sans dark:uppercase dark:tracking-[0.16em] dark:text-indigo-600">{dates || 'Dates to be set'}</span>
           <div className="flex items-center gap-1.5">
             {!event.isActive && (
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">Inactive</span>
@@ -50,7 +51,7 @@ const EventTile = ({ event, index, isAdmin, opening, syncing, onOpen, onEdit, on
 
         <div className="mt-6 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="truncate text-[22px] font-medium tracking-tight text-ink">{event.name}</h2>
+            <h2 className="truncate text-[22px] font-medium tracking-tight text-ink dark:whitespace-normal dark:font-serif dark:text-[32px] dark:font-normal dark:leading-[1.1] dark:tracking-normal">{event.name}</h2>
             <p className="mt-1 truncate text-[13px] text-gray-500">{event.venue || 'Venue to be set'}</p>
           </div>
           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-line text-gray-500 transition-all duration-200 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white">
@@ -71,7 +72,7 @@ const EventTile = ({ event, index, isAdmin, opening, syncing, onOpen, onEdit, on
       </button>
 
       {isAdmin && (
-        <div className="flex items-center gap-4 border-t border-line px-6 py-2.5 text-xs">
+        <div className="flex items-center gap-4 border-t border-line px-6 py-2.5 text-xs dark:px-8">
           <button onClick={() => onEdit(event)} className="text-gray-500 transition-colors hover:text-ink">
             Edit details
           </button>
@@ -93,8 +94,8 @@ const EventTile = ({ event, index, isAdmin, opening, syncing, onOpen, onEdit, on
 };
 
 const NewEventPanel = ({ suggestions, onCreate, index }) => (
-  <div className="rise flex flex-col bg-white p-6" style={{ '--i': index + 2 }}>
-    <h2 className="text-[17px] font-medium text-ink">New event</h2>
+  <div className="door rise flex flex-col bg-white p-6 dark:min-h-[420px] dark:justify-end dark:border dark:border-dashed dark:border-line dark:bg-transparent dark:px-8" style={{ '--i': index + 2 }}>
+    <h2 className="text-[17px] font-medium text-ink dark:font-serif dark:text-[26px] dark:font-normal">New event</h2>
     <p className="mt-1 text-[13px] text-gray-500">Chapels and chapel leaders are copied in from Homecoming.</p>
     <div className="mt-5 space-y-2">
       {suggestions.map((name) => (
@@ -115,7 +116,7 @@ const NewEventPanel = ({ suggestions, onCreate, index }) => (
         <PlusIcon className="h-4 w-4 text-gray-400 group-hover:text-indigo-600" />
       </button>
     </div>
-    <p className="mt-auto pt-6 text-[11px] leading-relaxed text-gray-400">Chariots are only used in Homecoming.</p>
+    <p className="mt-auto pt-6 text-[11px] leading-relaxed text-gray-400 dark:mt-0">Chariots are only used in Homecoming.</p>
   </div>
 );
 
@@ -196,6 +197,7 @@ const EventPickerPage = () => {
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-[13px] text-gray-500 sm:inline">{user?.name || user?.email}</span>
+            <ThemeToggle />
             <button onClick={logout} className="text-[13px] text-gray-500 transition-colors hover:text-red-700">
               Sign out
             </button>
@@ -234,7 +236,7 @@ const EventPickerPage = () => {
           </div>
         ) : (
           <>
-            <div className={`mt-8 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 ${gridCols}`}>
+            <div className={`mt-8 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 dark:gap-7 dark:overflow-visible dark:rounded-none dark:border-0 dark:bg-transparent ${gridCols}`}>
               {events.map((event, index) => (
                 <EventTile
                   key={event.id}

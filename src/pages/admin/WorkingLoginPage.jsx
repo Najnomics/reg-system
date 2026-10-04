@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/SimpleAppContext';
+import ThemeToggle from '../../components/common/ThemeToggle';
 
 const inputClass =
   'block w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-[15px] text-ink placeholder-gray-400 transition-colors focus:border-indigo-600 focus:outline-none focus:ring-0 sm:text-sm';
@@ -40,6 +41,7 @@ const WorkingLoginPage = () => {
         <div className="flex items-center gap-2.5">
           <span className="h-2.5 w-2.5 rounded-[3px] bg-indigo-600" />
           <span className="text-[13px] font-semibold tracking-tight text-ink">Attendance</span>
+          <ThemeToggle className="ml-auto" />
         </div>
 
         <div className="flex flex-1 items-center">
