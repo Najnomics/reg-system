@@ -50,6 +50,7 @@ const ChariotMembersList = () => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
     if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'SUB_LEADER') return 'Sub-leader';
     return 'Member';
   };
 
@@ -93,7 +94,7 @@ const ChariotMembersList = () => {
                     <p className="text-xs text-gray-600 break-words mt-1">
                       {member.chapel
                         ? `Chapel: ${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
-                        : 'Chapel: Not assigned'}
+                        : 'Chapel: Unassigned'}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
@@ -156,7 +157,7 @@ const ChariotMembersList = () => {
                       <div className="text-sm text-gray-600">
                         {member.chapel
                           ? `${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
-                          : 'Not assigned'}
+                          : 'Unassigned'}
                       </div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap">

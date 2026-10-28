@@ -659,7 +659,7 @@ This email was sent to ${member.email}
       ? (rawPortalUrl.endsWith('/') ? rawPortalUrl : `${rawPortalUrl}/`)
       : 'https://reg-system-mu.vercel.app/';
     const chapelLeaderPassword = process.env.CHAPEL_LEADER_PASSWORD || '';
-    const isChapelLeader = fullMember.chapelRole === 'CHAPEL_LEADER' && fullMember.chapel;
+    const isChapelLeader = ['CHAPEL_LEADER', 'SUB_LEADER'].includes(fullMember.chapelRole) && fullMember.chapel;
 
     const formatDate = (value) =>
       value

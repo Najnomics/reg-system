@@ -9,6 +9,8 @@ const ROLE_ALIASES = {
   worker: 'WORKER',
   chapelleader: 'CHAPEL_LEADER',
   leader: 'CHAPEL_LEADER',
+  subleader: 'SUB_LEADER',
+  subchapelleader: 'SUB_LEADER',
 };
 
 /**

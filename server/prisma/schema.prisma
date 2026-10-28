@@ -13,6 +13,7 @@ enum ChapelRole {
   MEMBER
   WORKER
   CHAPEL_LEADER
+  SUB_LEADER
 }
 
 model Event {

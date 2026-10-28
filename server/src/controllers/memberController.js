@@ -50,7 +50,7 @@ const getMembers = async (req, res) => {
 
     if (chapelRole === 'UNASSIGNED') {
       where.chapelId = null;
-    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER' || chapelRole === 'CHAPEL_LEADER') {
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER' || chapelRole === 'CHAPEL_LEADER' || chapelRole === 'SUB_LEADER') {
       where.chapelRole = chapelRole;
     }
 
@@ -480,7 +480,7 @@ const updateMember = async (req, res) => {
 
     if (chapelRole !== undefined) {
       const normalizedRole = String(chapelRole).trim().toUpperCase();
-      const allowedRoles = ['INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER', 'UNASSIGNED'];
+      const allowedRoles = ['INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER', 'SUB_LEADER', 'UNASSIGNED'];
       if (!allowedRoles.includes(normalizedRole)) {
         return res.status(400).json({
           error: 'Invalid role',
@@ -708,7 +708,7 @@ const searchMembers = async (req, res) => {
 
     if (chapelRole === 'UNASSIGNED') {
       where.chapelId = null;
-    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER' || chapelRole === 'CHAPEL_LEADER') {
+    } else if (chapelRole === 'INVITEE' || chapelRole === 'MEMBER' || chapelRole === 'WORKER' || chapelRole === 'CHAPEL_LEADER' || chapelRole === 'SUB_LEADER') {
       where.chapelRole = chapelRole;
     }
 
@@ -1169,6 +1169,7 @@ const exportMembersCSV = async (req, res) => {
       if (role === 'WORKER') return 'Worker';
       if (role === 'MEMBER') return 'Member';
       if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+      if (role === 'SUB_LEADER') return 'Sub-leader';
       return 'Not assigned';
     };
 

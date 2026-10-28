@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { clearEventCache } = require('../middleware/event');
 const { syncConstantChapels } = require('../services/constantChapels');
+const { LEADER_ROLES } = require('../utils/chapelRoles');
 
 const MEMBER_BASED_USERS = ['chariot-leader', 'chariot-assistant', 'chapel-leader'];
 
@@ -39,7 +40,7 @@ const getEvents = async (req, res) => {
           some: {
             email: { equals: req.user.email, mode: 'insensitive' },
             isActive: true,
-            chapelRole: 'CHAPEL_LEADER',
+            chapelRole: { in: LEADER_ROLES },
             chapelId: { not: null },
           },
         },

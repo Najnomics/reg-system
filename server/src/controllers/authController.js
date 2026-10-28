@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { generateToken, verifyToken } = require('../middleware/auth');
+const { LEADER_ROLES, isLeaderRole } = require('../utils/chapelRoles');
 
 const eventSummary = (event) =>
   event
@@ -17,7 +18,7 @@ const findChapelLeaderRecords = (email, extraWhere = {}) =>
     where: {
       email: { equals: email.trim(), mode: 'insensitive' },
       isActive: true,
-      chapelRole: 'CHAPEL_LEADER',
+      chapelRole: { in: LEADER_ROLES },
       chapelId: { not: null },
       event: { isActive: true },
       ...extraWhere,
@@ -371,7 +372,7 @@ const login = async (req, res) => {
       });
 
       const chapelLeaderCheck = memberAsChapelLeader && 
-        memberAsChapelLeader.chapelRole === 'CHAPEL_LEADER' && 
+        isLeaderRole(memberAsChapelLeader.chapelRole) && 
         memberAsChapelLeader.chapel
         ? [memberAsChapelLeader.chapel]
         : [];

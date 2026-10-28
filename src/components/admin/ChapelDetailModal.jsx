@@ -83,7 +83,7 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
   const invitees = (currentChapel.members || []).filter(member => member.chapelRole === 'INVITEE');
   const chapelMembers = (currentChapel.members || []).filter(member => member.chapelRole === 'MEMBER');
   const chapelWorkers = (currentChapel.members || []).filter(member => member.chapelRole === 'WORKER');
-  const chapelLeaders = (currentChapel.members || []).filter(member => member.chapelRole === 'CHAPEL_LEADER');
+  const chapelLeaders = (currentChapel.members || []).filter(member => member.chapelRole === 'CHAPEL_LEADER' || member.chapelRole === 'SUB_LEADER');
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
@@ -261,7 +261,9 @@ const ChapelDetailModal = ({ chapel, onClose, onRefresh }) => {
                     className="flex items-center justify-between p-2 sm:p-3 bg-purple-50 border border-purple-200 rounded-lg gap-2"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{member.name}</p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">
+                        {member.name}{member.chapelRole === 'SUB_LEADER' ? ' · Sub-leader' : ''}
+                      </p>
                       <p className="text-xs sm:text-sm text-gray-600 break-words truncate">{member.email}</p>
                       {member.pin && (
                         <p className="text-xs text-gray-500">PIN: {member.pin}</p>

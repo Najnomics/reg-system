@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { isLeaderRole } = require('../utils/chapelRoles');
 
 /**
  * Resolve chapel IDs for a user who may be a chapel leader.
@@ -13,7 +14,7 @@ const resolveChapelLeaderIds = async (user) => {
       select: { chapelId: true, chapelRole: true },
     });
 
-    if (memberRecord?.chapelRole === 'CHAPEL_LEADER' && memberRecord.chapelId) {
+    if (isLeaderRole(memberRecord?.chapelRole) && memberRecord.chapelId) {
       chapelIds.add(memberRecord.chapelId);
     }
   }

@@ -95,6 +95,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
     if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'SUB_LEADER') return 'Sub-leader';
     return 'Member';
   };
 
@@ -193,7 +194,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                       <p className="text-xs text-gray-500 mt-1">
                         {assistant.member.chapel
                           ? `Chapel: ${assistant.member.chapel.name} (${formatChapelRole(assistant.member.chapelRole)})`
-                          : 'Chapel: Not assigned'}
+                          : 'Chapel: Unassigned'}
                       </p>
                     </div>
                     {isAdmin && (
@@ -247,7 +248,7 @@ const ChariotDetailModal = ({ chariot, onClose, onRefresh }) => {
                       <p className="text-xs text-gray-500 mt-1">
                         {chariotMember.member.chapel
                           ? `Chapel: ${chariotMember.member.chapel.name} (${formatChapelRole(chariotMember.member.chapelRole)})`
-                          : 'Chapel: Not assigned'}
+                          : 'Chapel: Unassigned'}
                       </p>
                       {chariotMember.member.pin && (
                         <p className="text-xs text-gray-500">PIN: {chariotMember.member.pin}</p>

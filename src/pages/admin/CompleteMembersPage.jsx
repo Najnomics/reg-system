@@ -71,6 +71,7 @@ const CompleteMembersPage = () => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
     if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'SUB_LEADER') return 'Sub-leader';
     return 'Member';
   };
 
@@ -107,6 +108,8 @@ const CompleteMembersPage = () => {
             ? 'WORKER'
             : chapelRoleFilter === 'chapel_leader'
               ? 'CHAPEL_LEADER'
+              : chapelRoleFilter === 'sub_leader'
+                ? 'SUB_LEADER'
               : chapelRoleFilter === 'unassigned'
                 ? 'UNASSIGNED'
                 : undefined;
@@ -902,6 +905,7 @@ const CompleteMembersPage = () => {
             <option value="member">Members</option>
             <option value="worker">Workers</option>
             <option value="chapel_leader">Chapel Leaders</option>
+            <option value="sub_leader">Sub-leaders</option>
             <option value="unassigned">Unassigned</option>
           </select>
 
@@ -1174,7 +1178,7 @@ const CompleteMembersPage = () => {
                               <div className="text-xs text-gray-600 mt-1">
                                 {member.chapel
                                   ? `Chapel: ${member.chapel.name} (${getMemberRoleLabel(member)})`
-                                  : 'Chapel: Not assigned'}
+                                  : 'Chapel: Unassigned'}
                               </div>
                               <div className="text-xs text-gray-600 mt-1">
                                 Role: {getMemberRoleLabel(member)}
@@ -1359,7 +1363,7 @@ const CompleteMembersPage = () => {
                               <div className="text-sm text-gray-900">
                                 {member.chapel
                                   ? `${member.chapel.name} (${getMemberRoleLabel(member)})`
-                                  : 'Not assigned'}
+                                  : 'Unassigned'}
                               </div>
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">

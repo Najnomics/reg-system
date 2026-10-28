@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const { getEventById } = require('./event');
+const { isLeaderRole } = require('../utils/chapelRoles');
 
 /**
  * Chariot roles exist only in events with chariots. Pins the request to the
@@ -30,7 +31,7 @@ const loadChapelLeader = async (req, memberId) => {
     },
   });
 
-  if (!member || member.chapelRole !== 'CHAPEL_LEADER' || !member.chapel) return null;
+  if (!member || !isLeaderRole(member.chapelRole) || !member.chapel) return null;
 
   const event = await getEventById(member.eventId);
   if (!event) return null;
@@ -328,7 +329,7 @@ const authenticateUser = async (req, res, next) => {
               });
 
               const chapelLeaderCheck = memberAsChapelLeader && 
-                memberAsChapelLeader.chapelRole === 'CHAPEL_LEADER' && 
+                isLeaderRole(memberAsChapelLeader.chapelRole) && 
                 memberAsChapelLeader.chapel
                 ? [memberAsChapelLeader.chapel]
                 : [];
@@ -818,7 +819,7 @@ const authenticateChariotUser = async (req, res, next) => {
         });
 
         const chapelLeaderCheck = memberAsChapelLeader && 
-          memberAsChapelLeader.chapelRole === 'CHAPEL_LEADER' && 
+          isLeaderRole(memberAsChapelLeader.chapelRole) && 
           memberAsChapelLeader.chapel
           ? [memberAsChapelLeader.chapel]
           : [];

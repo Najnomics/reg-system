@@ -103,6 +103,7 @@ const ChapelMembersList = () => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
     if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'SUB_LEADER') return 'Sub-leader';
     return 'Member';
   };
 
@@ -168,7 +169,7 @@ const ChapelMembersList = () => {
                     <p className="text-xs text-gray-600 break-words mt-1">
                       {member.chapel
                         ? `Chapel: ${member.chapel.name} (${formatChapelRole(member.chapelRole)})`
-                        : 'Chapel: Not assigned'}
+                        : 'Chapel: Unassigned'}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">

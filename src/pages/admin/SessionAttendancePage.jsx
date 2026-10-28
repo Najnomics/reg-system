@@ -525,7 +525,7 @@ const SessionAttendancePage = () => {
                         <div className="text-xs sm:text-sm text-gray-600 mt-1">
                           {member.chapel?.name
                             ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : member.chapelRole === 'CHAPEL_LEADER' ? 'Chapel Leader' : 'Member'})`
-                            : 'Chapel: Not assigned'}
+                            : 'Chapel: Unassigned'}
                         </div>
                       </div>
                     </div>

@@ -63,6 +63,7 @@ const ChariotSessionsList = () => {
     if (role === 'INVITEE') return 'Invitee';
     if (role === 'WORKER') return 'Worker';
     if (role === 'CHAPEL_LEADER') return 'Chapel Leader';
+    if (role === 'SUB_LEADER') return 'Sub-leader';
     if (role === 'MEMBER') return 'Member';
     return 'Unassigned';
   };
@@ -321,7 +322,7 @@ const ChariotSessionsList = () => {
                                 Role: {formatChapelRole(member.chapelRole)}
                               </p>
                               <p className="text-xs text-gray-600 truncate mt-1">
-                                Chapel: {member.chapel?.name || 'Not assigned'}
+                                Chapel: {member.chapel?.name || 'Unassigned'}
                               </p>
                             </div>
                             <div className="ml-2 flex-shrink-0">
@@ -386,7 +387,7 @@ const ChariotSessionsList = () => {
                               {formatChapelRole(member.chapelRole)}
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {member.chapel?.name || 'Not assigned'}
+                              {member.chapel?.name || 'Unassigned'}
                             </td>
                             <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                               {member.status === 'present' ? (

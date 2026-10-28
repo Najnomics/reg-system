@@ -405,7 +405,7 @@ const ChapelList = () => {
                   </div>
                   <div className="text-center p-2 bg-gray-50 rounded">
                     <div className="text-base sm:text-lg font-semibold text-gray-900">
-                      {chapel.members?.filter(member => member.chapelRole === 'CHAPEL_LEADER').length || 0}
+                      {chapel.members?.filter(member => member.chapelRole === 'CHAPEL_LEADER' || member.chapelRole === 'SUB_LEADER').length || 0}
                     </div>
                     <div className="text-xs text-gray-600">Leaders</div>
                   </div>
