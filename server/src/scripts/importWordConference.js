@@ -1,6 +1,8 @@
 /**
  * Load the Word Conference guest list.
  * Duplicates are the same first and last name, in either order. Email is ignored.
+ * The later registration is the one that is kept. A later timestamp wins, and a
+ * later row wins when two timestamps are equal.
  * A blank chapel is stored with no chapel, which the app shows as Unassigned.
  *
  *   node src/scripts/importWordConference.js            # report only
@@ -15,7 +17,6 @@ const { PrismaClient } = require('@prisma/client');
 const CSV = process.env.WC_CSV || '/Users/najnomics/Downloads/Guest list word-conference-2026 2026-10-28.csv';
 const APPLY = process.argv.includes('--apply');
 
-const ROLE_RANK = { leader: 5, 'sub-leader': 4, worker: 3, 'chapel member': 2, invitee: 1 };
 const ROLE_MAP = {
   leader: 'CHAPEL_LEADER',
   'sub-leader': 'SUB_LEADER',
@@ -39,6 +40,10 @@ const CHAPEL_MAP = {
 };
 
 const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+// This registration adds a middle name and names Grace. Paul Ibiyeye is already
+// the Provost chapel leader, so the row must not create a second person.
+const EXISTING_PROVOST_LEADER = 'ibiyeye opeyemi paul';
+
 const nameKey = (first, last) =>
   clean(`${first} ${last}`)
     .toLowerCase()
@@ -83,20 +88,25 @@ const loadRows = () => {
   const kept = new Map();
   let dropped = 0;
   let blankNames = 0;
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     const first = clean(row['First name']);
     const last = clean(row['Last name']);
     const key = nameKey(first, last);
-    if (!key) { blankNames += 1; continue; }
+    if (!key) { blankNames += 1; return; }
     const category = clean(row['what category do you belong?']).toLowerCase();
-    const stamp = Date.parse(row.Timestamp.replace(' ', 'T')) || 0;
-    const candidate = { first, last, key, category, stamp, row };
+    const stamp = Date.parse(String(row.Timestamp || '').replace(' ', 'T')) || 0;
+    const candidate = { first, last, key, category, stamp, index, row, earlier: [] };
     const current = kept.get(key);
-    if (!current) { kept.set(key, candidate); continue; }
+    if (!current) { kept.set(key, candidate); return; }
     dropped += 1;
-    const better = stamp > current.stamp || (stamp === current.stamp && (ROLE_RANK[category] || 0) > (ROLE_RANK[current.category] || 0));
-    if (better) kept.set(key, candidate);
-  }
+    const laterRegistration = stamp > current.stamp || (stamp === current.stamp && index > current.index);
+    if (laterRegistration) {
+      candidate.earlier = current.earlier.concat(current);
+      kept.set(key, candidate);
+    } else {
+      current.earlier.push(candidate);
+    }
+  });
   return { rows: rows.length, people: [...kept.values()], dropped, blankNames };
 };
 
@@ -138,6 +148,85 @@ const phoneOf = (raw) => {
     unknownChapel,
     apply: APPLY,
   }, null, 2));
+
+  if (process.argv.includes('--check') || process.argv.includes('--reconcile')) {
+    const direct = new URL(process.env.DIRECT_URL);
+    direct.searchParams.set('connect_timeout', '30');
+    direct.searchParams.set('connection_limit', '5');
+    const prisma = new PrismaClient({ datasources: { db: { url: direct.toString() } } });
+    const event = await prisma.event.findFirst({ where: { slug: 'word-conference' } });
+    const [chapels, members, admin] = await Promise.all([
+      prisma.chapel.findMany({ where: { eventId: event.id }, select: { id: true, name: true } }),
+      prisma.member.findMany({
+        where: { eventId: event.id },
+        select: { id: true, name: true, firstName: true, lastName: true, email: true, phone: true, pin: true, chapelRole: true, chapelId: true, isActive: true },
+      }),
+      prisma.admin.findFirst({ select: { id: true } }),
+    ]);
+    const chapelNameById = new Map(chapels.map((c) => [c.id, c.name]));
+    const chapelIdByName = new Map(chapels.map((c) => [c.name.toLowerCase(), c.id]));
+    const byKey = new Map();
+    for (const member of members) {
+      const key = nameKey(member.firstName || '', member.lastName || '') || nameKey(member.name, '');
+      if (key && !byKey.has(key)) byKey.set(key, member);
+    }
+    const diff = { missing: 0, role: 0, chapel: 0, email: 0, phone: 0, name: 0, matched: 0, updated: 0, created: 0 };
+    const usedPins = new Set(members.map((m) => m.pin));
+    const freshPin = () => {
+      for (let i = 0; i < 50; i += 1) {
+        const pin = String(1000 + Math.floor(Math.random() * 9000));
+        if (!usedPins.has(pin)) { usedPins.add(pin); return pin; }
+      }
+      throw new Error('Could not allocate a PIN');
+    };
+    for (const person of people) {
+      const member = byKey.get(person.key);
+      const data = {
+        name: person.displayName,
+        firstName: person.first,
+        lastName: person.last,
+        email: person.email || `no-email-${person.key.replace(/\s+/g, '-')}@wordconference.local`,
+        phone: person.phone,
+        chapelId: person.chapel ? chapelIdByName.get(person.chapel.toLowerCase()) : null,
+        chapelRole: person.role,
+        isActive: true,
+      };
+      if (!member) {
+        if (person.key === EXISTING_PROVOST_LEADER) {
+          diff.leftAsProvostLeader = (diff.leftAsProvostLeader || 0) + 1;
+          continue;
+        }
+        diff.missing += 1;
+        if (process.argv.includes('--reconcile')) {
+          const pin = freshPin();
+          const pinHash = await bcrypt.hash(pin, 12);
+          await prisma.member.create({
+            data: { ...data, id: randomUUID(), pin, pinHash, eventId: event.id, createdBy: admin.id },
+          });
+          diff.created += 1;
+        }
+        continue;
+      }
+      diff.matched += 1;
+      const roleDiff = (member.chapelRole || null) !== person.role;
+      const chapelDiff = (chapelNameById.get(member.chapelId) || null) !== person.chapel;
+      const emailDiff = (member.email || '') !== data.email;
+      const phoneDiff = (member.phone || null) !== person.phone;
+      const nameDiff = member.name !== person.displayName;
+      if (roleDiff) diff.role += 1;
+      if (chapelDiff) diff.chapel += 1;
+      if (emailDiff) diff.email += 1;
+      if (phoneDiff) diff.phone += 1;
+      if (nameDiff) diff.name += 1;
+      if (process.argv.includes('--reconcile') && (roleDiff || chapelDiff || emailDiff || phoneDiff || nameDiff || !member.isActive)) {
+        await prisma.member.update({ where: { id: member.id }, data });
+        diff.updated += 1;
+      }
+    }
+    console.log(JSON.stringify({ latestRegistrationDiff: diff }));
+    await prisma.$disconnect();
+    if (!APPLY) return;
+  }
 
   if (!APPLY) return;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEvent } from '../../contexts/EventContext';
@@ -66,6 +66,7 @@ const CompleteMembersPage = () => {
   const [chapelSelection, setChapelSelection] = useState('unassigned');
   const [chapelRoleSelection, setChapelRoleSelection] = useState('member');
   const [chapelSaving, setChapelSaving] = useState(false);
+  const fetchGen = useRef(0);
 
   const formatChapelRole = (role) => {
     if (role === 'INVITEE') return 'Invitee';
@@ -97,7 +98,23 @@ const CompleteMembersPage = () => {
   };
 
   // Fetch members with pagination - memoized
+  const applyMemberUpdate = (updated) => {
+    if (!updated?.id) return;
+    fetchGen.current += 1;
+    setMembers((prev) => prev.map((member) => {
+      if (member.id !== updated.id) return member;
+      return {
+        ...member,
+        ...updated,
+        chariotLeader: updated.chariotLeader || member.chariotLeader,
+        chariotAssistants: updated.chariotAssistants || member.chariotAssistants,
+        chariotMembers: updated.chariotMembers || member.chariotMembers,
+      };
+    }));
+  };
+
   const fetchMembers = useCallback(async (page = currentPage, forceRefresh = false) => {
+    const gen = ++fetchGen.current;
     try {
       setLoading(true);
       const chapelRoleParam = chapelRoleFilter === 'invitee'
@@ -137,6 +154,7 @@ const CompleteMembersPage = () => {
         forceRefresh,
       });
       
+      if (gen !== fetchGen.current) return;
       if (response?.success && response?.data) {
         const membersData = response.data.members || [];
         setMembers(membersData);
@@ -145,10 +163,11 @@ const CompleteMembersPage = () => {
         setCurrentPage(response.data.pagination?.page || page);
       }
     } catch (error) {
+      if (gen !== fetchGen.current) return;
       console.error('Failed to fetch members:', error);
       showError('Failed to load members');
     } finally {
-      setLoading(false);
+      if (gen === fetchGen.current) setLoading(false);
     }
   }, [currentPage, sortBy, sortOrder, searchTerm, chapelRoleFilter, chapelFilter, chariotFilter, membersPerPage, showError]);
 
@@ -257,12 +276,8 @@ const CompleteMembersPage = () => {
 
       if (selectedMember?.id) {
         const response = await apiService.updateMember(selectedMember.id, apiData);
-        const updatedMember = response?.data?.member || response?.member || response;
+        applyMemberUpdate(response?.data?.member);
 
-        // Update local state
-        setMembers((prev) => prev.map((m) => (m.id === selectedMember.id ? updatedMember : m)));
-
-        // Show success message
         showSuccess(`Member ${memberData.firstName} ${memberData.lastName} updated successfully!`);
       } else {
         const response = await apiService.createMember(apiData);
@@ -279,8 +294,7 @@ const CompleteMembersPage = () => {
       setShowAddModal(false);
       setSelectedMember(null);
       
-      // Refresh the list to get latest data (stay on current page)
-      await fetchMembers(currentPage);
+      await fetchMembers(currentPage, true);
     } catch (error) {
       console.error('Failed to save member:', error);
       
@@ -340,10 +354,10 @@ const CompleteMembersPage = () => {
         });
       }
 
-      // Update role first (this doesn't affect chariot assignments)
-      await apiService.updateMember(roleMember.id, {
+      const response = await apiService.updateMember(roleMember.id, {
         chapelRole: roleSelection,
       });
+      applyMemberUpdate(response?.data?.member);
 
       // Handle chariot assignment if changed (skip if member is a leader)
       if (!isLeader) {
@@ -426,8 +440,8 @@ const CompleteMembersPage = () => {
         chapelRole: chapelSelection === 'unassigned' ? 'unassigned' : chapelRoleSelection,
       };
       const response = await apiService.updateMember(chapelMember.id, payload);
-      const updatedMember = response?.data?.member || response?.member || response;
-      setMembers((prev) => prev.map((m) => (m.id === chapelMember.id ? updatedMember : m)));
+      applyMemberUpdate(response?.data?.member);
+      await fetchMembers(currentPage, true);
       showSuccess('Chapel updated successfully');
       closeChapelModal();
     } catch (error) {
@@ -1620,6 +1634,7 @@ const CompleteMembersPage = () => {
                   <option value="member">Member</option>
                   <option value="worker">Worker</option>
                   <option value="chapel_leader">Chapel Leader</option>
+                  <option value="sub_leader">Sub-leader</option>
                   <option value="unassigned">Unassigned</option>
                 </select>
               </div>
@@ -1733,6 +1748,7 @@ const CompleteMembersPage = () => {
                   <option value="member">Member</option>
                   <option value="worker">Worker</option>
                   <option value="chapel_leader">Chapel Leader</option>
+                  <option value="sub_leader">Sub-leader</option>
                 </select>
               </div>
             </div>

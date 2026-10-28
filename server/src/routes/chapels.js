@@ -63,8 +63,8 @@ router.post(
       'array.min': 'At least one member ID is required',
       'any.required': 'Member IDs are required',
     }),
-    role: Joi.string().valid('INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER').optional().messages({
-      'any.only': 'role must be INVITEE, MEMBER, WORKER, or CHAPEL_LEADER',
+    role: Joi.string().valid('INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER', 'SUB_LEADER').optional().messages({
+      'any.only': 'role must be INVITEE, MEMBER, WORKER, CHAPEL_LEADER, or SUB_LEADER',
     }),
   })),
   chapelController.addMembers

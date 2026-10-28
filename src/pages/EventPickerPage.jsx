@@ -39,7 +39,7 @@ const EventTile = ({ event, index, isAdmin, opening, syncing, onOpen, onEdit, on
           <span className="font-mono text-[11px] text-gray-500 dark:font-sans dark:uppercase dark:tracking-[0.16em] dark:text-indigo-600">{dates || 'Dates to be set'}</span>
           <div className="flex items-center gap-1.5">
             {!event.isActive && (
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">Inactive</span>
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">Archived</span>
             )}
             {event.hasChariots ? (
               <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-700">Chariots</span>
@@ -182,7 +182,9 @@ const EventPickerPage = () => {
       isActive: event.isActive,
     });
 
-  const columns = events.length + (isAdmin ? 1 : 0);
+  const currentEvents = events.filter((event) => event.isActive);
+  const archivedEvents = events.filter((event) => !event.isActive);
+  const columns = currentEvents.length + (isAdmin ? 1 : 0);
   const gridCols = columns >= 3 ? 'lg:grid-cols-3' : columns === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-1';
 
   return (
@@ -237,7 +239,7 @@ const EventPickerPage = () => {
         ) : (
           <>
             <div className={`mt-8 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 dark:gap-7 dark:overflow-visible dark:rounded-none dark:border-0 dark:bg-transparent ${gridCols}`}>
-              {events.map((event, index) => (
+              {currentEvents.map((event, index) => (
                 <EventTile
                   key={event.id}
                   event={event}
@@ -250,16 +252,40 @@ const EventPickerPage = () => {
                   onSync={handleSync}
                 />
               ))}
-              {isAdmin && <NewEventPanel suggestions={suggestions} onCreate={setCreating} index={events.length} />}
-              {!isAdmin && events.length === 0 && (
-                <div className="bg-white p-12 text-center text-sm text-gray-500">No events yet.</div>
+              {isAdmin && <NewEventPanel suggestions={suggestions} onCreate={setCreating} index={currentEvents.length} />}
+              {!isAdmin && currentEvents.length === 0 && (
+                <div className="bg-white p-12 text-center text-sm text-gray-500">No current events.</div>
               )}
             </div>
 
+            {archivedEvents.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-[13px] font-medium text-gray-500">Archived</h2>
+                <div className="mt-3 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 dark:gap-7 dark:overflow-visible dark:rounded-none dark:border-0 dark:bg-transparent">
+                  {archivedEvents.map((event, index) => (
+                    <EventTile
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      isAdmin={isAdmin}
+                      opening={opening}
+                      syncing={syncingId === event.id}
+                      onOpen={openEvent}
+                      onEdit={startEdit}
+                      onSync={handleSync}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="fade mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500" style={{ '--i': events.length + 3 }}>
               <span>
-                {events.length} {events.length === 1 ? 'event' : 'events'}
+                {currentEvents.length} current {currentEvents.length === 1 ? 'event' : 'events'}
               </span>
+              {archivedEvents.length > 0 && (
+                <span>{archivedEvents.length} archived</span>
+              )}
               <span>{formatNumber(totalPeople)} people across all registers</span>
             </div>
           </>

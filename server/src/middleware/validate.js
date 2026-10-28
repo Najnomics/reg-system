@@ -87,16 +87,18 @@ const schemas = {
         'MEMBER',
         'WORKER',
         'CHAPEL_LEADER',
+        'SUB_LEADER',
         'UNASSIGNED',
         'invitee',
         'member',
         'worker',
         'chapel_leader',
+        'sub_leader',
         'unassigned'
       )
       .optional()
       .messages({
-        'any.only': 'chapelRole must be invitee, member, worker, chapel leader, or unassigned',
+        'any.only': 'chapelRole must be invitee, member, worker, chapel leader, sub-leader, or unassigned',
       }),
     chapelId: Joi.alternatives()
       .try(Joi.string().uuid(), Joi.string().valid('UNASSIGNED'))
@@ -181,7 +183,7 @@ const schemas = {
     name: Joi.string().trim().min(1).max(100).optional().allow(''),
     email: Joi.string().email().optional().allow(''),
     pin: Joi.string().pattern(/^\d{4}$/).optional().allow(''),
-    chapelRole: Joi.string().valid('INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER', 'UNASSIGNED').optional().allow(''),
+    chapelRole: Joi.string().valid('INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER', 'SUB_LEADER', 'UNASSIGNED').optional().allow(''),
     chapelId: Joi.alternatives()
       .try(Joi.string().uuid(), Joi.string().valid('UNASSIGNED'))
       .optional()

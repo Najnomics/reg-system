@@ -107,7 +107,7 @@ const Header = () => {
                 {events.map((event) => (
                   <option key={event.id} value={event.id}>
                     {event.name}
-                    {event.isActive ? '' : ' (inactive)'}
+                    {event.isActive ? '' : ' (archived)'}
                   </option>
                 ))}
               </select>

@@ -37,8 +37,8 @@ const findEvent = async (idOrSlug) => {
 const getDefaultEvent = async () => {
   const events = await loadEvents();
   return (
-    events.find((e) => e.slug === DEFAULT_EVENT_SLUG) ||
     events.find((e) => e.isActive) ||
+    events.find((e) => e.slug === DEFAULT_EVENT_SLUG) ||
     events[0] ||
     null
   );

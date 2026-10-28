@@ -152,7 +152,7 @@ const exportChapelsPDF = async (req, res) => {
       const invitees = chapel.members.filter(member => member.chapelRole === 'INVITEE');
       const members = chapel.members.filter(member => member.chapelRole === 'MEMBER');
       const workers = chapel.members.filter(member => member.chapelRole === 'WORKER');
-      const leaders = chapel.members.filter(member => member.chapelRole === 'CHAPEL_LEADER');
+      const leaders = chapel.members.filter(member => member.chapelRole === 'CHAPEL_LEADER' || member.chapelRole === 'SUB_LEADER');
 
       doc.fontSize(11).text(`Invitees (${invitees.length}):`);
       if (invitees.length === 0) {
@@ -333,10 +333,10 @@ const addMembers = async (req, res) => {
       });
     }
 
-    if (!['INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER'].includes(role)) {
+    if (!['INVITEE', 'MEMBER', 'WORKER', 'CHAPEL_LEADER', 'SUB_LEADER'].includes(role)) {
       return res.status(400).json({
         error: 'Invalid role',
-        message: 'role must be INVITEE, MEMBER, WORKER, or CHAPEL_LEADER',
+        message: 'role must be INVITEE, MEMBER, WORKER, CHAPEL_LEADER, or SUB_LEADER',
       });
     }
 

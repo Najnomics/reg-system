@@ -7,7 +7,6 @@ import { getCurrentEventId, setCurrentEventId } from '../utils/currentEvent';
 const EventContext = createContext(null);
 
 const pickDefaultEvent = (events) =>
-  events.find((e) => e.slug === 'homecoming') ||
   events.find((e) => e.isActive) ||
   events[0] ||
   null;
@@ -36,7 +35,13 @@ export const EventProvider = ({ children }) => {
 
       // A chapel leader's token belongs to exactly one event; that one is current.
       const stored = sessionEventId || getCurrentEventId();
-      const selected = list.find((e) => e.id === stored) || pickDefaultEvent(list);
+      const storedEvent = list.find((e) => e.id === stored);
+      const openedArchived = sessionStorage.getItem('openArchivedEvent') === stored;
+      const selected = sessionEventId
+        ? storedEvent || pickDefaultEvent(list)
+        : storedEvent?.isActive || openedArchived
+          ? storedEvent
+          : pickDefaultEvent(list);
       if (selected && selected.id !== stored) {
         setCurrentEventId(selected.id);
       }
@@ -75,11 +80,14 @@ export const EventProvider = ({ children }) => {
       localStorage.setItem('token', response.token);
       redirectTo = '/chariot/dashboard';
     }
+    const chosen = events.find((event) => event.id === eventId);
+    if (chosen && !chosen.isActive) sessionStorage.setItem('openArchivedEvent', eventId);
+    else sessionStorage.removeItem('openArchivedEvent');
     setCurrentEventId(eventId);
     apiService.clearCache('');
     dataPreloader.reset();
     window.location.assign(redirectTo);
-  }, [currentEventId, isChapelLeader]);
+  }, [currentEventId, events, isChapelLeader]);
 
   const syncEventChapels = useCallback(async (id) => {
     const response = await apiService.syncEventChapels(id);

@@ -222,16 +222,13 @@ class ApiService {
     if (params.chariotId) queryParams.append('chariotId', params.chariotId);
     
     // Use cache for GET requests (cache for 30 seconds)
-    const cacheKey = `/members?${queryParams.toString()}`;
-    const cached = apiCache.get(cacheKey);
-    if (cached && !params.forceRefresh) {
-      return cached;
+    if (params.forceRefresh) {
+      this.clearCache('/members');
     }
-    
+
     const queryString = queryParams.toString();
     const endpoint = `/members${queryString ? `?${queryString}` : ''}`;
-    // Use batching and caching for better performance
-    const response = await this.request(endpoint, {}, true, true);
+    const response = await this.request(endpoint, {}, true, true, Boolean(params.forceRefresh));
     
     // Transform backend 'pin' field to frontend 'memberCode' field
     if (response && response.data && response.data.members) {
@@ -256,10 +253,12 @@ class ApiService {
       delete backendData.memberCode;
     }
     
-    return this.request('/members', {
+    const response = await this.request('/members', {
       method: 'POST',
       body: JSON.stringify(backendData),
     });
+    this.clearCache('/members');
+    return response;
   }
 
   async updateMember(id, memberData) {
@@ -275,10 +274,12 @@ class ApiService {
       console.warn('Attempted to change member ID - this is not allowed. ID field will be ignored.');
     }
     
-    return this.request(`/members/${id}`, {
+    const response = await this.request(`/members/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(safeData),
     });
+    this.clearCache('/members');
+    return response;
   }
 
   async sortUploadMembers(file) {
@@ -302,22 +303,28 @@ class ApiService {
   }
 
   async deleteMember(id) {
-    return this.request(`/members/${id}`, {
+    const response = await this.request(`/members/${id}`, {
       method: 'DELETE',
     });
+    this.clearCache('/members');
+    return response;
   }
 
   async bulkDeleteMembers(memberIds) {
-    return this.request('/members/bulk-delete', {
+    const response = await this.request('/members/bulk-delete', {
       method: 'POST',
       body: JSON.stringify({ memberIds }),
     });
+    this.clearCache('/members');
+    return response;
   }
 
   async toggleMemberStatus(id) {
-    return this.request(`/members/${id}/toggle-status`, {
+    const response = await this.request(`/members/${id}/toggle-status`, {
       method: 'PATCH',
     });
+    this.clearCache('/members');
+    return response;
   }
 
   /**

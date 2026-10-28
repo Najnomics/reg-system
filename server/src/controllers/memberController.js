@@ -484,7 +484,7 @@ const updateMember = async (req, res) => {
       if (!allowedRoles.includes(normalizedRole)) {
         return res.status(400).json({
           error: 'Invalid role',
-          message: 'chapelRole must be invitee, member, worker, chapel leader, or unassigned',
+          message: 'chapelRole must be invitee, member, worker, chapel leader, sub-leader, or unassigned',
         });
       }
       if (normalizedRole === 'UNASSIGNED') {

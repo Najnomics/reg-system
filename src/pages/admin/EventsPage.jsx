@@ -251,7 +251,7 @@ const EventsPage = () => {
                       </span>
                     )}
                     {!event.isActive && (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Inactive</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Archived</span>
                     )}
                     {event.hasChariots && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Chariots</span>
