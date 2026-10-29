@@ -90,6 +90,7 @@ class EmailService {
         }
         this.isConfigured = true;
         console.log(`✅ Email service initialized with SMTP (${process.env.SMTP_HOST})`);
+        this.initializeFallback();
       } else if (process.env.NODE_ENV === 'development') {
         // Use Ethereal for development testing
         this.createTestAccount();
@@ -99,6 +100,64 @@ class EmailService {
     } catch (error) {
       console.error('Failed to initialize email service:', error);
       this.isConfigured = false;
+    }
+  }
+
+  /**
+   * Second mailbox used only after the primary account rejects a send for its daily cap.
+   */
+  initializeFallback() {
+    this.fallbackTransporter = null;
+    this.usingFallback = false;
+    const user = (process.env.SMTP_FALLBACK_USER || '').trim();
+    const pass = (process.env.SMTP_FALLBACK_PASS || '').replace(/\s+/g, '');
+    if (!user || !pass) return;
+
+    this.fallbackFrom = user;
+    this.fallbackTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      connectionTimeout: 30000,
+      socketTimeout: 30000,
+      greetingTimeout: 30000,
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 100,
+    });
+    console.log('✅ Fallback mailbox configured');
+  }
+
+  isDailySendCap(error) {
+    const text = `${error && error.message ? error.message : ''} ${error && error.response ? error.response : ''}`.toLowerCase();
+    return text.includes('5.4.5')
+      || text.includes('daily user sending')
+      || text.includes('daily sending')
+      || text.includes('sending limit')
+      || text.includes('limit for sending')
+      || text.includes('quota exceeded');
+  }
+
+  withFallbackFrom(mailOptions) {
+    const displayName = process.env.FROM_NAME || process.env.CHURCH_NAME || 'Grace Edge Ministries';
+    return {
+      ...mailOptions,
+      from: `"${displayName}" <${this.fallbackFrom}>`,
+    };
+  }
+
+  async deliver(mailOptions) {
+    if (this.usingFallback) {
+      if (!this.fallbackTransporter) throw new Error('Primary mailbox is over its daily sending cap and no fallback mailbox is configured');
+      return this.fallbackTransporter.sendMail(this.withFallbackFrom(mailOptions));
+    }
+
+    try {
+      return await this.transporter.sendMail(mailOptions);
+    } catch (error) {
+      if (!this.isDailySendCap(error) || !this.fallbackTransporter) throw error;
+      console.warn('Primary mailbox hit its daily sending cap. Switching to the fallback mailbox.');
+      this.usingFallback = true;
+      return this.fallbackTransporter.sendMail(this.withFallbackFrom(mailOptions));
     }
   }
 
@@ -212,7 +271,7 @@ class EmailService {
         }
       }
       
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.deliver(mailOptions);
       
       // Log successful email
       try {
@@ -607,13 +666,15 @@ This email was sent to ${member.email}
       const mailOptions = {
         from: `"${churchDisplayName}" <${churchEmail}>`,
         to: member.email,
-        subject: `Your ${event.name} Attendance PIN`,
+        subject: event.slug === 'word-conference'
+          ? 'Your Word Conference 2026 Attendance PIN'
+          : `Your ${event.name} Attendance PIN`,
         html: this.generateEventPinEmailTemplate(emailData, churchName),
         text: this.generateEventPinEmailText(emailData, churchName),
       };
 
       console.log(`📧 Sending ${event.name} PIN email to ${member.email}...`);
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.deliver(mailOptions);
 
       try {
         await this.logEmail(member.id, 'pin', mailOptions.subject, 'sent');
@@ -653,6 +714,7 @@ This email was sent to ${member.email}
       MEMBER: 'Member',
       WORKER: 'Worker',
       CHAPEL_LEADER: 'Chapel Leader',
+      SUB_LEADER: 'Sub-leader',
     };
     const rawPortalUrl = process.env.FRONTEND_URL || 'https://reg-system-mu.vercel.app/';
     const portalUrl = rawPortalUrl.startsWith('http')
@@ -683,7 +745,114 @@ This email was sent to ${member.email}
     };
   }
 
+  generateWordConferencePinEmailTemplate(member, churchName) {
+    const esc = (value) => String(value || '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[ch]));
+    const isInvitee = member.chapelRole === 'INVITEE' || member.roleLabel === 'Invitee';
+    const chapelSentence = !member.chapelName
+      ? 'You are not assigned to a chapel yet. An administrator can assign one before the conference.'
+      : isInvitee
+        ? `You were invited by <strong>Chapel of ${esc(member.chapelName)}</strong>.`
+        : `You are a member of <strong>Chapel of ${esc(member.chapelName)}</strong>, and your role is <strong>${esc(member.roleLabel || 'Invitee')}</strong>.`;
+    const chapelLine = member.chapelName
+      ? `<p><strong>Chapel:</strong> Chapel of ${esc(member.chapelName)}</p>`
+      : '<p><strong>Chapel:</strong> Unassigned</p>';
+    const roleLine = member.roleLabel ? `<p><strong>Role:</strong> ${esc(member.roleLabel)}</p>` : '';
+    const loginBlock = member.showLogin ? `
+            <div class="instructions">
+                <h3>🔐 Your Login Details</h3>
+                <p>You are a <strong>${esc(member.roleLabel)}</strong> of <strong>Chapel of ${esc(member.chapelName)}</strong>.</p>
+                <p><strong>Platform:</strong> <a href="${esc(member.portalUrl)}">${esc(member.portalUrl)}</a></p>
+                <p><strong>Email:</strong> ${esc(member.email)}</p>
+                <p><strong>Password:</strong> ${esc(member.loginPassword)}</p>
+            </div>
+    ` : '';
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Word Conference 2026 Attendance PIN</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { text-align: center; border-bottom: 2px solid #3B82F6; padding-bottom: 20px; margin-bottom: 30px; }
+            .church-name { color: #3B82F6; font-size: 24px; font-weight: bold; margin: 0; }
+            .pin-box { background-color: #F3F4F6; border: 2px dashed #6B7280; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; }
+            .pin-number { font-size: 32px; font-weight: bold; color: #1F2937; letter-spacing: 8px; margin: 10px 0; }
+            .pin-label { font-size: 14px; color: #6B7280; text-transform: uppercase; margin-bottom: 5px; }
+            .instructions { background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; margin: 20px 0; }
+            .instructions h3 { color: #1E40AF; margin-top: 0; }
+            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; font-size: 12px; color: #6B7280; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1 class="church-name">${esc(churchName)}</h1>
+                <p>Word Conference 2026</p>
+            </div>
+
+            <p>Dear ${esc(member.name)},</p>
+            <p>Thank you for successfully registering for Word Conference 2026. We are honoured to have you join us for this gathering themed <strong>“The Chariots and the Horse Men.”</strong></p>
+            <p>Over these days we will sit under the Word, take our place, and go from here to the uttermost.</p>
+
+            <hr />
+
+            <h3>📌 Your Chapel &amp; Check-In Information</h3>
+            <p>${chapelSentence}</p>
+            <p>Kindly take note of your personal check-in number (PIN):</p>
+
+            <div class="pin-box">
+                <div class="pin-label">Your Personal PIN</div>
+                <div class="pin-number">${esc(member.pin)}</div>
+            </div>
+
+            ${chapelLine}
+            ${roleLine}
+            ${loginBlock}
+
+            <hr />
+
+            <h3>📲 How Registration Will Work at the Venue</h3>
+            <ul>
+              <li>There will be no barcode at the venue.</li>
+              <li>The registration team will ask you for your 4-digit check-in PIN.</li>
+              <li>Give them your PIN, and they will check you in.</li>
+              <li>Once confirmed, your attendance for that session will be recorded.</li>
+            </ul>
+            <p><strong>⚠️ Your PIN is compulsory for every session. Please have it ready.</strong></p>
+
+            <h3>🗓️ Meeting Date &amp; Venue</h3>
+            <p>
+              <strong>Date:</strong> 30th, 31st October &amp; 1st November 2026<br />
+              <strong>Friday:</strong> The meeting starts at 12 PM. Registration (check-in) starts at 8 AM and ends at 12 PM. Please come on time, and arrive before 12 PM.<br />
+              <strong>Saturday &amp; Sunday:</strong> 8 AM<br />
+              <strong>Venue:</strong> The Cave, 7 Ohunwu Street, By Osunpec Junction, Off Benin-Lagos Expressway, Ishior, Benin City.
+            </p>
+            <p><strong>Enquiries:</strong> +234 902 335 0524</p>
+
+            <p>We look forward to receiving you. It is from here to the uttermost.</p>
+            <p>Warm regards,<br />
+            Word Conference 2026 Team<br />
+            ${esc(churchName)}</p>
+
+            <div class="footer">
+                <p>This email was sent to ${esc(member.email)}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
   generateEventPinEmailTemplate(member, churchName) {
+    if (member.eventName === 'Word Conference') {
+      return this.generateWordConferencePinEmailTemplate(member, churchName);
+    }
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -763,6 +932,56 @@ This email was sent to ${member.email}
   }
 
   generateEventPinEmailText(member, churchName) {
+    if (member.eventName === 'Word Conference') {
+      const chapel = member.chapelName ? `Chapel of ${member.chapelName}` : 'Unassigned';
+      const isInvitee = member.chapelRole === 'INVITEE' || member.roleLabel === 'Invitee';
+      const chapelSentence = !member.chapelName
+        ? 'You are not assigned to a chapel yet. An administrator can assign one before the conference.'
+        : isInvitee
+          ? `You were invited by Chapel of ${member.chapelName}.`
+          : `You are a member of Chapel of ${member.chapelName}, and your role is ${member.roleLabel || 'Invitee'}.`;
+      const login = member.showLogin ? `
+Your Login Details
+You are a ${member.roleLabel} of Chapel of ${member.chapelName}.
+Platform: ${member.portalUrl}
+Email: ${member.email}
+Password: ${member.loginPassword}
+` : '';
+      return `
+Dear ${member.name},
+
+Thank you for successfully registering for Word Conference 2026. We are honoured to have you join us for this gathering themed "The Chariots and the Horse Men."
+
+Over these days we will sit under the Word, take our place, and go from here to the uttermost.
+
+Your Chapel & Check-In Information
+${chapelSentence}
+Chapel: ${chapel}
+Role: ${member.roleLabel || ''}
+Your 4-digit check-in PIN: ${member.pin}
+${login}
+How Registration Will Work at the Venue:
+- There will be no barcode at the venue.
+- The registration team will ask you for your 4-digit check-in PIN.
+- Give them your PIN, and they will check you in.
+- Once confirmed, your attendance for that session will be recorded.
+
+Your PIN is compulsory for every session. Please have it ready.
+
+Meeting Date & Venue:
+Date: 30th, 31st October & 1st November 2026
+Friday: The meeting starts at 12 PM. Registration (check-in) starts at 8 AM and ends at 12 PM. Please come on time, and arrive before 12 PM.
+Saturday & Sunday: 8 AM
+Venue: The Cave, 7 Ohunwu Street, By Osunpec Junction, Off Benin-Lagos Expressway, Ishior, Benin City.
+Enquiries: +234 902 335 0524
+
+We look forward to receiving you. It is from here to the uttermost.
+
+Warm regards,
+Word Conference 2026 Team
+${churchName}
+`;
+    }
     return `
 Dear ${member.name},
 
@@ -846,7 +1065,7 @@ The ${churchName} Team
         `,
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.deliver(mailOptions);
       
       // Log successful email
       await this.logEmail(member.id, 'reminder', mailOptions.subject, 'sent');
@@ -925,7 +1144,7 @@ The ${churchName} Team
           text: textContent.replace(/{{name}}/g, member.name).replace(/{{pin}}/g, member.pin),
         };
 
-        const result = await this.transporter.sendMail(mailOptions);
+        const result = await this.deliver(mailOptions);
         
         await this.logEmail(member.id, 'bulk', subject, 'sent');
         
