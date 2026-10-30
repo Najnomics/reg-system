@@ -14,14 +14,14 @@ const formatTime = (value) =>
 
 const Arch = ({ lit, dim, children }) => (
   <div className={`relative mx-auto h-[250px] w-[210px] transition-opacity duration-700 sm:h-[280px] sm:w-[230px] ${dim ? 'opacity-50' : ''}`}>
-    <div className="absolute inset-0 rounded-t-full border border-brass-500/60" />
-    <div className="absolute inset-[10px] overflow-hidden rounded-t-full border border-brass-500/15">
+    <div className="absolute inset-0 rounded-t-full border border-brass-500/50 bg-white" />
+    <div className="absolute inset-[10px] overflow-hidden rounded-t-full border border-brass-500/20 bg-[#F7F3EA]">
       <div className={`checkin-light absolute inset-0 origin-bottom bg-[linear-gradient(180deg,#E3C88F,#C9A35E_55%,#A88546)] ${lit ? 'is-lit' : ''}`} />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_20%,rgba(201,163,94,0.16),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_20%,rgba(201,163,94,0.18),transparent_70%)]" />
     </div>
     <div
       className={`relative flex h-full flex-col items-center justify-end px-6 pb-8 text-center transition-colors duration-700 ${
-        lit ? 'text-sanctuary-bg' : 'text-sanctuary-text'
+        lit ? 'text-sanctuary-bg' : 'text-ink'
       }`}
     >
       {children}
@@ -73,6 +73,19 @@ const CheckInPage = () => {
 
     fetchSessionData();
   }, [sessionId]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const wasDark = root.classList.contains('dark');
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const previousColor = meta?.getAttribute('content');
+    root.classList.remove('dark');
+    meta?.setAttribute('content', '#FAFAF7');
+    return () => {
+      if (wasDark) root.classList.add('dark');
+      if (previousColor) meta?.setAttribute('content', previousColor);
+    };
+  }, []);
 
   const submit = useCallback(
     async (memberCode) => {
@@ -140,9 +153,9 @@ const CheckInPage = () => {
   }, [press]);
 
   const shell = (content) => (
-    <div className="min-h-[100dvh] bg-sanctuary-bg text-sanctuary-text">
+    <div className="min-h-[100dvh] bg-paper text-ink">
       <div className="mx-auto flex min-h-[100dvh] max-w-sm flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
-        <div className="fade flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-sanctuary-muted">
+        <div className="fade flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-gray-500">
           <span>Check in</span>
           {session?.startTime && <span>{formatTime(new Date())}</span>}
         </div>
@@ -156,8 +169,8 @@ const CheckInPage = () => {
       <div className="flex flex-1 items-center justify-center">
         <div className="animate-pulse">
           <Arch dim>
-            <div className="h-3 w-24 rounded bg-sanctuary-line" />
-            <div className="mt-3 h-5 w-32 rounded bg-sanctuary-line" />
+            <div className="h-3 w-24 rounded bg-line" />
+            <div className="mt-3 h-5 w-32 rounded bg-line" />
           </Arch>
         </div>
       </div>
@@ -171,7 +184,7 @@ const CheckInPage = () => {
           <span className="text-[11px] uppercase tracking-[0.16em] text-brass-500">Not found</span>
         </Arch>
         <h1 className="rise mt-10 font-serif text-[28px] font-light">This session isn’t available</h1>
-        <p className="rise mt-2 text-sm text-sanctuary-muted" style={{ '--i': 1 }}>
+        <p className="rise mt-2 text-sm text-gray-500" style={{ '--i': 1 }}>
           The QR code may be for a session that has ended or been removed. Please ask a volunteer for help.
         </p>
       </div>
@@ -189,7 +202,7 @@ const CheckInPage = () => {
               {formatDay(session.startTime)}
             </span>
             <h1 className="mt-2 font-serif text-[24px] font-light leading-tight">{session.theme?.replace(/_/g, ' · ')}</h1>
-            <p className={`mt-2 text-xs ${lit ? 'text-sanctuary-bg/75' : 'text-sanctuary-muted'}`}>
+            <p className={`mt-2 text-xs ${lit ? 'text-sanctuary-bg/75' : 'text-gray-500'}`}>
               {lit
                 ? `Welcome, ${member.firstName} — you are present`
                 : session.endTime
@@ -203,27 +216,27 @@ const CheckInPage = () => {
       {lit ? (
         <div className="mt-10 flex flex-1 flex-col">
           <div className="rise text-center" style={{ '--i': 6 }}>
-            <p className="text-sm text-sanctuary-text">You’re checked in.</p>
-            <p className="mt-1 text-xs text-sanctuary-muted">
+            <p className="text-sm text-ink">You’re checked in.</p>
+            <p className="mt-1 text-xs text-gray-500">
               {formatTime(member.checkedInAt)}
               {session.location ? ` · ${session.location}` : ''}
             </p>
           </div>
 
-          <div className="rise mt-8 divide-y divide-sanctuary-line rounded-2xl border border-sanctuary-line bg-sanctuary-s1" style={{ '--i': 8 }}>
+          <div className="rise mt-8 divide-y divide-line rounded-2xl border border-line bg-white" style={{ '--i': 8 }}>
             <div className="flex items-center justify-between px-5 py-3.5 text-sm">
-              <span className="text-sanctuary-muted">Your 4-digit code</span>
-              <span className="font-mono text-lg tracking-[0.3em] text-brass-400">{member.pin}</span>
+              <span className="text-gray-500">Your 4-digit code</span>
+              <span className="font-mono text-lg tracking-[0.3em] text-brass-600">{member.pin}</span>
             </div>
             {member.email && (
               <div className="flex items-center justify-between gap-4 px-5 py-3.5 text-sm">
-                <span className="text-sanctuary-muted">Email</span>
-                <span className="truncate text-sanctuary-text">{member.email}</span>
+                <span className="text-gray-500">Email</span>
+                <span className="truncate text-ink">{member.email}</span>
               </div>
             )}
           </div>
 
-          <p className="fade mt-auto pt-8 text-center text-xs text-sanctuary-muted" style={{ '--i': 10 }}>
+          <p className="fade mt-auto pt-8 text-center text-xs text-gray-500" style={{ '--i': 10 }}>
             Keep your code for the next session.
           </p>
         </div>
@@ -239,7 +252,7 @@ const CheckInPage = () => {
               />
             ))}
           </div>
-          <p className={`mt-4 min-h-[2.5rem] text-center text-xs leading-relaxed ${error ? 'text-red-300' : 'text-sanctuary-muted'}`} aria-live="polite">
+          <p className={`mt-4 min-h-[2.5rem] text-center text-xs leading-relaxed ${error ? 'text-red-600' : 'text-gray-500'}`} aria-live="polite">
             {checking ? 'Checking you in…' : error || 'Enter the 4-digit code from your email'}
           </p>
 
@@ -254,9 +267,9 @@ const CheckInPage = () => {
                   onClick={() => press(key)}
                   disabled={checking}
                   aria-label={key === 'back' ? 'Delete' : key}
-                  className="flex h-16 items-center justify-center rounded-2xl font-serif text-[28px] font-light text-sanctuary-text transition-colors duration-150 active:bg-sanctuary-s2 disabled:opacity-40 sm:hover:bg-sanctuary-s1"
+                  className="flex h-16 items-center justify-center rounded-2xl font-serif text-[28px] font-light text-ink transition-colors duration-150 active:bg-gray-200 disabled:opacity-40 sm:hover:bg-gray-100"
                 >
-                  {key === 'back' ? <BackspaceIcon className="h-6 w-6 text-sanctuary-muted" /> : key}
+                  {key === 'back' ? <BackspaceIcon className="h-6 w-6 text-gray-500" /> : key}
                 </button>
               )
             )}
