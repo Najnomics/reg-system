@@ -52,13 +52,13 @@ class EmailService {
               pass: process.env.SMTP_PASS,
             },
             // Increased timeout settings for Railway/Gmail
-            connectionTimeout: 30000, // 30 seconds
-            socketTimeout: 30000, // 30 seconds
-            greetingTimeout: 30000, // 30 seconds
+            connectionTimeout: 120000,
+            socketTimeout: 120000,
+            greetingTimeout: 60000,
             // Additional Gmail-specific settings
             pool: true,
             maxConnections: 1,
-            maxMessages: 3,
+            maxMessages: 100,
           });
         } else {
           // Generic SMTP configuration

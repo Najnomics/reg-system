@@ -46,15 +46,20 @@ const sendToMember = async (member, eventId) => {
   }
   const claimed = await claimSend(member.id, eventId);
   if (!claimed) return false;
-  try {
-    await emailService.sendWordConferenceBooklet(member, BOOKLET_PATH);
-    console.log(`Booklet sent ${member.name}`);
-    return true;
-  } catch (error) {
-    await releaseClaim(member.id, eventId);
-    console.error(`Booklet failed ${member.name}:`, error.message);
-    return false;
+  let lastError = '';
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      await emailService.sendWordConferenceBooklet(member, BOOKLET_PATH);
+      console.log(`Booklet sent ${member.name}`);
+      return true;
+    } catch (error) {
+      lastError = error.message || 'send failed';
+      await new Promise((resolve) => setTimeout(resolve, 4000 * attempt));
+    }
   }
+  await releaseClaim(member.id, eventId);
+  console.error(`Booklet failed ${member.name}:`, lastError);
+  return false;
 };
 
 const queueAfterCheckin = (member, eventId) => {
@@ -163,4 +168,5 @@ const start = async () => {
 module.exports = {
   queueAfterCheckin,
   start,
+  backfill,
 };
