@@ -36,37 +36,28 @@ const usableEmail = (email) => {
   return Boolean(value) && !value.includes('@wordconference.local');
 };
 
-const isUniqueConflict = (error) => error && (error.code === 'P2002' || /unique constraint/i.test(error.message || ''));
-
-const claimSend = async (memberId, eventId) => {
-  try {
-    await prisma.bookletSend.create({
-      data: { id: randomUUID(), memberId, eventId },
-    });
-    return true;
-  } catch (error) {
-    if (isUniqueConflict(error)) return false;
-    throw error;
-  }
+const alreadyConfirmed = async (memberId, eventId) => {
+  const row = await prisma.bookletSend.findUnique({
+    where: { memberId_eventId: { memberId, eventId } },
+    select: { id: true },
+  });
+  return Boolean(row);
 };
 
-const releaseClaim = async (memberId, eventId) => {
-  try {
-    await prisma.bookletSend.delete({
-      where: { memberId_eventId: { memberId, eventId } },
-    });
-  } catch (_) {
-    // already gone
-  }
+const recordConfirmedSend = async (memberId, eventId) => {
+  await prisma.bookletSend.upsert({
+    where: { memberId_eventId: { memberId, eventId } },
+    create: { id: randomUUID(), memberId, eventId, sentAt: new Date() },
+    update: { sentAt: new Date() },
+  });
 };
 
-const sendToMember = async (member, eventId) => {
+const sendToMember = async (member, eventId, { force = false } = {}) => {
   if (!usableEmail(member.email)) {
     console.log(`Booklet skip ${member.name}: no usable email`);
     return 'skipped';
   }
-  const claimed = await claimSend(member.id, eventId);
-  if (!claimed) return 'already';
+  if (!force && await alreadyConfirmed(member.id, eventId)) return 'already';
   let lastError = '';
   for (let attempt = 1; attempt <= ATTEMPTS_PER_TURN; attempt += 1) {
     try {
@@ -75,6 +66,7 @@ const sendToMember = async (member, eventId) => {
         SEND_TIMEOUT_MS,
         `Booklet send ${member.name}`,
       );
+      await recordConfirmedSend(member.id, eventId);
       console.log(`Booklet sent ${member.name}`);
       return 'sent';
     } catch (error) {
@@ -83,7 +75,6 @@ const sendToMember = async (member, eventId) => {
       if (attempt < ATTEMPTS_PER_TURN) await wait(3000);
     }
   }
-  await releaseClaim(member.id, eventId);
   return lastError;
 };
 
@@ -95,7 +86,7 @@ const pump = async () => {
       const job = queue.shift();
       queuedIds.delete(job.member.id);
       try {
-        const result = await sendToMember(job.member, job.eventId);
+        const result = await sendToMember(job.member, job.eventId, { force: job.force });
         if (result === 'sent' || result === 'already' || result === 'skipped') {
           turns.delete(job.member.id);
           continue;
@@ -107,10 +98,10 @@ const pump = async () => {
           continue;
         }
         console.log(`Booklet will retry ${job.member.name} in ${REQUEUE_MS / 1000}s (turn ${used}/${MAX_TURNS})`);
-        setTimeout(() => enqueue(job.member, job.eventId), REQUEUE_MS);
+        setTimeout(() => enqueue(job.member, job.eventId, { force: job.force }), REQUEUE_MS);
       } catch (error) {
         console.error('Booklet job failed:', error.message);
-        setTimeout(() => enqueue(job.member, job.eventId), REQUEUE_MS);
+        setTimeout(() => enqueue(job.member, job.eventId, { force: job.force }), REQUEUE_MS);
       }
     }
   } finally {
@@ -119,10 +110,10 @@ const pump = async () => {
   }
 };
 
-const enqueue = (member, eventId) => {
+const enqueue = (member, eventId, { force = false } = {}) => {
   if (!member?.id || queuedIds.has(member.id)) return;
   queuedIds.add(member.id);
-  queue.push({ member, eventId });
+  queue.push({ member, eventId, force });
   setImmediate(pump);
 };
 
@@ -245,4 +236,5 @@ module.exports = {
   queueAfterCheckin,
   start,
   backfill,
+  sendToMember,
 };
