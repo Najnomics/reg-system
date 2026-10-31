@@ -101,6 +101,14 @@ const seedAlreadySent = async (event) => {
   return seeded;
 };
 
+const conferenceSessionWhere = (eventId) => ({
+  eventId,
+  OR: [
+    { startTime: { gte: CONFERENCE_START } },
+    { createdAt: { gte: CONFERENCE_START } },
+  ],
+});
+
 const pendingCheckedIn = async (event) => {
   return prisma.member.findMany({
     where: {
@@ -109,10 +117,7 @@ const pendingCheckedIn = async (event) => {
       bookletSends: { none: { eventId: event.id } },
       attendance: {
         some: {
-          session: {
-            eventId: event.id,
-            startTime: { gte: CONFERENCE_START },
-          },
+          session: conferenceSessionWhere(event.id),
         },
       },
     },

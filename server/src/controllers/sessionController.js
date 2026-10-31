@@ -312,6 +312,10 @@ const createSession = async (req, res) => {
       attendanceCount: 0,
     };
 
+    if (req.event?.slug === 'word-conference') {
+      console.log(`Booklet watcher will cover new session: ${updatedSession.theme}`);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Session created successfully',
