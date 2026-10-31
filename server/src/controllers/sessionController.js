@@ -19,22 +19,62 @@ const firstAttendanceWhere = (event) => {
   return where;
 };
 
-const countFirstTimeBySession = async (event) => {
-  const rows = await prisma.attendance.findMany({
-    where: firstAttendanceWhere(event),
-    select: { memberId: true, sessionId: true, checkedInAt: true },
-    orderBy: { checkedInAt: 'asc' },
-  });
+const emptySessionStats = () => ({
+  firstTimeCount: 0,
+  returningPresent: 0,
+  returningAbsent: 0,
+  pastAttendees: 0,
+});
+
+const getConferenceSessionStats = async (event) => {
+  const attendanceWhere = firstAttendanceWhere(event);
+  const [allSessions, rows] = await Promise.all([
+    prisma.session.findMany({
+      where: attendanceWhere.session,
+      select: { id: true, startTime: true },
+      orderBy: { startTime: 'asc' },
+    }),
+    prisma.attendance.findMany({
+      where: attendanceWhere,
+      select: { memberId: true, sessionId: true, checkedInAt: true },
+      orderBy: { checkedInAt: 'asc' },
+    }),
+  ]);
+
+  const attendeesBySession = new Map();
   const firstSession = new Map();
   for (const row of rows) {
+    if (!attendeesBySession.has(row.sessionId)) attendeesBySession.set(row.sessionId, new Set());
+    attendeesBySession.get(row.sessionId).add(row.memberId);
     if (!firstSession.has(row.memberId)) firstSession.set(row.memberId, row.sessionId);
   }
-  const counts = new Map();
-  for (const sessionId of firstSession.values()) {
-    counts.set(sessionId, (counts.get(sessionId) || 0) + 1);
+
+  const statsById = new Map();
+  const seenPast = new Set();
+  for (const session of allSessions) {
+    const here = attendeesBySession.get(session.id) || new Set();
+    let returningPresent = 0;
+    let returningAbsent = 0;
+    for (const memberId of seenPast) {
+      if (here.has(memberId)) returningPresent += 1;
+      else returningAbsent += 1;
+    }
+    let firstTimeCount = 0;
+    for (const memberId of here) {
+      if (firstSession.get(memberId) === session.id) firstTimeCount += 1;
+    }
+    statsById.set(session.id, {
+      firstTimeCount,
+      returningPresent,
+      returningAbsent,
+      pastAttendees: seenPast.size,
+    });
+    for (const memberId of here) seenPast.add(memberId);
   }
-  return counts;
+  return statsById;
 };
+
+const statsForSession = (statsById, sessionId) => statsById.get(sessionId) || emptySessionStats();
 
 /**
  * Get all sessions with pagination and filtering
@@ -115,13 +155,19 @@ const getSessions = async (req, res) => {
 
     // Add status to each session
     const currentTime = new Date();
-    const firstTimeCounts = await countFirstTimeBySession(req.event);
-    const sessionsWithStatus = sessions.map(session => ({
-      ...session,
-      status: getSessionStatus(session, currentTime),
-      attendanceCount: session._count.attendance,
-      firstTimeCount: firstTimeCounts.get(session.id) || 0,
-    }));
+    const conferenceStats = await getConferenceSessionStats(req.event);
+    const sessionsWithStatus = sessions.map(session => {
+      const stats = statsForSession(conferenceStats, session.id);
+      return {
+        ...session,
+        status: getSessionStatus(session, currentTime),
+        attendanceCount: session._count.attendance,
+        firstTimeCount: stats.firstTimeCount,
+        returningPresent: stats.returningPresent,
+        returningAbsent: stats.returningAbsent,
+        pastAttendees: stats.pastAttendees,
+      };
+    });
 
     // Calculate pagination info
     const pages = Math.ceil(total / limit);
@@ -918,6 +964,8 @@ const getSessionAttendance = async (req, res) => {
       hasSecretAnswerPlain: 'secretAnswerPlain' in sessionWithStatus,
     });
 
+    const conferenceStats = statsForSession(await getConferenceSessionStats(req.event), id);
+
     res.status(200).json({
       success: true,
       data: {
@@ -929,7 +977,9 @@ const getSessionAttendance = async (req, res) => {
             totalMembers: totalMembersCount,
             present: attendedMembers.length,
             absent: absentMembers.length > 0 ? absentMembers.length : totalMembersCount - attendedMembers.length,
-            firstTime: (await countFirstTimeBySession(req.event)).get(id) || 0,
+            firstTime: conferenceStats.firstTimeCount,
+            returningPresent: conferenceStats.returningPresent,
+            returningAbsent: conferenceStats.returningAbsent,
             attendanceRate: totalMembersCount > 0 
               ? Math.round((attendedMembers.length / totalMembersCount) * 100) 
               : 0,

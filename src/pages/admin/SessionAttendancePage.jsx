@@ -397,6 +397,18 @@ const SessionAttendancePage = () => {
                 </div>
               </div>
             </div>
+            {(attendance.summary.returningPresent || attendance.summary.returningAbsent) ? (
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-emerald-50 p-3 sm:p-4 rounded-lg">
+                  <p className="text-xs sm:text-sm font-medium text-emerald-900">From past sessions, present</p>
+                  <p className="text-xl sm:text-2xl font-bold text-emerald-700">{attendance.summary.returningPresent || 0}</p>
+                </div>
+                <div className="bg-orange-50 p-3 sm:p-4 rounded-lg">
+                  <p className="text-xs sm:text-sm font-medium text-orange-900">From past sessions, absent</p>
+                  <p className="text-xl sm:text-2xl font-bold text-orange-700">{attendance.summary.returningAbsent || 0}</p>
+                </div>
+              </div>
+            ) : null}
             <div className="bg-blue-50 p-4 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">

@@ -128,6 +128,9 @@ const SessionList = ({ sessions, onEdit, onShowQRCode, loading, type }) => {
                     {session.firstTimeCount != null && (
                       <> · {session.firstTimeCount} first time</>
                     )}
+                    {(session.pastAttendees || 0) > 0 && (
+                      <> · {session.returningPresent || 0} returning · {session.returningAbsent || 0} past absent</>
+                    )}
                   </span>
                 </div>
               )}

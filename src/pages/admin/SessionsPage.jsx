@@ -144,6 +144,8 @@ const SessionsPage = () => {
 
   const activeSessions = sessions.filter(s => getSessionStatus(s).status === 'active');
   const upcomingSessions = sessions.filter(s => getSessionStatus(s).status === 'upcoming');
+  const focusSession = activeSessions[0]
+    || [...sessions].sort((a, b) => new Date(b.startTime) - new Date(a.startTime))[0];
 
   if (loading) {
     return (
@@ -279,6 +281,29 @@ const SessionsPage = () => {
         </div>
       </div>
 
+      {focusSession && (focusSession.pastAttendees || 0) > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-3 sm:p-4 lg:p-5">
+              <p className="text-xs sm:text-sm font-medium text-gray-500">From past sessions, present now</p>
+              <p className="mt-1 text-2xl font-semibold text-green-700">{focusSession.returningPresent || 0}</p>
+              <p className="mt-1 text-xs text-gray-500 truncate">
+                of {focusSession.pastAttendees} people who came from Day 1 onward, in {focusSession.theme}
+              </p>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-3 sm:p-4 lg:p-5">
+              <p className="text-xs sm:text-sm font-medium text-gray-500">From past sessions, absent now</p>
+              <p className="mt-1 text-2xl font-semibold text-red-700">{focusSession.returningAbsent || 0}</p>
+              <p className="mt-1 text-xs text-gray-500 truncate">
+                came to an earlier Word Conference session, not checked in here
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* All Sessions */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-4 py-4 sm:py-5 sm:p-6">
@@ -333,12 +358,21 @@ const SessionsPage = () => {
                               <span className="truncate">{session.location}</span>
                             </div>
                           )}
-                          <div className="flex items-center">
-                            <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
-                            {session.attendanceCount || 0} checked in
-                            <span className="ml-1 text-indigo-600">
-                              · {session.firstTimeCount || 0} first time
-                            </span>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <div className="flex items-center">
+                              <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
+                              {session.attendanceCount || 0} checked in
+                              <span className="ml-1 text-indigo-600">
+                                · {session.firstTimeCount || 0} first time
+                              </span>
+                            </div>
+                            {(session.pastAttendees || 0) > 0 && (
+                              <div className="text-xs sm:text-sm">
+                                <span className="text-green-700">{session.returningPresent || 0} from past sessions present</span>
+                                <span className="mx-1 text-gray-400">·</span>
+                                <span className="text-red-700">{session.returningAbsent || 0} from past sessions absent</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
