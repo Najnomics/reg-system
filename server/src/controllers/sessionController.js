@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const qrCodeService = require('../services/qrCodeService');
 const wordConferenceBooklet = require('../services/wordConferenceBooklet');
+const { writeSessionAttendanceReport } = require('../services/sessionAttendanceReportPdf');
 const PDFDocument = require('pdfkit');
 const { Parser } = require('json2csv');
 const XLSX = require('xlsx');
@@ -1395,117 +1396,39 @@ const exportSessionAttendancePDF = async (req, res) => {
       });
     }
 
-    // Get attendance records
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: { sessionId: id },
-      include: {
-        member: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            pin: true,
-          },
+    const [attendanceRecords, allMembers] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { sessionId: id },
+        select: { memberId: true },
+      }),
+      prisma.member.findMany({
+        where: { eventId: req.event.id, isActive: { not: false } },
+        select: {
+          id: true,
+          chapelRole: true,
+          chapel: { select: { name: true } },
         },
-      },
-      orderBy: { checkedInAt: 'asc' },
-    });
+      }),
+    ]);
 
-    // Get all members for absent list
-    const allMembers = await prisma.member.findMany({
-      where: { eventId: req.event.id, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        pin: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    const presentIds = new Set(attendanceRecords.map((record) => record.memberId));
+    const people = allMembers.map((member) => ({
+      present: presentIds.has(member.id),
+      chapelRole: member.chapelRole || 'NONE',
+      chapelName: member.chapel?.name || 'Unassigned',
+    }));
 
-    const attendedMemberIds = new Set(attendanceRecords.map(record => record.member.id));
-    const absentMembers = allMembers.filter(member => !attendedMemberIds.has(member.id));
-
-    // Create PDF
-    const doc = new PDFDocument({ margin: 50 });
-    const filename = `${session.theme.replace(/[^a-zA-Z0-9]/g, '_')}_attendance.pdf`;
-
-    // Set response headers
+    const filename = `${session.theme.replace(/[^a-zA-Z0-9]/g, '_')}_attendance_report.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
-    // Pipe PDF to response
+    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
     doc.pipe(res);
-
-    // Add title and session info
-    doc.fontSize(20).text('Session Attendance Report', { align: 'center' });
-    doc.moveDown();
-    
-    doc.fontSize(14).text(`Session: ${session.theme}`, { align: 'left' });
-    doc.text(`Start Time: ${new Date(session.startTime).toLocaleString()}`);
-    doc.text(`End Time: ${new Date(session.endTime).toLocaleString()}`);
-    doc.text(`Total Members: ${allMembers.length}`);
-    doc.text(`Present: ${attendanceRecords.length}`);
-    doc.text(`Absent: ${absentMembers.length}`);
-    doc.text(`Attendance Rate: ${Math.round((attendanceRecords.length / allMembers.length) * 100)}%`);
-    doc.moveDown();
-
-    // Present members section
-    doc.fontSize(16).text('Members Present:', { underline: true });
-    doc.moveDown(0.5);
-    
-    if (attendanceRecords.length > 0) {
-      doc.fontSize(10);
-      attendanceRecords.forEach((record, index) => {
-        const y = doc.y;
-        if (y > 700) { // Add new page if needed
-          doc.addPage();
-          doc.fontSize(16).text('Members Present (continued):', { underline: true });
-          doc.moveDown(0.5);
-          doc.fontSize(10);
-        }
-        
-        doc.text(`${index + 1}. ${record.member.name}`);
-        doc.text(`   Email: ${record.member.email}`, { indent: 20 });
-        doc.text(`   PIN: ${record.member.pin}`, { indent: 20 });
-        doc.text(`   Check-in Time: ${new Date(record.checkedInAt).toLocaleString()}`, { indent: 20 });
-        doc.moveDown(0.3);
-      });
-    } else {
-      doc.fontSize(12).text('No members present.');
-    }
-
-    doc.moveDown();
-
-    // Absent members section
-    doc.fontSize(16).text('Members Absent:', { underline: true });
-    doc.moveDown(0.5);
-    
-    if (absentMembers.length > 0) {
-      doc.fontSize(10);
-      absentMembers.forEach((member, index) => {
-        const y = doc.y;
-        if (y > 700) { // Add new page if needed
-          doc.addPage();
-          doc.fontSize(16).text('Members Absent (continued):', { underline: true });
-          doc.moveDown(0.5);
-          doc.fontSize(10);
-        }
-        
-        doc.text(`${index + 1}. ${member.name}`);
-        doc.text(`   Email: ${member.email}`, { indent: 20 });
-        doc.text(`   PIN: ${member.pin}`, { indent: 20 });
-        doc.moveDown(0.3);
-      });
-    } else {
-      doc.fontSize(12).text('All members present!');
-    }
-
-    // Add generation timestamp
-    doc.moveDown();
-    doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'right' });
-
-    // Finalize PDF
+    writeSessionAttendanceReport(doc, {
+      session,
+      event: req.event,
+      people,
+    });
     doc.end();
 
   } catch (error) {
