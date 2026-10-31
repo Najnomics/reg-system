@@ -172,6 +172,7 @@ app.listen(PORT, () => {
   console.log(`📄 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API base URL: http://localhost:${PORT}/api`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  require('./services/wordConferenceBooklet').start();
 });
 
 module.exports = app;

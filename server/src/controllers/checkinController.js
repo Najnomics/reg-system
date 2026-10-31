@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
+const wordConferenceBooklet = require('../services/wordConferenceBooklet');
 
 // A bcrypt compare costs ~300ms of CPU, and most people in a session type the
 // same answer, so remember each (hash, answer) result instead of recomputing it.
@@ -319,6 +320,8 @@ const submitAttendance = async (req, res) => {
         checkedInAt: true,
       },
     });
+
+    wordConferenceBooklet.queueAfterCheckin(member, session.eventId);
 
     res.status(201).json({
       success: true,

@@ -695,6 +695,128 @@ This email was sent to ${member.email}
     }
   }
 
+  authenticatedFrom() {
+    const churchName = process.env.CHURCH_NAME || 'Grace Edge Ministries';
+    const displayName = process.env.FROM_NAME || churchName;
+    const mailbox = (process.env.SMTP_USER || process.env.FROM_EMAIL || '').replace(/^"+|"+$/g, '').trim();
+    return { churchName, displayName, mailbox };
+  }
+
+  async sendWordConferenceBooklet(member, bookletPath) {
+    const { churchName, displayName, mailbox } = this.authenticatedFrom();
+    const subject = 'Word Conference 2026 Booklet';
+    const mailOptions = {
+      from: `"${displayName}" <${mailbox}>`,
+      replyTo: mailbox,
+      sender: mailbox,
+      envelope: { from: mailbox, to: member.email },
+      to: member.email,
+      subject,
+      text: this.generateWordConferenceBookletText(member, churchName),
+      html: this.generateWordConferenceBookletTemplate(member, churchName),
+      attachments: [{
+        filename: 'WC 2026 Booklet.pdf',
+        path: bookletPath,
+        contentType: 'application/pdf',
+        contentDisposition: 'attachment',
+      }],
+      headers: {
+        'X-Mailer': 'Grace Edge Ministries',
+      },
+    };
+
+    console.log('Sending Word Conference booklet email...');
+    const result = await this.deliver(mailOptions);
+    try {
+      await this.logEmail(member.id, 'bulk', subject, 'sent');
+    } catch (logError) {
+      console.error('Failed to log booklet email success:', logError);
+    }
+    console.log('Booklet email accepted', { messageId: result.messageId });
+    return { success: true, messageId: result.messageId };
+  }
+
+  generateWordConferenceBookletTemplate(member, churchName) {
+    const esc = (value) => String(value || '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[ch]));
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Word Conference 2026 Booklet</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; }
+            .header { text-align: center; border-bottom: 2px solid #3B82F6; padding-bottom: 20px; margin-bottom: 30px; }
+            .church-name { color: #3B82F6; font-size: 24px; font-weight: bold; margin: 0; }
+            .note { background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; margin: 20px 0; }
+            .note h3 { color: #1E40AF; margin-top: 0; }
+            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; font-size: 12px; color: #6B7280; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1 class="church-name">${esc(churchName)}</h1>
+                <p>Word Conference 2026</p>
+            </div>
+            <p>Dear ${esc(member.name)},</p>
+            <p>Thank you for being with us at Word Conference 2026, themed <strong>&ldquo;The Chariots and the Horse Men.&rdquo;</strong></p>
+            <p>Please find attached the Word Conference 2026 Booklet. Kindly keep it with you through the remaining sessions.</p>
+            <div class="note">
+                <h3>Attached</h3>
+                <p><strong>WC 2026 Booklet.pdf</strong></p>
+                <p>Open the attached PDF on your phone or computer. If you cannot see it, look in the attachments section of this email.</p>
+            </div>
+            <h3>Meeting Date and Venue</h3>
+            <p>
+              <strong>Date:</strong> 30th, 31st October and 1st November 2026<br />
+              <strong>Friday:</strong> The meeting starts at 12 PM. Registration (check-in) starts at 8 AM and ends at 12 PM.<br />
+              <strong>Saturday and Sunday:</strong> 8 AM<br />
+              <strong>Venue:</strong> The Cave, 7 Ohunwu Street, By Osunpec Junction, Off Benin-Lagos Expressway, Ishior, Benin City.
+            </p>
+            <p><strong>Enquiries:</strong> +234 902 335 0524</p>
+            <p>We look forward to sitting with you under the Word. It is from here to the uttermost.</p>
+            <p>Warm regards,<br />
+            Word Conference 2026 Team<br />
+            ${esc(churchName)}</p>
+            <div class="footer">
+                <p>This email was sent to ${esc(member.email)}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
+  generateWordConferenceBookletText(member, churchName) {
+    return `Dear ${member.name},
+
+Thank you for being with us at Word Conference 2026, themed "The Chariots and the Horse Men."
+
+Please find attached the Word Conference 2026 Booklet. Kindly keep it with you through the remaining sessions.
+
+Attached: WC 2026 Booklet.pdf
+Open the attached PDF on your phone or computer. If you cannot see it, look in the attachments section of this email.
+
+Meeting Date and Venue
+Date: 30th, 31st October and 1st November 2026
+Friday: The meeting starts at 12 PM. Registration (check-in) starts at 8 AM and ends at 12 PM.
+Saturday and Sunday: 8 AM
+Venue: The Cave, 7 Ohunwu Street, By Osunpec Junction, Off Benin-Lagos Expressway, Ishior, Benin City.
+Enquiries: +234 902 335 0524
+
+We look forward to sitting with you under the Word. It is from here to the uttermost.
+
+Warm regards,
+Word Conference 2026 Team
+${churchName}
+`;
+  }
+
   async buildEventPinEmailData(member, event) {
     const record = await prisma.member.findUnique({
       where: { id: member.id },

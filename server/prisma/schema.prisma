@@ -30,8 +30,9 @@ model Event {
   updatedAt   DateTime  @updatedAt
   members     Member[]
   sessions    Session[]
-  chapels     Chapel[]
-  chariots    Chariot[]
+  chapels      Chapel[]
+  chariots     Chariot[]
+  bookletSends BookletSend[]
 
   @@map("events")
 }
@@ -98,6 +99,7 @@ model Member {
   chapelId              String?
   chapelRole            ChapelRole?
   chapel                Chapel?             @relation(fields: [chapelId], references: [id], onDelete: SetNull)
+  bookletSends          BookletSend[]
 
   @@unique([eventId, name])
   @@unique([eventId, pin])
@@ -239,4 +241,18 @@ model Chapel {
   @@index([eventId])
   @@index([isActive])
   @@map("chapels")
+}
+
+model BookletSend {
+  id        String   @id @default(uuid())
+  memberId  String
+  eventId   String
+  sentAt    DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, eventId])
+  @@index([eventId])
+  @@index([sentAt])
+  @@map("booklet_sends")
 }

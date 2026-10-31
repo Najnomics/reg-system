@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const qrCodeService = require('../services/qrCodeService');
+const wordConferenceBooklet = require('../services/wordConferenceBooklet');
 const PDFDocument = require('pdfkit');
 const { Parser } = require('json2csv');
 const XLSX = require('xlsx');
@@ -1006,6 +1007,8 @@ const markMemberPresent = async (req, res) => {
         },
       },
     });
+
+    wordConferenceBooklet.queueAfterCheckin(member, session.eventId);
 
     res.status(201).json({
       success: true,
