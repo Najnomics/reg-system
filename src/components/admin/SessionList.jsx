@@ -123,7 +123,12 @@ const SessionList = ({ sessions, onEdit, onShowQRCode, loading, type }) => {
               {session._count?.attendance !== undefined && (
                 <div className="flex items-center text-sm text-gray-500">
                   <UsersIcon className="flex-shrink-0 mr-2 h-4 w-4" />
-                  <span>{session._count.attendance} attendees</span>
+                  <span>
+                    {session._count.attendance} attendees
+                    {session.firstTimeCount != null && (
+                      <> · {session.firstTimeCount} first time</>
+                    )}
+                  </span>
                 </div>
               )}
 

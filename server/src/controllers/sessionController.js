@@ -6,6 +6,36 @@ const PDFDocument = require('pdfkit');
 const { Parser } = require('json2csv');
 const XLSX = require('xlsx');
 
+const CONFERENCE_START = new Date('2026-10-30T00:00:00.000Z');
+
+const firstAttendanceWhere = (event) => {
+  const where = { session: { eventId: event.id } };
+  if (event.slug === 'word-conference') {
+    where.session.OR = [
+      { startTime: { gte: CONFERENCE_START } },
+      { createdAt: { gte: CONFERENCE_START } },
+    ];
+  }
+  return where;
+};
+
+const countFirstTimeBySession = async (event) => {
+  const rows = await prisma.attendance.findMany({
+    where: firstAttendanceWhere(event),
+    select: { memberId: true, sessionId: true, checkedInAt: true },
+    orderBy: { checkedInAt: 'asc' },
+  });
+  const firstSession = new Map();
+  for (const row of rows) {
+    if (!firstSession.has(row.memberId)) firstSession.set(row.memberId, row.sessionId);
+  }
+  const counts = new Map();
+  for (const sessionId of firstSession.values()) {
+    counts.set(sessionId, (counts.get(sessionId) || 0) + 1);
+  }
+  return counts;
+};
+
 /**
  * Get all sessions with pagination and filtering
  */
@@ -85,10 +115,12 @@ const getSessions = async (req, res) => {
 
     // Add status to each session
     const currentTime = new Date();
+    const firstTimeCounts = await countFirstTimeBySession(req.event);
     const sessionsWithStatus = sessions.map(session => ({
       ...session,
       status: getSessionStatus(session, currentTime),
       attendanceCount: session._count.attendance,
+      firstTimeCount: firstTimeCounts.get(session.id) || 0,
     }));
 
     // Calculate pagination info
@@ -897,6 +929,7 @@ const getSessionAttendance = async (req, res) => {
             totalMembers: totalMembersCount,
             present: attendedMembers.length,
             absent: absentMembers.length > 0 ? absentMembers.length : totalMembersCount - attendedMembers.length,
+            firstTime: (await countFirstTimeBySession(req.event)).get(id) || 0,
             attendanceRate: totalMembersCount > 0 
               ? Math.round((attendedMembers.length / totalMembersCount) * 100) 
               : 0,

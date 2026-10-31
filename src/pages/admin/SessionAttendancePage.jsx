@@ -368,7 +368,7 @@ const SessionAttendancePage = () => {
           
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Attendance Summary</h3>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-center">
                   <CheckCircleIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0" />
@@ -384,6 +384,15 @@ const SessionAttendancePage = () => {
                   <div className="ml-2 sm:ml-3 min-w-0">
                     <p className="text-xs sm:text-sm font-medium text-red-900">Absent</p>
                     <p className="text-xl sm:text-2xl font-bold text-red-600">{attendance.summary.absent}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-indigo-50 p-3 sm:p-4 rounded-lg col-span-2 sm:col-span-1">
+                <div className="flex items-center">
+                  <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-indigo-900">First time</p>
+                    <p className="text-xl sm:text-2xl font-bold text-indigo-600">{attendance.summary.firstTime || 0}</p>
                   </div>
                 </div>
               </div>

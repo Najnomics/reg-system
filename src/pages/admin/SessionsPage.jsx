@@ -269,6 +269,9 @@ const SessionsPage = () => {
                   <dd className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-gray-900">
                     {sessions.reduce((total, session) => total + (session.attendanceCount || 0), 0)}
                   </dd>
+                  <dt className="mt-1 text-xs text-indigo-600 truncate">
+                    {sessions.reduce((total, session) => total + (session.firstTimeCount || 0), 0)} first-time check-ins
+                  </dt>
                 </dl>
               </div>
             </div>
@@ -333,6 +336,9 @@ const SessionsPage = () => {
                           <div className="flex items-center">
                             <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 flex-shrink-0" />
                             {session.attendanceCount || 0} checked in
+                            <span className="ml-1 text-indigo-600">
+                              · {session.firstTimeCount || 0} first time
+                            </span>
                           </div>
                         </div>
                       </div>
