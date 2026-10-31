@@ -18,7 +18,26 @@ import {
   PlusCircleIcon,
   BuildingOfficeIcon,
   FunnelIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+
+const roleLabel = (role) => ({
+  INVITEE: 'Invitee',
+  MEMBER: 'Member',
+  WORKER: 'Worker',
+  CHAPEL_LEADER: 'Chapel Leader',
+  SUB_LEADER: 'Sub-leader',
+}[role] || 'Member');
+
+const nameMatches = (member, query) => {
+  const needle = String(query || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+  if (!needle) return true;
+  const haystack = [member.name, member.firstName, member.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return needle.split(/\s+/).every((part) => haystack.includes(part));
+};
 
 const SessionAttendancePage = () => {
   const { sessionId } = useParams();
@@ -29,7 +48,8 @@ const SessionAttendancePage = () => {
   const [loading, setLoading] = useState(true);
   const [sessionData, setSessionData] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'present', 'absent'
-  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'invitee', 'member', 'worker'
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [nameQuery, setNameQuery] = useState('');
   const [chapelFilter, setChapelFilter] = useState('all'); // 'all' or chapel ID
   const [chapels, setChapels] = useState([]);
   const [loadingChapels, setLoadingChapels] = useState(false);
@@ -170,8 +190,13 @@ const SessionAttendancePage = () => {
     if (roleFilter === 'worker') {
       return members.filter(member => member.chapelRole === 'WORKER');
     }
+    if (roleFilter === 'sub_leader') {
+      return members.filter(member => member.chapelRole === 'SUB_LEADER');
+    }
     return members;
   };
+
+  const getNameFilteredMembers = (members) => members.filter((member) => nameMatches(member, nameQuery));
 
   const getFilteredCounts = () => {
     if (!sessionData || !sessionData.attendance) {
@@ -180,8 +205,8 @@ const SessionAttendancePage = () => {
 
     const present = sessionData.attendance.present || [];
     const absent = sessionData.attendance.absent || [];
-    const presentFiltered = getRoleFilteredMembers(getChapelFilteredMembers(present));
-    const absentFiltered = getRoleFilteredMembers(getChapelFilteredMembers(absent));
+    const presentFiltered = getNameFilteredMembers(getRoleFilteredMembers(getChapelFilteredMembers(present)));
+    const absentFiltered = getNameFilteredMembers(getRoleFilteredMembers(getChapelFilteredMembers(absent)));
 
     return {
       total: presentFiltered.length + absentFiltered.length,
@@ -236,7 +261,7 @@ const SessionAttendancePage = () => {
       });
     }
     
-    return getRoleFilteredMembers(getChapelFilteredMembers(members));
+    return getNameFilteredMembers(getRoleFilteredMembers(getChapelFilteredMembers(members)));
   };
 
   if (loading) {
@@ -414,13 +439,25 @@ const SessionAttendancePage = () => {
             </nav>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-shrink-0">
+              <div className="relative w-full sm:w-64">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="search"
+                  value={nameQuery}
+                  onChange={(e) => setNameQuery(e.target.value)}
+                  placeholder="Search first or last name"
+                  aria-label="Search first or last name"
+                  className="w-full pl-8 pr-3 py-1.5 sm:py-2 border border-gray-300 rounded-md text-xs sm:text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
               {/* Role Filter */}
-              <div className="inline-flex rounded-md shadow-sm border border-gray-200 overflow-hidden">
+              <div className="inline-flex flex-wrap rounded-md shadow-sm border border-gray-200 overflow-hidden">
                 {[
                   { key: 'all', label: 'All Roles' },
                   { key: 'invitee', label: 'Invitees' },
                 { key: 'member', label: 'Members' },
                 { key: 'chapel_leader', label: 'Chapel Leaders' },
+                  { key: 'sub_leader', label: 'Sub-leaders' },
                   { key: 'worker', label: 'Workers' },
                 ].map((role) => (
                   <button
@@ -474,7 +511,9 @@ const SessionAttendancePage = () => {
           {roleFilter === 'invitee' && <> (Invitees)</>}
           {roleFilter === 'member' && <> (Members)</>}
           {roleFilter === 'chapel_leader' && <> (Chapel Leaders)</>}
+          {roleFilter === 'sub_leader' && <> (Sub-leaders)</>}
           {roleFilter === 'worker' && <> (Workers)</>}
+          {nameQuery.trim() && <> matching "{nameQuery.trim()}"</>}
         </div>
 
         {/* Members List */}
@@ -524,7 +563,7 @@ const SessionAttendancePage = () => {
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600 mt-1">
                           {member.chapel?.name
-                            ? `Chapel: ${member.chapel.name} (${member.chapelRole === 'INVITEE' ? 'Invitee' : member.chapelRole === 'WORKER' ? 'Worker' : member.chapelRole === 'CHAPEL_LEADER' ? 'Chapel Leader' : 'Member'})`
+                            ? `Chapel: ${member.chapel.name} (${roleLabel(member.chapelRole)})`
                             : 'Chapel: Unassigned'}
                         </div>
                       </div>

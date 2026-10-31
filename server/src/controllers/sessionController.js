@@ -764,6 +764,8 @@ const getSessionAttendance = async (req, res) => {
             select: {
               id: true,
               name: true,
+              firstName: true,
+              lastName: true,
               email: true,
               pin: true,
               chapelRole: true,
@@ -810,7 +812,6 @@ const getSessionAttendance = async (req, res) => {
     if (includeAbsent === 'true' && totalMembersCount > 0) {
       // Use efficient query - only fetch what we need
       // Limit to reasonable number to prevent timeout
-      const memberLimit = totalMembersCount > 1000 ? 1000 : undefined;
       allMembers = await prisma.member.findMany({
         where: { 
           eventId,
@@ -821,6 +822,8 @@ const getSessionAttendance = async (req, res) => {
         select: {
           id: true,
           name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           pin: true,
           chapelRole: true,
@@ -832,7 +835,6 @@ const getSessionAttendance = async (req, res) => {
           },
         },
         orderBy: { name: 'asc' },
-        ...(memberLimit && { take: memberLimit }),
       });
     }
 
@@ -840,6 +842,8 @@ const getSessionAttendance = async (req, res) => {
     const attendedMembers = attendanceRecords.map(record => ({
       id: record.member.id,
       name: record.member.name,
+      firstName: record.member.firstName,
+      lastName: record.member.lastName,
       email: record.member.email,
       pin: record.member.pin,
       chapelRole: record.member.chapelRole,
@@ -855,6 +859,8 @@ const getSessionAttendance = async (req, res) => {
           .map(member => ({
             id: member.id,
             name: member.name,
+            firstName: member.firstName,
+            lastName: member.lastName,
             email: member.email,
             pin: member.pin,
             chapelRole: member.chapelRole,
