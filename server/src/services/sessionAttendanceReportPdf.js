@@ -116,16 +116,20 @@ const sectionTitle = (doc, title, subtitle) => {
   doc.y += 12;
 };
 
-const startMajor = (doc, toc, title, subtitle, level = 0) => {
-  doc.addPage();
-  doc.y = PAGE.top;
+const markHere = (doc, toc, title, level = 1) => {
   const pageIndex = currentPageIndex(doc);
   toc.push({ title, pageIndex, level });
   try {
-    doc.addNamedDestination(`section-${pageIndex}-${title}`, 'XYZ', PAGE.left, PAGE.top);
+    doc.addNamedDestination(`section-${pageIndex}-${title}`, 'XYZ', PAGE.left, doc.y);
   } catch (_) {
     // page links in the table of contents still work
   }
+};
+
+const startMajor = (doc, toc, title, subtitle) => {
+  doc.addPage();
+  doc.y = PAGE.top;
+  markHere(doc, toc, title, 0);
   try {
     doc.outline.addItem(title);
   } catch (_) {
@@ -449,13 +453,8 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
   chapelNames.forEach((name) => {
     const tally = byChapel.get(name);
     const chapelTotal = totalOf(tally.ALL);
-    startMajor(
-      doc,
-      toc,
-      `Chapel: ${name}`,
-      `${tally.ALL.present} present, ${tally.ALL.absent} absent, ${chapelTotal} registered.`,
-      1,
-    );
+    ensureSpace(doc, 96);
+    markHere(doc, toc, `Chapel: ${name}`, 1);
     const bannerY = doc.y;
     doc.roundedRect(PAGE.left, bannerY, PAGE.width, 26, 3).fill(NAVY_MID);
     cell(doc, name, PAGE.left + 10, bannerY + 7, 220, { color: WHITE, bold: true, size: 11 });
@@ -527,7 +526,8 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
     ...(compare.returningAbsentByChapel || []).map((row) => row.name),
   ])]);
   compareChapels.forEach((name) => {
-    startMajor(doc, toc, `Earlier days compared: ${name}`, 'Present, new, past present and past absent for this chapel.', 1);
+    ensureSpace(doc, 90);
+    markHere(doc, toc, `Earlier days compared: ${name}`, 1);
     const bannerY = doc.y;
     doc.roundedRect(PAGE.left, bannerY, PAGE.width, 22, 3).fill(NAVY_MID);
     cell(doc, name, PAGE.left + 10, bannerY + 5, PAGE.width - 20, { color: WHITE, bold: true, size: 10 });
