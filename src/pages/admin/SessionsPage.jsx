@@ -18,6 +18,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import QRCodeModal from '../../components/admin/QRCodeModal';
+import UniqueChapelAttendance from '../../components/admin/UniqueChapelAttendance';
 import CsvUploadButton from '../../components/admin/CsvUploadButton';
 import { apiCache } from '../../utils/cache';
 import { useEvent } from '../../contexts/EventContext';
@@ -146,6 +147,8 @@ const SessionsPage = () => {
   const upcomingSessions = sessions.filter(s => getSessionStatus(s).status === 'upcoming');
   const focusSession = activeSessions[0]
     || [...sessions].sort((a, b) => new Date(b.startTime) - new Date(a.startTime))[0];
+  const uniqueEventTotal = focusSession?.uniqueEventTotal || sessions[0]?.uniqueEventTotal || 0;
+  const uniqueByChapel = focusSession?.uniqueByChapel || sessions[0]?.uniqueByChapel || [];
 
   if (loading) {
     return (
@@ -272,7 +275,7 @@ const SessionsPage = () => {
                     {sessions.reduce((total, session) => total + (session.attendanceCount || 0), 0)}
                   </dd>
                   <dt className="mt-1 text-xs text-indigo-600 truncate">
-                    {sessions.reduce((total, session) => total + (session.firstTimeCount || 0), 0)} first-time check-ins
+                    {uniqueEventTotal} unique people so far
                   </dt>
                 </dl>
               </div>
@@ -303,6 +306,8 @@ const SessionsPage = () => {
           </div>
         </div>
       )}
+
+      <UniqueChapelAttendance uniqueTotal={uniqueEventTotal} uniqueByChapel={uniqueByChapel} />
 
       {/* All Sessions */}
       <div className="bg-white shadow rounded-lg overflow-hidden">

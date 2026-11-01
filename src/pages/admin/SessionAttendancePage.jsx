@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/SimpleAppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import apiService from '../../services/apiService';
+import UniqueChapelAttendance from '../../components/admin/UniqueChapelAttendance';
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -423,9 +424,19 @@ const SessionAttendancePage = () => {
                 </div>
               </div>
             </div>
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <p className="text-sm font-medium text-slate-800">Unique people at this event so far</p>
+              <p className="text-2xl font-bold text-slate-900">{attendance.summary.uniqueEventTotal || 0}</p>
+              <p className="text-xs text-slate-500 mt-1">Checked in on at least one conference day</p>
+            </div>
           </div>
         </div>
       </div>
+
+      <UniqueChapelAttendance
+        uniqueTotal={attendance.summary.uniqueEventTotal || 0}
+        uniqueByChapel={attendance.summary.uniqueByChapel || []}
+      />
 
       {/* Filter Tabs */}
       <div className="bg-white shadow rounded-lg overflow-hidden">

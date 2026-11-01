@@ -1,3 +1,5 @@
+const { roleLabel, ROLE_KEYS, sortChapelNames } = require('./conferenceAttendance');
+
 const NAVY = '#1B365D';
 const NAVY_MID = '#2C5282';
 const GOLD = '#C4A35A';
@@ -160,9 +162,9 @@ const drawTable = (doc, columns, rows) => {
     let x = PAGE.left;
     columns.forEach((col) => {
       let color = SLATE;
-      if (col.key === 'present') color = GREEN;
-      if (col.key === 'absent') color = RED;
-      if (col.key === 'label') color = NAVY;
+      if (col.key === 'present' || col.key === 'returningPresent' || col.key === 'newCount') color = GREEN;
+      if (col.key === 'absent' || col.key === 'returningAbsent') color = RED;
+      if (col.key === 'label' || col.key === 'name') color = NAVY;
       cell(doc, row[col.key], x + 6, y + 5.5, col.width - 12, {
         color,
         bold: Boolean(row.bold || col.key === 'label'),
@@ -204,7 +206,104 @@ const summaryColumns = [
   { key: 'rate', label: 'Present %', width: 80, align: 'right' },
 ];
 
-const writeSessionAttendanceReport = (doc, { session, event, people }) => {
+const chapelCountColumns = [
+  { key: 'name', label: 'Chapel', width: 119 },
+  { key: 'total', label: 'Unique', width: 56, align: 'right' },
+  { key: 'CHAPEL_LEADER', label: 'Leaders', width: 56, align: 'right' },
+  { key: 'SUB_LEADER', label: 'Sub-ldrs', width: 56, align: 'right' },
+  { key: 'WORKER', label: 'Workers', width: 56, align: 'right' },
+  { key: 'MEMBER', label: 'Members', width: 56, align: 'right' },
+  { key: 'INVITEE', label: 'Invitees', width: 56, align: 'right' },
+  { key: 'NONE', label: 'No role', width: 56, align: 'right' },
+];
+
+const compareColumns = [
+  { key: 'label', label: 'Category', width: 151 },
+  { key: 'present', label: 'Present', width: 90, align: 'right' },
+  { key: 'newCount', label: 'New', width: 90, align: 'right' },
+  { key: 'returningPresent', label: 'Past present', width: 90, align: 'right' },
+  { key: 'returningAbsent', label: 'Past absent', width: 90, align: 'right' },
+];
+
+const nameColumns = [
+  { key: 'n', label: '#', width: 36, align: 'right' },
+  { key: 'name', label: 'Name', width: 220 },
+  { key: 'chapelName', label: 'Chapel', width: 140 },
+  { key: 'role', label: 'Role', width: 115 },
+];
+
+const sumChapelRows = (rows) => {
+  const totals = { name: 'All chapels', total: 0, ...Object.fromEntries(ROLE_KEYS.map((key) => [key, 0])) };
+  for (const row of rows || []) {
+    totals.total += row.total || 0;
+    ROLE_KEYS.forEach((key) => {
+      totals[key] += row[key] || 0;
+    });
+  }
+  return totals;
+};
+
+const chapelTableRows = (rows) => {
+  const list = rows || [];
+  if (!list.length) return [{ name: 'None', total: 0, CHAPEL_LEADER: 0, SUB_LEADER: 0, WORKER: 0, MEMBER: 0, INVITEE: 0, NONE: 0 }];
+  return [...list, { ...sumChapelRows(list), bold: true }];
+};
+
+const findChapel = (rows, name) => (rows || []).find((row) => row.name === name) || {
+  name, total: 0, CHAPEL_LEADER: 0, SUB_LEADER: 0, WORKER: 0, MEMBER: 0, INVITEE: 0, NONE: 0,
+};
+
+const roleRowLabel = (key) => ({
+  CHAPEL_LEADER: 'Chapel leaders',
+  SUB_LEADER: 'Sub-leaders',
+  WORKER: 'Workers',
+  MEMBER: 'Members',
+  INVITEE: 'Invitees',
+  NONE: 'No role assigned',
+}[key] || key);
+
+const compareRows = (compare, chapelName) => {
+  const present = chapelName ? findChapel(compare.presentByChapel, chapelName) : sumChapelRows(compare.presentByChapel);
+  const fresh = chapelName ? findChapel(compare.newByChapel, chapelName) : sumChapelRows(compare.newByChapel);
+  const back = chapelName ? findChapel(compare.returningPresentByChapel, chapelName) : sumChapelRows(compare.returningPresentByChapel);
+  const missed = chapelName ? findChapel(compare.returningAbsentByChapel, chapelName) : sumChapelRows(compare.returningAbsentByChapel);
+  const rows = [{
+    label: 'All roles',
+    present: present.total,
+    newCount: fresh.total,
+    returningPresent: back.total,
+    returningAbsent: missed.total,
+    bold: true,
+  }];
+  ROLE_KEYS.forEach((key) => {
+    if (!present[key] && !fresh[key] && !back[key] && !missed[key]) return;
+    rows.push({
+      label: roleRowLabel(key),
+      present: present[key],
+      newCount: fresh[key],
+      returningPresent: back[key],
+      returningAbsent: missed[key],
+    });
+  });
+  return rows;
+};
+
+const drawNameList = (doc, people) => {
+  const rows = (people || []).map((person, index) => ({
+    n: index + 1,
+    name: person.name,
+    chapelName: person.chapelName,
+    role: roleLabel(person.chapelRole),
+  }));
+  if (!rows.length) {
+    doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(9).text('No people in this group.', PAGE.left, doc.y);
+    doc.y += 16;
+    return;
+  }
+  drawTable(doc, nameColumns, rows);
+};
+
+const writeSessionAttendanceReport = (doc, { session, event, people, report = {} }) => {
   const overall = newTally();
   const byChapel = new Map();
 
@@ -293,6 +392,83 @@ const writeSessionAttendanceReport = (doc, { session, event, people }) => {
     doc.y = bannerY + 32;
     drawTable(doc, summaryColumns, metricRows(tally));
   });
+
+  const uniqueTotal = report.uniqueTotal || 0;
+  const uniqueByChapel = report.uniqueByChapel || [];
+  const uniquePeople = report.uniquePeople || [];
+  const compare = report.sessionCompare || {
+    firstTimeCount: 0,
+    returningPresent: 0,
+    returningAbsent: 0,
+    pastAttendees: 0,
+    presentPeople: [],
+    newPeople: [],
+    returningPresentPeople: [],
+    returningAbsentPeople: [],
+    presentByChapel: [],
+    newByChapel: [],
+    returningPresentByChapel: [],
+    returningAbsentByChapel: [],
+  };
+
+  sectionTitle(
+    doc,
+    '3.  Unique people at this event so far',
+    'Each person is counted once if they checked in on any conference day from Day 1 onward.',
+  );
+  const uniqueCards = [
+    { label: 'Unique people', value: uniqueTotal, color: NAVY },
+    { label: 'This session present', value: compare.presentPeople.length, color: GREEN },
+    { label: 'New this session', value: compare.firstTimeCount, color: NAVY_MID },
+    { label: 'Past absent today', value: compare.returningAbsent, color: RED },
+  ];
+  const uniqueCardY = doc.y;
+  uniqueCards.forEach((card, index) => {
+    const x = PAGE.left + index * 131;
+    doc.roundedRect(x, uniqueCardY, 118, 52, 4).fillAndStroke(WHITE, LINE);
+    doc.rect(x, uniqueCardY, 4, 52).fill(card.color);
+    cell(doc, card.label.toUpperCase(), x + 12, uniqueCardY + 10, 98, { color: MUTED, size: 7.5 });
+    cell(doc, card.value, x + 12, uniqueCardY + 24, 98, { color: card.color, bold: true, size: 18 });
+  });
+  doc.y = uniqueCardY + 68;
+  drawTable(doc, chapelCountColumns, chapelTableRows(uniqueByChapel));
+
+  sectionTitle(
+    doc,
+    '4.  This session compared with earlier days',
+    'Present = checked in today. New = first conference check-in. Past present / past absent = came on an earlier day.',
+  );
+  drawTable(doc, compareColumns, compareRows(compare));
+
+  const compareChapels = sortChapelNames([...new Set([
+    ...(compare.presentByChapel || []).map((row) => row.name),
+    ...(compare.newByChapel || []).map((row) => row.name),
+    ...(compare.returningPresentByChapel || []).map((row) => row.name),
+    ...(compare.returningAbsentByChapel || []).map((row) => row.name),
+  ])]);
+  compareChapels.forEach((name) => {
+    ensureSpace(doc, 90);
+    const bannerY = doc.y;
+    doc.roundedRect(PAGE.left, bannerY, PAGE.width, 22, 3).fill(NAVY_MID);
+    cell(doc, name, PAGE.left + 10, bannerY + 5, PAGE.width - 20, { color: WHITE, bold: true, size: 10 });
+    doc.y = bannerY + 28;
+    drawTable(doc, compareColumns, compareRows(compare, name));
+  });
+
+  sectionTitle(doc, '5.  Unique people who have attended so far', `Full list of ${uniqueTotal} people, with chapel and role.`);
+  drawNameList(doc, uniquePeople);
+
+  sectionTitle(doc, '6.  People present in this session', `${compare.presentPeople.length} checked in, with chapel and role.`);
+  drawNameList(doc, compare.presentPeople);
+
+  sectionTitle(doc, '7.  New in this session', `${compare.newPeople.length} first-time conference check-ins.`);
+  drawNameList(doc, compare.newPeople);
+
+  sectionTitle(doc, '8.  From earlier sessions, present today', `${compare.returningPresentPeople.length} people.`);
+  drawNameList(doc, compare.returningPresentPeople);
+
+  sectionTitle(doc, '9.  From earlier sessions, absent today', `${compare.returningAbsentPeople.length} people.`);
+  drawNameList(doc, compare.returningAbsentPeople);
 
   ensureSpace(doc, 36);
   doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(8).text(

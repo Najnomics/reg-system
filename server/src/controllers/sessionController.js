@@ -3,79 +3,13 @@ const prisma = require('../config/database');
 const qrCodeService = require('../services/qrCodeService');
 const wordConferenceBooklet = require('../services/wordConferenceBooklet');
 const { writeSessionAttendanceReport } = require('../services/sessionAttendanceReportPdf');
+const {
+  getEventAttendanceBundle,
+  statsForSession,
+} = require('../services/conferenceAttendance');
 const PDFDocument = require('pdfkit');
 const { Parser } = require('json2csv');
 const XLSX = require('xlsx');
-
-const CONFERENCE_START = new Date('2026-10-30T00:00:00.000Z');
-
-const firstAttendanceWhere = (event) => {
-  const where = { session: { eventId: event.id } };
-  if (event.slug === 'word-conference') {
-    where.session.OR = [
-      { startTime: { gte: CONFERENCE_START } },
-      { createdAt: { gte: CONFERENCE_START } },
-    ];
-  }
-  return where;
-};
-
-const emptySessionStats = () => ({
-  firstTimeCount: 0,
-  returningPresent: 0,
-  returningAbsent: 0,
-  pastAttendees: 0,
-});
-
-const getConferenceSessionStats = async (event) => {
-  const attendanceWhere = firstAttendanceWhere(event);
-  const [allSessions, rows] = await Promise.all([
-    prisma.session.findMany({
-      where: attendanceWhere.session,
-      select: { id: true, startTime: true },
-      orderBy: { startTime: 'asc' },
-    }),
-    prisma.attendance.findMany({
-      where: attendanceWhere,
-      select: { memberId: true, sessionId: true, checkedInAt: true },
-      orderBy: { checkedInAt: 'asc' },
-    }),
-  ]);
-
-  const attendeesBySession = new Map();
-  const firstSession = new Map();
-  for (const row of rows) {
-    if (!attendeesBySession.has(row.sessionId)) attendeesBySession.set(row.sessionId, new Set());
-    attendeesBySession.get(row.sessionId).add(row.memberId);
-    if (!firstSession.has(row.memberId)) firstSession.set(row.memberId, row.sessionId);
-  }
-
-  const statsById = new Map();
-  const seenPast = new Set();
-  for (const session of allSessions) {
-    const here = attendeesBySession.get(session.id) || new Set();
-    let returningPresent = 0;
-    let returningAbsent = 0;
-    for (const memberId of seenPast) {
-      if (here.has(memberId)) returningPresent += 1;
-      else returningAbsent += 1;
-    }
-    let firstTimeCount = 0;
-    for (const memberId of here) {
-      if (firstSession.get(memberId) === session.id) firstTimeCount += 1;
-    }
-    statsById.set(session.id, {
-      firstTimeCount,
-      returningPresent,
-      returningAbsent,
-      pastAttendees: seenPast.size,
-    });
-    for (const memberId of here) seenPast.add(memberId);
-  }
-  return statsById;
-};
-
-const statsForSession = (statsById, sessionId) => statsById.get(sessionId) || emptySessionStats();
 
 /**
  * Get all sessions with pagination and filtering
@@ -156,9 +90,9 @@ const getSessions = async (req, res) => {
 
     // Add status to each session
     const currentTime = new Date();
-    const conferenceStats = await getConferenceSessionStats(req.event);
+    const bundle = await getEventAttendanceBundle(prisma, req.event);
     const sessionsWithStatus = sessions.map(session => {
-      const stats = statsForSession(conferenceStats, session.id);
+      const stats = statsForSession(bundle, session.id);
       return {
         ...session,
         status: getSessionStatus(session, currentTime),
@@ -167,6 +101,8 @@ const getSessions = async (req, res) => {
         returningPresent: stats.returningPresent,
         returningAbsent: stats.returningAbsent,
         pastAttendees: stats.pastAttendees,
+        uniqueEventTotal: bundle.uniqueTotal,
+        uniqueByChapel: bundle.uniqueByChapel,
       };
     });
 
@@ -177,6 +113,10 @@ const getSessions = async (req, res) => {
       success: true,
       data: {
         sessions: sessionsWithStatus,
+        eventAttendance: {
+          uniqueTotal: bundle.uniqueTotal,
+          uniqueByChapel: bundle.uniqueByChapel,
+        },
         pagination: {
           total,
           page: parseInt(page),
@@ -965,7 +905,8 @@ const getSessionAttendance = async (req, res) => {
       hasSecretAnswerPlain: 'secretAnswerPlain' in sessionWithStatus,
     });
 
-    const conferenceStats = statsForSession(await getConferenceSessionStats(req.event), id);
+    const bundle = await getEventAttendanceBundle(prisma, req.event);
+    const conferenceStats = statsForSession(bundle, id);
 
     res.status(200).json({
       success: true,
@@ -981,6 +922,8 @@ const getSessionAttendance = async (req, res) => {
             firstTime: conferenceStats.firstTimeCount,
             returningPresent: conferenceStats.returningPresent,
             returningAbsent: conferenceStats.returningAbsent,
+            uniqueEventTotal: bundle.uniqueTotal,
+            uniqueByChapel: bundle.uniqueByChapel,
             attendanceRate: totalMembersCount > 0 
               ? Math.round((attendedMembers.length / totalMembersCount) * 100) 
               : 0,
@@ -1396,7 +1339,7 @@ const exportSessionAttendancePDF = async (req, res) => {
       });
     }
 
-    const [attendanceRecords, allMembers] = await Promise.all([
+    const [attendanceRecords, allMembers, bundle] = await Promise.all([
       prisma.attendance.findMany({
         where: { sessionId: id },
         select: { memberId: true },
@@ -1409,6 +1352,7 @@ const exportSessionAttendancePDF = async (req, res) => {
           chapel: { select: { name: true } },
         },
       }),
+      getEventAttendanceBundle(prisma, req.event),
     ]);
 
     const presentIds = new Set(attendanceRecords.map((record) => record.memberId));
@@ -1428,6 +1372,12 @@ const exportSessionAttendancePDF = async (req, res) => {
       session,
       event: req.event,
       people,
+      report: {
+        uniqueTotal: bundle.uniqueTotal,
+        uniqueByChapel: bundle.uniqueByChapel,
+        uniquePeople: bundle.uniquePeople,
+        sessionCompare: statsForSession(bundle, id),
+      },
     });
     doc.end();
 
