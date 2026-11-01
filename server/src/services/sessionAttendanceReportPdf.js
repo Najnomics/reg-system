@@ -95,21 +95,85 @@ const drawFooter = (doc) => {
   }
 };
 
+const currentPageIndex = (doc) => {
+  const range = doc.bufferedPageRange();
+  return range.start + range.count - 1;
+};
+
 const sectionTitle = (doc, title, subtitle) => {
-  ensureSpace(doc, 42);
-  doc.y += 8;
+  doc.y = Math.max(doc.y, PAGE.top);
   doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(13).text(title, PAGE.left, doc.y, {
     width: PAGE.width,
   });
   if (subtitle) {
-    doc.moveDown(0.2);
+    doc.moveDown(0.25);
     doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(subtitle, PAGE.left, doc.y, {
       width: PAGE.width,
     });
   }
   doc.moveDown(0.35);
   doc.rect(PAGE.left, doc.y, 56, 2.5).fill(GOLD);
-  doc.y += 10;
+  doc.y += 12;
+};
+
+const startMajor = (doc, toc, title, subtitle, level = 0) => {
+  doc.addPage();
+  doc.y = PAGE.top;
+  const pageIndex = currentPageIndex(doc);
+  toc.push({ title, pageIndex, level });
+  try {
+    doc.addNamedDestination(`section-${pageIndex}-${title}`, 'XYZ', PAGE.left, PAGE.top);
+  } catch (_) {
+    // page links in the table of contents still work
+  }
+  try {
+    doc.outline.addItem(title);
+  } catch (_) {
+    // outline is optional
+  }
+  sectionTitle(doc, title, subtitle);
+};
+
+const drawTableOfContents = (doc, toc, tocPageIndexes) => {
+  const rowH = 22;
+  let slot = 0;
+  const openTocPage = () => {
+    doc.switchToPage(tocPageIndexes[Math.min(slot, tocPageIndexes.length - 1)]);
+    doc.y = PAGE.top;
+    if (slot === 0) {
+      sectionTitle(doc, 'Table of contents', 'Click a line to jump to that section.');
+    }
+  };
+
+  openTocPage();
+  toc.forEach((entry) => {
+    if (doc.y + rowH > PAGE.bottom) {
+      slot += 1;
+      if (slot < tocPageIndexes.length) openTocPage();
+      else {
+        doc.addPage();
+        tocPageIndexes.push(currentPageIndex(doc));
+        doc.y = PAGE.top;
+      }
+    }
+    const y = doc.y;
+    const indent = 8 + (entry.level || 0) * 18;
+    const pageLabel = String(entry.pageIndex + 1);
+    doc.rect(PAGE.left, y, PAGE.width, rowH).fill(slot % 2 === 0 && entry.level === 0 ? ROW_ALT : WHITE);
+    cell(doc, entry.title, PAGE.left + indent, y + 5, 390 - indent, {
+      color: entry.level ? SLATE : NAVY,
+      bold: entry.level === 0,
+      size: entry.level ? 9 : 10,
+    });
+    cell(doc, pageLabel, PAGE.right - 50, y + 5, 42, {
+      color: GOLD,
+      bold: true,
+      align: 'right',
+      size: 10,
+    });
+    doc.link(PAGE.left, y, PAGE.width, rowH, entry.pageIndex);
+    doc.y = y + rowH;
+  });
 };
 
 const cell = (doc, text, x, y, width, { color = SLATE, bold = false, align = 'left', size = 9 } = {}) => {
@@ -365,11 +429,19 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
   });
   doc.y = cardY + 68;
 
-  sectionTitle(doc, '1.  Overall summary', 'Everyone registered for this event, grouped by role.');
+  const toc = [];
+  const tocPageIndexes = [];
+  doc.addPage();
+  tocPageIndexes.push(currentPageIndex(doc));
+  doc.addPage();
+  tocPageIndexes.push(currentPageIndex(doc));
+
+  startMajor(doc, toc, '1.  Overall summary', 'Everyone registered for this event, grouped by role.');
   drawTable(doc, summaryColumns, metricRows(overall, { includeEmptyRoles: true }));
 
-  sectionTitle(
+  startMajor(
     doc,
+    toc,
     '2.  Chapel breakdown',
     'For each chapel: all roles, then each role, then members and invitees combined.',
   );
@@ -377,7 +449,13 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
   chapelNames.forEach((name) => {
     const tally = byChapel.get(name);
     const chapelTotal = totalOf(tally.ALL);
-    ensureSpace(doc, 96);
+    startMajor(
+      doc,
+      toc,
+      `Chapel: ${name}`,
+      `${tally.ALL.present} present, ${tally.ALL.absent} absent, ${chapelTotal} registered.`,
+      1,
+    );
     const bannerY = doc.y;
     doc.roundedRect(PAGE.left, bannerY, PAGE.width, 26, 3).fill(NAVY_MID);
     cell(doc, name, PAGE.left + 10, bannerY + 7, 220, { color: WHITE, bold: true, size: 11 });
@@ -411,8 +489,9 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
     returningAbsentByChapel: [],
   };
 
-  sectionTitle(
+  startMajor(
     doc,
+    toc,
     '3.  Unique people at this event so far',
     'Each person is counted once if they checked in on any conference day from Day 1 onward.',
   );
@@ -433,8 +512,9 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
   doc.y = uniqueCardY + 68;
   drawTable(doc, chapelCountColumns, chapelTableRows(uniqueByChapel));
 
-  sectionTitle(
+  startMajor(
     doc,
+    toc,
     '4.  This session compared with earlier days',
     'Present = checked in today. New = first conference check-in. Past present / past absent = came on an earlier day.',
   );
@@ -447,7 +527,7 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
     ...(compare.returningAbsentByChapel || []).map((row) => row.name),
   ])]);
   compareChapels.forEach((name) => {
-    ensureSpace(doc, 90);
+    startMajor(doc, toc, `Earlier days compared: ${name}`, 'Present, new, past present and past absent for this chapel.', 1);
     const bannerY = doc.y;
     doc.roundedRect(PAGE.left, bannerY, PAGE.width, 22, 3).fill(NAVY_MID);
     cell(doc, name, PAGE.left + 10, bannerY + 5, PAGE.width - 20, { color: WHITE, bold: true, size: 10 });
@@ -455,29 +535,30 @@ const writeSessionAttendanceReport = (doc, { session, event, people, report = {}
     drawTable(doc, compareColumns, compareRows(compare, name));
   });
 
-  sectionTitle(doc, '5.  Unique people who have attended so far', `Full list of ${uniqueTotal} people, with chapel and role.`);
+  startMajor(doc, toc, '5.  Unique people who have attended so far', `Full list of ${uniqueTotal} people, with chapel and role.`);
   drawNameList(doc, uniquePeople);
 
-  sectionTitle(doc, '6.  People present in this session', `${compare.presentPeople.length} checked in, with chapel and role.`);
+  startMajor(doc, toc, '6.  People present in this session', `${compare.presentPeople.length} checked in, with chapel and role.`);
   drawNameList(doc, compare.presentPeople);
 
-  sectionTitle(doc, '7.  New in this session', `${compare.newPeople.length} first-time conference check-ins.`);
+  startMajor(doc, toc, '7.  New in this session', `${compare.newPeople.length} first-time conference check-ins.`);
   drawNameList(doc, compare.newPeople);
 
-  sectionTitle(doc, '8.  From earlier sessions, present today', `${compare.returningPresentPeople.length} people.`);
+  startMajor(doc, toc, '8.  From earlier sessions, present today', `${compare.returningPresentPeople.length} people.`);
   drawNameList(doc, compare.returningPresentPeople);
 
-  sectionTitle(doc, '9.  From earlier sessions, absent today', `${compare.returningAbsentPeople.length} people.`);
+  startMajor(doc, toc, '9.  From earlier sessions, absent today', `${compare.returningAbsentPeople.length} people.`);
   drawNameList(doc, compare.returningAbsentPeople);
 
-  ensureSpace(doc, 36);
-  doc.fillColor(MUTED).font('Helvetica-Oblique').fontSize(8).text(
-    `Prepared ${formatWhen(new Date())}. Counts use active registered people only. “No role assigned” is people with no chapel role. “Unassigned” is people with no chapel.`,
+  startMajor(doc, toc, 'Notes', 'How to read this report.');
+  doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(
+    `Prepared ${formatWhen(new Date())}. Counts use active registered people only. “No role assigned” is people with no chapel role. “Unassigned” is people with no chapel. Click any line in the table of contents to open that section.`,
     PAGE.left,
     doc.y,
     { width: PAGE.width },
   );
 
+  drawTableOfContents(doc, toc, tocPageIndexes);
   drawFooter(doc);
 };
 
