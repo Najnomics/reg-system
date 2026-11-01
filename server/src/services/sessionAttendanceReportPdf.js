@@ -118,11 +118,32 @@ const sectionTitle = (doc, title, subtitle) => {
 
 const markHere = (doc, toc, title, level = 1) => {
   const pageIndex = currentPageIndex(doc);
-  toc.push({ title, pageIndex, level });
+  const destName = `sec${toc.length}`;
+  toc.push({
+    title,
+    pageIndex,
+    level,
+    destName,
+    pageDict: doc.page.dictionary,
+  });
   try {
-    doc.addNamedDestination(`section-${pageIndex}-${title}`, 'XYZ', PAGE.left, doc.y);
+    doc.addNamedDestination(destName, 'XYZ', PAGE.left, PAGE.top);
   } catch (_) {
-    // page links in the table of contents still work
+    // goTo still uses the stored page dictionary
+  }
+};
+
+const addJumpLink = (doc, x, y, w, h, entry) => {
+  if (entry.destName) {
+    doc.goTo(x, y, w, h, entry.destName);
+  }
+  if (entry.pageDict) {
+    const action = doc.ref({
+      S: 'GoTo',
+      D: [entry.pageDict, 'XYZ', null, null, null],
+    });
+    action.end();
+    doc.annotate(x, y, w, h, { Subtype: 'Link', A: action });
   }
 };
 
@@ -143,6 +164,8 @@ const drawTableOfContents = (doc, toc, tocPageIndexes) => {
   let slot = 0;
   const openTocPage = () => {
     doc.switchToPage(tocPageIndexes[Math.min(slot, tocPageIndexes.length - 1)]);
+    doc._ctm = [1, 0, 0, 1, 0, 0];
+    doc.transform(1, 0, 0, -1, 0, doc.page.height);
     doc.y = PAGE.top;
     if (slot === 0) {
       sectionTitle(doc, 'Table of contents', 'Click a line to jump to that section.');
@@ -163,19 +186,23 @@ const drawTableOfContents = (doc, toc, tocPageIndexes) => {
     const y = doc.y;
     const indent = 8 + (entry.level || 0) * 18;
     const pageLabel = String(entry.pageIndex + 1);
-    doc.rect(PAGE.left, y, PAGE.width, rowH).fill(slot % 2 === 0 && entry.level === 0 ? ROW_ALT : WHITE);
-    cell(doc, entry.title, PAGE.left + indent, y + 5, 390 - indent, {
-      color: entry.level ? SLATE : NAVY,
-      bold: entry.level === 0,
-      size: entry.level ? 9 : 10,
-    });
-    cell(doc, pageLabel, PAGE.right - 50, y + 5, 42, {
-      color: GOLD,
-      bold: true,
+    doc.rect(PAGE.left, y, PAGE.width, rowH).fill(entry.level === 0 ? ROW_ALT : WHITE);
+    doc.fillColor(entry.level ? '#1D4E89' : NAVY)
+      .font(entry.level ? 'Helvetica' : 'Helvetica-Bold')
+      .fontSize(entry.level ? 9 : 10)
+      .text(entry.title, PAGE.left + indent, y + 5, {
+        width: 390 - indent,
+        lineBreak: false,
+        underline: true,
+        goTo: entry.destName,
+      });
+    doc.fillColor(GOLD).font('Helvetica-Bold').fontSize(10).text(pageLabel, PAGE.right - 50, y + 5, {
+      width: 42,
       align: 'right',
-      size: 10,
+      lineBreak: false,
+      goTo: entry.destName,
     });
-    doc.link(PAGE.left, y, PAGE.width, rowH, entry.pageIndex);
+    addJumpLink(doc, PAGE.left, y, PAGE.width, rowH, entry);
     doc.y = y + rowH;
   });
 };
